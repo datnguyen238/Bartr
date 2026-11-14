@@ -8,6 +8,12 @@
 
 **Input**: User description: "Bartr is an AI-powered, money-free marketplace for college students and young adults. Users publish inventories and interests, discover mutually useful combinations of items across two inventories, review estimated values and explanations, and negotiate or accept voluntary bundle exchanges."
 
+## Clarifications
+
+### Session 2026-11-14
+
+- Q: What should Bartr prioritize when several possible trades meet both members' requirements? → A: Specific-product matches for both members first, then one member, then category-only matches; break ties by smaller value gap.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Prepare an inventory and trading interests (Priority: P1)
@@ -50,6 +56,7 @@ As a member seeking something I need, I want Bartr to consider combinations acro
 7. **Given** an empty inventory, no saved interests, or no qualifying counterpart, **When** a member requests recommendations, **Then** Bartr distinguishes the reason and provides an appropriate next action such as listing an item, adding interests, or adjusting constraints.
 8. **Given** recommendation generation fails, **When** the request ends unsuccessfully, **Then** Bartr states that recommendations could not be generated, preserves saved information and existing proposals, and offers retry; it does not report that no compatible trades exist.
 9. **Given** an item lacks a usable positive value, **When** Bartr assesses bundles containing it, **Then** it does not present those bundles as value-qualified recommendations and identifies the missing valuation; the listing remains available for a manually composed proposal.
+10. **Given** several eligible recommendations, including specific-product matches for both members, for only one member, and category-only matches, **When** Bartr displays them, **Then** they appear in that priority order even if a lower-priority match has a smaller value gap; within each priority, recommendations with smaller percentage value gaps appear first.
 
 ---
 
@@ -118,6 +125,8 @@ Exchanges contain one to three distinct physical items per participant. There is
 
 For automatic recommendations, every incoming item must match at least one of the receiving member's stated interests, no exclusion may be violated, and both members' value-gap limits must be satisfied. A manually composed offer may include items beyond positive interests or value-gap limits, with clear disclosure; it must still respect exclusions, community, ownership, availability, and bundle-size constraints.
 
+Eligible recommendations are ranked first by how many participants receive at least one item matching an explicitly saved specific-product interest: both participants first, then one participant, then neither participant (category-only matches). Within each of these three priorities, smaller percentage value gaps rank first. A single specific-product match is sufficient to count a participant in that priority; extra matching items do not create a higher priority. Ranking never overrides eligibility constraints. Recommendations with the same priority and percentage gap have no further required ordering.
+
 The comparison gap is the absolute difference between the two bundle totals divided by the larger total, expressed as a percentage. The default recommendation limit is 20% for each member; each may choose a limit from 0% to 100%. Values use one shared comparison currency, initially USD, solely as estimates.
 
 AI suggestions are advisory and create no consent. Submitting an offer or counteroffer records the sender's consent to that exact version. Only the second participant's acceptance of the unchanged current version can establish agreement and reserve items. A counteroffer replaces earlier consent. Suggested bundles and open offers can overlap; agreed exchanges cannot share items.
@@ -139,7 +148,7 @@ Physical handoff and any actual return of belongings are the participants' respo
 - **FR-007**: Signed-in members MUST be able to inspect published available listings and their public owner profiles from recommendations and when manually composing an offer. Drafts and removed listings MUST NOT be discoverable. **Acceptance**: Story 1.2, 1.6–1.7; Story 2.5; Story 3.1.
 - **FR-008**: Bartr MUST use the meaning of item descriptions and interests to discover compatible exchanges even when wording differs. **Acceptance**: Story 2.3.
 - **FR-009**: Bartr MUST evaluate combinations across both members' available inventories and support any combination of one to three distinct items per side, rather than limiting opportunities to one item per member. **Acceptance**: Story 2.1–2.2 and the bundle-size edge case.
-- **FR-010**: Automatically recommended bundles MUST satisfy the recommendation eligibility rules, both members' constraints, and the defined value-gap calculation. Recommendations MUST NOT include an unknown-valued item or silently relax a constraint. **Acceptance**: Story 2.1, 2.4, 2.9.
+- **FR-010**: Automatically recommended bundles MUST satisfy the recommendation eligibility rules, both members' constraints, and the defined value-gap calculation. Recommendations MUST NOT include an unknown-valued item or silently relax a constraint. Eligible recommendations MUST be displayed in the specific-product priority order defined above, with smaller percentage value gaps breaking ties within each priority. **Acceptance**: Story 2.1, 2.4, 2.9–2.10.
 - **FR-011**: Each recommendation MUST show what each member gives and receives, individual values and their sources, bundle totals, the absolute and percentage differences, and why the actual items align with both members' interests. It MUST NOT assert unconfirmed item attributes or guaranteed fairness. **Acceptance**: Story 2.1, 2.5; the ambiguous-image edge case.
 - **FR-012**: Members MUST be able to inspect and dismiss recommendations without submitting an offer, consenting, or reserving items. A dismissed combination MUST stay hidden from that member until its item details or their preferences change. **Acceptance**: Story 2.5–2.6.
 - **FR-013**: Bartr MUST distinguish missing inventory, missing interests, no qualifying exchange, missing valuation, and assistance failure, with an actionable explanation and preserved saved data. **Acceptance**: Story 1.4; Story 2.7–2.9.
@@ -177,7 +186,7 @@ Physical handoff and any actual return of belongings are the participants' respo
 ### Measurable Outcomes
 
 - **SC-001**: At least 90% of 20 representative first-time participants can create a profile, publish two items, and save one specific and one category interest within 10 minutes without facilitator assistance, using their own prepared photos.
-- **SC-002**: In an agreed evaluation set of at least 40 two-member inventory cases with independently identified qualifying trades, Bartr returns at least one qualifying exchange in at least 90% of cases. The set covers every supported bundle shape, including three-item sides, and includes the chair + calculator ↔ monitor example.
+- **SC-002**: In an agreed evaluation set of at least 40 two-member inventory cases with independently identified qualifying trades, Bartr returns at least one qualifying exchange in at least 90% of cases. The set covers every supported bundle shape, including three-item sides, and includes the chair + calculator ↔ monitor example. In all ranking evaluation cases, 100% of displayed recommendations follow the defined specific-product priorities and percentage-value-gap tie-breaker.
 - **SC-003**: In at least 20 paired-description cases whose relevance is independently confirmed, at least 90% produce the same eligible trading opportunity despite different wording such as "desk screen" and "computer monitor."
 - **SC-004**: Across all evaluated recommendations and acceptance scenarios, 100% respect ownership, availability, exclusions, community, and bundle limits. All simultaneous overlapping-acceptance and retry scenarios finish without duplicate agreements, partial reservations, or double-committed items.
 - **SC-005**: With 1,000 available listings, inventories of up to 30 items per member, and 20 members requesting recommendations concurrently, at least 95% of requests show recommendations or a correct no-match outcome within 10 seconds; failed requests are reported as failures.
@@ -192,7 +201,7 @@ Physical handoff and any actual return of belongings are the participants' respo
 - Initial exchanges are between exactly two people in the same self-selected campus or city community. One to three items per side is the launch boundary, including larger-than-two combinations; expanding that limit or introducing multi-party cycles is future scope.
 - Physical, locally handed-off belongings are in scope. Payments, cash supplements, platform credits, shipping management, services, auctions, reviews, university eligibility verification, and dispute adjudication are outside this release.
 - USD is the shared comparison currency for the pilot. The 20% default gap and three-item limit are explicit launch defaults chosen where the brief supplied no threshold or cap. Members may accept an imbalanced manually composed offer; numerical similarity never establishes consent.
-- Positive interests are alternatives: an incoming item matching any stated interest is relevant. Every item in an automatic receiving bundle must be relevant; explicit exclusions remain mandatory even for manual offers. No weighting or exhaustive, globally optimal search is promised.
+- Positive interests are alternatives: an incoming item matching any stated interest is relevant. Every item in an automatic receiving bundle must be relevant; explicit exclusions remain mandatory even for manual offers. Ranking follows the defined specific-product priorities and percentage-value-gap tie-breaker; exhaustive, globally optimal search is not promised.
 - Automatic value-qualified recommendations depend on positive comparison values and complete, available listings. Owners can correct assisted data, supply values, or negotiate manually during assistance failures. Recommendation explanations cannot treat uncertain estimates as verified facts.
 - Open offers do not reserve items or automatically expire. Agreement reserves them until valid cancellation or mutual completion. If one participant reports handoff and the other is unresponsive or disagrees, the record stays unresolved and items remain reserved; automated dispute resolution is outside scope.
 - Owners cannot change a reserved item's trading details. A community or preference change affects new recommendations and open offers, while an existing agreement retains its explicitly accepted terms.
