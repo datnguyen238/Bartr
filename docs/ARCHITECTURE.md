@@ -44,4 +44,4 @@ The example authorizes explaining the $60 versus $65 trade when acceptable to bo
 
 ## Current state versus target
 
-Current: FastAPI health endpoint, typed Next.js proxy/client, shadcn components and starter page. Target: the inventory-to-bundle pipeline above. Existing local credentials, data and running services from Swapify are not automatically transferred. Scope confirmation is pending before application code changes.
+This document records an earlier architecture direction. The implemented account, inventory and trading journeys are summarized in the [README](../README.md), with evidence and limitations in [VERIFICATION.md](VERIFICATION.md). The current MVP uses a bounded versioned state aggregate; the canonical plan describes a broader persistence/interface design. Record and reconcile those differences using the [engineering workflow](ENGINEERING.md#authority-and-current-implementation) before claiming design completion. Historical open questions above defer to the approved root specification and its clarifications. Existing local credentials, data and running services from Swapify are not automatically transferred.

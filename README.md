@@ -76,6 +76,8 @@ npm run build
 
 Domain/API/adapter fixtures verify permissions, item publication, all nine bundle shapes, percentage limits, exact revisions, duplicate command handling, overlapping acceptance, cancellations and handoff. See [the implementation plan](specs/001-smart-barter-marketplace/plan.md), [tasks](specs/001-smart-barter-marketplace/tasks.md), and [verification status](docs/VERIFICATION.md).
 
+Engineering changes follow the [AI engineering workflow](docs/ENGINEERING.md), including requirement-linked assignments, independent behavioral review, and evidence labeled by storage and provider mode.
+
 ## Structure and limits
 
 - `backend/app/domain.py`: authoritative account, listing and exchange rules.

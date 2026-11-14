@@ -2,6 +2,8 @@
 
 Canonical scope: [root feature specification](../specs/001-smart-barter-marketplace/spec.md). Earlier bundle-only drafts are superseded.
 
+Record future evidence using the [engineering workflow](ENGINEERING.md#evidence-and-completion-records): revision, scope, exact evaluation, environment, storage/provider mode, result and limitations. Its [evaluation matrix](ENGINEERING.md#evaluation-matrix) defines proportionate checks for each changed domain. This process documentation adds no new execution results to the status below.
+
 ## Implemented paths
 
 Account registration/sign-in/out with hashed passwords and opaque sessions; public profiles and private preferences; draft/photo/publication/edit/removal; reviewed Gemini suggestions; revision-bound valuation evidence; Bedrock embedding and Atlas retrieval adapters; deterministic one-to-three item matching with both gap limits; dismissals; manual proposals, notes/counteroffers and exact-version consent; atomic reservations/overlap invalidation; cancellation and two-party handoff.
