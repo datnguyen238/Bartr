@@ -19,3 +19,4 @@ out/
 .swapify/
 .DS_Store
 *.log
+/.vscode/
