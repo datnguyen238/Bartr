@@ -1,4 +1,4 @@
-import { money, type Terms } from "@/lib/marketplace";
+import { money, type Item, type Terms } from "@/lib/marketplace";
 
 export function TermsView({ terms, who }: { terms: Terms; who: string }) {
   const outgoing = terms.left_owner === who ? terms.left : terms.right,
