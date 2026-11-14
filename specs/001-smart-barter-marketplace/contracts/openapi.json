@@ -1,0 +1,5022 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bartr Marketplace API Design",
+    "version": "0.2.0",
+    "description": "Phase1 design contract, not implemented endpoints. Authoritative FastAPI behind existing Next same-origin /api rewrite. Public/private projections, retry and concurrency details in ../data-model.md and matching-and-ui.md. Money is integer cents; percentage is display only. Production uses __Host-bartr_session; the documented cookie name is localhost. All authenticated mutations require Origin/CSRF; command mutations also require idempotency. Revisions and terms_hash are server-validated. Default errors never contain private text, credentials or raw provider payloads."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Same-origin development UI/API proxy"
+    }
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Preserve the foundation health response",
+        "description": "Preserve the foundation health response",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "const": "ok"
+                    },
+                    "service": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "service"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/catalog": {
+      "get": {
+        "operationId": "catalog",
+        "summary": "Read canonical community/category/condition catalog",
+        "description": "Read canonical community/category/condition catalog",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "operationId": "session",
+        "summary": "Bootstrap anonymous CSRF or read the current authenticated session",
+        "description": "Establish a one-hour anonymous session when signed out. Authenticated sessions last at most seven days. Never return the opaque session cookie value. Response no-store.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "operationId": "register",
+        "summary": "Create an adult pilot account and rotate session",
+        "description": "Create an adult pilot account and rotate session Requires the anonymous cookie established by GET auth/session and its CSRF token; member authentication is not yet required.",
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterInput"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Authenticate and rotate session",
+        "description": "Authenticate and rotate session Requires the anonymous cookie established by GET auth/session and its CSRF token; member authentication is not yet required.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "Revoke the current session and expire its cookie",
+        "description": "Revoke the current session and expire its cookie",
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ]
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Read the private member profile",
+        "description": "Read the private member profile",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Update display name and community; record incompatible policy invalidations",
+        "description": "Update display name and community; record incompatible policy invalidations",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/preferences": {
+      "get": {
+        "operationId": "getPreferences",
+        "summary": "Read private interests and exclusions",
+        "description": "Read private interests and exclusions",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putPreferences",
+        "summary": "Replace member-confirmed preferences",
+        "description": "If-Match is the preferences revision. Hard-policy changes append immutable policy snapshots; soft interests/value limits do not invalidate otherwise eligible manual offers.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/preferences/interpret": {
+      "post": {
+        "operationId": "interpretPreferences",
+        "summary": "Suggest semantic normalization without saving preferences",
+        "description": "Suggest semantic normalization without saving preferences",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterpretResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterpretInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{member_id}": {
+      "get": {
+        "operationId": "publicProfile",
+        "summary": "Read only another member's public trading profile",
+        "description": "Read only another member's public trading profile",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MemberId"
+          }
+        ]
+      }
+    },
+    "/api/items": {
+      "get": {
+        "operationId": "listItems",
+        "summary": "List available published items or the current owner's inventory",
+        "description": "mine=true may include the actor's own drafts, removed and committed items. Other-member discovery exposes only currently available published items; no private drafts/history. Cursor order uses created_at plus item_id.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "owner_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "community_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createItem",
+        "summary": "Create an owner-controlled draft",
+        "description": "Create an owner-controlled draft",
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemDraftInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}": {
+      "get": {
+        "operationId": "getItem",
+        "summary": "Read an owner item or discoverable available listing",
+        "description": "Read an owner item or discoverable available listing",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ItemId"
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchItem",
+        "summary": "Edit draft/available trading facts; invalidate reviewed offers",
+        "description": "Partial merge of supplied facts. Valuation/image lists, if supplied, replace their field. Reserved/exchanged/removed item edits are rejected. CAS uses public revision; changing trading details increments trading_revision.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ItemId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemDraftInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}/publish": {
+      "post": {
+        "operationId": "publishItem",
+        "summary": "Publish a complete draft",
+        "description": "Publish a complete draft",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ItemId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ]
+      }
+    },
+    "/api/items/{item_id}/remove": {
+      "post": {
+        "operationId": "removeItem",
+        "summary": "Remove a draft or available listing",
+        "description": "Remove a draft or available listing",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ItemId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ]
+      }
+    },
+    "/api/items/{item_id}/images": {
+      "post": {
+        "operationId": "uploadImage",
+        "summary": "Sanitize and attach one image to an owned editable item",
+        "description": "Sanitize and attach one image to an owned editable item",
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageUpload"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "413": {
+            "description": "Upload exceeds 8 MiB, sanitized image exceeds 4 MiB, or decoded image exceeds 20 megapixels.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported or invalid image.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ItemId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images/{image_id}": {
+      "get": {
+        "operationId": "getImage",
+        "summary": "Read image as its owner, a current listing viewer, or an authorized historical trade participant",
+        "description": "Authorize against live listing or immutable participant snapshot references. Never expose a public bucket URL or infer permission from a guessed image UUID. Cache-Control: private,no-store.",
+        "responses": {
+          "200": {
+            "description": "Sanitized image bytes",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ImageId"
+          }
+        ]
+      }
+    },
+    "/api/items/{item_id}/analysis": {
+      "post": {
+        "operationId": "analyzeItem",
+        "summary": "Return advisory image analysis without changing confirmed item facts",
+        "description": "Owner only. Maximum20-second provider budget, review before applying suggestions with PATCH. Delayed results never overwrite a newer source_revision. Provider payload/error contract is provider-contracts.md.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ItemId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations": {
+      "post": {
+        "operationId": "recommendations",
+        "summary": "Generate ranked, advisory bundles",
+        "description": "Nine-second processing budget. Return at most20, default10. 2/1/0 specific-product recipients then exact relative gap. No reservation/consent. Incomplete semantic/index/deadline processing returns503/504, never no_match.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations/{recommendation_id}": {
+      "get": {
+        "operationId": "getRecommendation",
+        "summary": "Inspect a requester-private recommendation",
+        "description": "Inspect a requester-private recommendation",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recommendation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RecommendationId"
+          }
+        ]
+      }
+    },
+    "/api/recommendations/{recommendation_id}/dismiss": {
+      "post": {
+        "operationId": "dismissRecommendation",
+        "summary": "Dismiss one combination until item details or requester preferences change",
+        "description": "Dismiss one combination until item details or requester preferences change",
+        "responses": {
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Successful response"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RecommendationId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/trades/preview": {
+      "post": {
+        "operationId": "previewTrade",
+        "summary": "Review current terms, valuations and required warnings before submission",
+        "description": "Pure evaluation, no offer/consent/reservation. terms_hash binds reviewed item facts and displayed warnings. POST trades/counteroffer must recompute it and reject stale terms. Product interests may be bypassed with disclosure; hard constraints cannot.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades": {
+      "get": {
+        "operationId": "listTrades",
+        "summary": "Read participant-only trade list with effective sticky invalidation",
+        "description": "Read participant-only trade list with effective sticky invalidation",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createTrade",
+        "summary": "Submit a reviewed proposal and sender consent",
+        "description": "Submit a reviewed proposal and sender consent Supplied terms_hash is recomputed against the current preview; mismatches require renewed review.",
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}": {
+      "get": {
+        "operationId": "getTrade",
+        "summary": "Read current effective state and immutable participant history",
+        "description": "Read current effective state and immutable participant history",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeHistory"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/trades/{trade_id}/offers": {
+      "post": {
+        "operationId": "counteroffer",
+        "summary": "Replace current open offer, preserving prior versions and clearing old consent",
+        "description": "Replace current open offer, preserving prior versions and clearing old consent Supplied terms_hash is recomputed against the current preview; mismatches require renewed review.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/notes": {
+      "post": {
+        "operationId": "addNote",
+        "summary": "Append a private trade-specific note",
+        "description": "Open/agreed/awaiting-confirmation trades only; closed histories are read-only. A note increments the trade revision. Never send note text to Gemini/Bedrock or operational logs.",
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/accept": {
+      "post": {
+        "operationId": "accept",
+        "summary": "Accept unchanged current offer and reserve all items atomically",
+        "description": "Accept unchanged current offer and reserve all items atomically",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/withdraw": {
+      "post": {
+        "operationId": "withdraw",
+        "summary": "Close an open proposal as the current offer sender",
+        "description": "Close an open proposal as the current offer sender",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionAction"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/decline": {
+      "post": {
+        "operationId": "decline",
+        "summary": "Close an open proposal as the current offer recipient",
+        "description": "Close an open proposal as the current offer recipient",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionAction"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/cancel": {
+      "post": {
+        "operationId": "cancel",
+        "summary": "Cancel before handoff or record one participant's cancellation approval afterward",
+        "description": "Cancel before handoff or record one participant's cancellation approval afterward",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/confirm-handoff": {
+      "post": {
+        "operationId": "confirmHandoff",
+        "summary": "Record handoff and complete only after both participants confirm",
+        "description": "Record handoff and complete only after both participants confirm",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trade"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Quoted revision of the returned resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Commit/result not yet established; retain original key and payload and query the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "428": {
+            "description": "If-Match required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TradeId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionAction"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/operations/{key}": {
+      "get": {
+        "operationId": "getOperation",
+        "summary": "Reconcile a member-scoped command outcome",
+        "description": "Only the actor can look up its key. Completed/rejected receipt returns200. Missing or not-yet-provable receipt returns202 outcome=unresolved, never a fabricated failure. Query/retry the same original key; do not create a replacement key.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Still unresolved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/PreconditionFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/Deadline"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OperationKey"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "bartr_session",
+        "description": "Opaque session identifier. Production cookie __Host-bartr_session has Secure,HttpOnly,SameSite=Lax,Path=/ and no Domain. An anonymous session is sufficient only for bootstrap/register/login; every other protected route needs a member."
+      }
+    },
+    "parameters": {
+      "MemberId": {
+        "name": "member_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "ItemId": {
+        "name": "item_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "ImageId": {
+        "name": "image_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "TradeId": {
+        "name": "trade_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "RecommendationId": {
+        "name": "recommendation_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "OperationKey": {
+        "name": "key",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128
+        }
+      },
+      "Origin": {
+        "name": "Origin",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Must equal an explicitly allowed frontend origin, including register/login."
+      },
+      "CSRF": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Session-bound synchronizer token returned by GET auth/session."
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128
+        },
+        "description": "Unique per member across mutations. Reuse identical method/path/body/expected revision on retry; different request with same key409. Resolve replay receipt before current If-Match."
+      },
+      "IfMatch": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^\"[1-9][0-9]*\"$"
+        },
+        "description": "Quoted resource revision. Missing428; stale412 with current revision, except identical idempotent replay returns original outcome."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "BadRequest",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Forbidden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Absent or unauthorized private resource; no existence/content leak.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "PreconditionFailed": {
+        "description": "The reviewed resource revision or terms_hash changed; reload and review before a new command.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "ValidationError",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "RateLimited",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Seconds before retry."
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Dependency, semantic artifacts, index completeness or capacity unavailable. Codes distinguish assistance_unavailable, invalid_provider_output, semantic_index_unavailable, generation_incomplete, capacity_exceeded and database_unavailable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Deadline": {
+        "description": "Deadline",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "additionalProperties": false
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "community_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campus",
+              "city"
+            ]
+          }
+        },
+        "required": [
+          "community_id",
+          "label",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "Catalog": {
+        "type": "object",
+        "properties": {
+          "communities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Community"
+            }
+          },
+          "category_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "new",
+                "good",
+                "fair",
+                "needs_repair"
+              ]
+            }
+          },
+          "catalog_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "communities",
+          "category_ids",
+          "conditions",
+          "catalog_version"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfile": {
+        "type": "object",
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "community_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "member_id",
+          "display_name",
+          "community_id"
+        ],
+        "additionalProperties": false
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "community_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "member_id",
+          "email",
+          "display_name",
+          "community_id",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "AuthSession": {
+        "type": "object",
+        "properties": {
+          "member": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Member"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "csrf_token": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "member",
+          "csrf_token",
+          "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "RegisterInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 128
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "community_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "adult_attestation": {
+            "const": true
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "display_name",
+          "community_id",
+          "adult_attestation"
+        ],
+        "additionalProperties": false
+      },
+      "LoginInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "ProfileInput": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "community_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "display_name",
+          "community_id"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryInterest": {
+        "type": "object",
+        "properties": {
+          "interest_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "const": "category"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "category_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "interest_id",
+          "kind",
+          "text",
+          "category_id"
+        ],
+        "additionalProperties": false
+      },
+      "SpecificInterest": {
+        "type": "object",
+        "properties": {
+          "interest_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "const": "specific_product"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "category_id": {
+            "type": "string"
+          },
+          "product_type": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "interest_id",
+          "kind",
+          "text",
+          "category_id",
+          "product_type"
+        ],
+        "additionalProperties": false
+      },
+      "Interest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategoryInterest"
+          },
+          {
+            "$ref": "#/components/schemas/SpecificInterest"
+          }
+        ]
+      },
+      "Exclusion": {
+        "type": "object",
+        "properties": {
+          "exclusion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_id": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "good",
+              "fair",
+              "needs_repair"
+            ]
+          },
+          "brand": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "exclusion_id"
+        ],
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "category_id"
+            ]
+          },
+          {
+            "required": [
+              "condition"
+            ]
+          },
+          {
+            "required": [
+              "brand"
+            ]
+          }
+        ],
+        "description": "All supplied predicates are ANDed. Separate exclusions are ORed. Canonical, member-confirmed values only; no empty predicate."
+      },
+      "PreferencesInput": {
+        "type": "object",
+        "properties": {
+          "interests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Interest"
+            },
+            "maxItems": 30
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exclusion"
+            },
+            "maxItems": 30
+          },
+          "max_value_gap_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "interests",
+          "exclusions",
+          "max_value_gap_bps"
+        ],
+        "additionalProperties": false
+      },
+      "Preferences": {
+        "type": "object",
+        "properties": {
+          "interests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Interest"
+            }
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exclusion"
+            }
+          },
+          "max_value_gap_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "hard_policy_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "interests",
+          "exclusions",
+          "max_value_gap_bps",
+          "revision",
+          "hard_policy_revision"
+        ],
+        "additionalProperties": false
+      },
+      "Valuation": {
+        "type": "object",
+        "properties": {
+          "amount_cents": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 1000000000000
+          },
+          "currency": {
+            "const": "USD"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "assisted",
+              "unknown"
+            ]
+          },
+          "last_set_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "uncertainty_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "amount_cents",
+          "currency",
+          "source",
+          "last_set_at",
+          "uncertainty_reasons"
+        ],
+        "additionalProperties": false,
+        "description": "Null is unknown, never zero. Known values require source owner/assisted and a date. Source unknown requires amount/date null."
+      },
+      "ItemFacts": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "category_id": {
+            "type": "string"
+          },
+          "product_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "good",
+              "fair",
+              "needs_repair"
+            ]
+          },
+          "valuation": {
+            "$ref": "#/components/schemas/Valuation"
+          },
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "category_id",
+          "condition",
+          "valuation",
+          "image_ids"
+        ],
+        "additionalProperties": false
+      },
+      "ItemDraftInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "category_id": {
+            "type": "string"
+          },
+          "product_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "good",
+              "fair",
+              "needs_repair"
+            ]
+          },
+          "valuation": {
+            "$ref": "#/components/schemas/ValuationInput"
+          },
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 4,
+            "uniqueItems": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "Item": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/PublicProfile"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "available",
+              "reserved",
+              "exchanged",
+              "removed"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "trading_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "availability_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "facts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItemFacts"
+              },
+              {
+                "$ref": "#/components/schemas/ItemDraftFacts"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "item_id",
+          "owner",
+          "state",
+          "revision",
+          "trading_revision",
+          "availability_epoch",
+          "facts",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "ItemList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ImageUpload": {
+        "type": "object",
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mime_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ]
+          },
+          "byte_length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4194304
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "image_id",
+          "item_id",
+          "mime_type",
+          "byte_length",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      },
+      "AnalysisInput": {
+        "type": "object",
+        "properties": {
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true
+          },
+          "source_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "image_ids",
+          "source_revision"
+        ],
+        "additionalProperties": false
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "suggested",
+              "unknown"
+            ]
+          },
+          "suggestions": {
+            "$ref": "#/components/schemas/AnalysisSuggestions"
+          },
+          "model": {
+            "type": "string"
+          },
+          "prompt_version": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "string"
+          },
+          "uncertainty_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "analysis_id",
+          "item_id",
+          "source_revision",
+          "status",
+          "suggestions",
+          "model",
+          "prompt_version",
+          "schema_version",
+          "uncertainty_reasons"
+        ],
+        "additionalProperties": false
+      },
+      "InterpretInput": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "InterpretResult": {
+        "type": "object",
+        "properties": {
+          "suggested_interests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Interest"
+            }
+          },
+          "suggested_exclusions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exclusion"
+            }
+          },
+          "unrepresented_text": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires_member_confirmation": {
+            "const": true
+          }
+        },
+        "required": [
+          "suggested_interests",
+          "suggested_exclusions",
+          "unrepresented_text",
+          "requires_member_confirmation"
+        ],
+        "additionalProperties": false
+      },
+      "BundleIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "minItems": 1,
+        "maxItems": 3,
+        "uniqueItems": true
+      },
+      "ReviewedItem": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trading_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "availability_epoch": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "item_id",
+          "trading_revision",
+          "availability_epoch"
+        ],
+        "additionalProperties": false
+      },
+      "CandidateInput": {
+        "type": "object",
+        "properties": {
+          "counterpart_member_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "give_item_ids": {
+            "$ref": "#/components/schemas/BundleIds"
+          },
+          "receive_item_ids": {
+            "$ref": "#/components/schemas/BundleIds"
+          },
+          "reviewed_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewedItem"
+            },
+            "minItems": 2,
+            "maxItems": 6
+          }
+        },
+        "required": [
+          "counterpart_member_id",
+          "give_item_ids",
+          "receive_item_ids",
+          "reviewed_items"
+        ],
+        "additionalProperties": false
+      },
+      "WarningCode": {
+        "type": "string",
+        "enum": [
+          "unequal_values",
+          "exceeds_recommendation_limit",
+          "unknown_value",
+          "outside_positive_interests"
+        ]
+      },
+      "ItemSnapshot": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trading_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "availability_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "facts": {
+            "$ref": "#/components/schemas/ItemFacts"
+          }
+        },
+        "required": [
+          "item_id",
+          "owner_id",
+          "trading_revision",
+          "availability_epoch",
+          "facts"
+        ],
+        "additionalProperties": false
+      },
+      "OfferPreview": {
+        "type": "object",
+        "properties": {
+          "terms_hash": {
+            "type": "string"
+          },
+          "give_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemSnapshot"
+            },
+            "minItems": 1,
+            "maxItems": 3
+          },
+          "receive_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemSnapshot"
+            },
+            "minItems": 1,
+            "maxItems": 3
+          },
+          "give_total_cents": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "receive_total_cents": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "gap_percentage": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "required_warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WarningCode"
+            }
+          },
+          "hard_policy_revisions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "required": [
+          "terms_hash",
+          "give_items",
+          "receive_items",
+          "give_total_cents",
+          "receive_total_cents",
+          "gap_percentage",
+          "required_warnings",
+          "hard_policy_revisions"
+        ],
+        "additionalProperties": false,
+        "description": "Preview hash is recomputed before submission/counteroffer from reviewed terms; once stored, an offer's hash is immutable. Acceptance compares the stored current offer hash and separately revalidates current hard-policy history/eligibility. Compatible policy or soft preference edits do not change immutable offer terms."
+      },
+      "OfferInput": {
+        "type": "object",
+        "properties": {
+          "counterpart_member_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "give_item_ids": {
+            "$ref": "#/components/schemas/BundleIds"
+          },
+          "receive_item_ids": {
+            "$ref": "#/components/schemas/BundleIds"
+          },
+          "reviewed_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewedItem"
+            },
+            "minItems": 2,
+            "maxItems": 6
+          },
+          "terms_hash": {
+            "type": "string"
+          },
+          "acknowledged_warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WarningCode"
+            },
+            "uniqueItems": true
+          },
+          "source_recommendation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "counterpart_member_id",
+          "give_item_ids",
+          "receive_item_ids",
+          "reviewed_items",
+          "terms_hash",
+          "acknowledged_warnings"
+        ],
+        "additionalProperties": false
+      },
+      "Offer": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sender_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recipient_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/OfferPreview"
+          },
+          "consenting_member_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "superseded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "sender_id",
+          "recipient_id",
+          "preview",
+          "consenting_member_ids",
+          "created_at",
+          "superseded"
+        ],
+        "additionalProperties": false
+      },
+      "Recommendation": {
+        "type": "object",
+        "properties": {
+          "recommendation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "counterpart": {
+            "$ref": "#/components/schemas/PublicProfile"
+          },
+          "give_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemSnapshot"
+            },
+            "minItems": 1,
+            "maxItems": 3
+          },
+          "receive_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemSnapshot"
+            },
+            "minItems": 1,
+            "maxItems": 3
+          },
+          "give_total_cents": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "receive_total_cents": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "absolute_gap_cents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gap_percentage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "specific_product_recipient_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "relevant_interests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "member_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "interest_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "specific_product",
+                    "category"
+                  ]
+                },
+                "summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "member_id",
+                "interest_id",
+                "kind",
+                "summary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "snapshot_fingerprint": {
+            "type": "string"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "recommendation_id",
+          "counterpart",
+          "give_items",
+          "receive_items",
+          "give_total_cents",
+          "receive_total_cents",
+          "absolute_gap_cents",
+          "gap_percentage",
+          "specific_product_recipient_count",
+          "explanation",
+          "relevant_interests",
+          "snapshot_fingerprint",
+          "generated_at"
+        ],
+        "additionalProperties": false
+      },
+      "RecommendationInput": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 10
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "RecommendationResult": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "no_match",
+              "needs_inventory",
+              "needs_interests",
+              "needs_valuation"
+            ]
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "evaluated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "outcome",
+          "recommendations",
+          "evaluated_at"
+        ],
+        "additionalProperties": false,
+        "description": "no_match requires complete evaluation of current eligible pilot inventory. Missing/stale artifacts, unavailable dependencies or deadline return an error, never no_match."
+      },
+      "Trade": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "participant_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "agreed",
+              "awaiting_handoff_confirmation",
+              "completed",
+              "declined",
+              "withdrawn",
+              "invalidated",
+              "cancelled"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "current_offer_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "current_offer": {
+            "$ref": "#/components/schemas/Offer"
+          },
+          "closure_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "handoff_confirmations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "cancellation_approvals": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current_required_warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WarningCode"
+            },
+            "description": "Computed disclosure for the acting viewer's next action, without mutating the immutable offer hash. Acknowledge these codes on acceptance."
+          }
+        },
+        "required": [
+          "trade_id",
+          "participant_ids",
+          "state",
+          "revision",
+          "current_offer_version",
+          "current_offer",
+          "closure_reason",
+          "handoff_confirmations",
+          "cancellation_approvals",
+          "created_at",
+          "updated_at",
+          "current_required_warnings"
+        ],
+        "additionalProperties": false
+      },
+      "TradeList": {
+        "type": "object",
+        "properties": {
+          "trades": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Trade"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "trades",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "TradeHistory": {
+        "type": "object",
+        "properties": {
+          "trade": {
+            "$ref": "#/components/schemas/Trade"
+          },
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TradeEvent"
+            }
+          }
+        },
+        "required": [
+          "trade",
+          "offers",
+          "notes",
+          "next_cursor",
+          "events"
+        ],
+        "additionalProperties": false
+      },
+      "Note": {
+        "type": "object",
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trade_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sender_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "note_id",
+          "trade_id",
+          "sender_id",
+          "text",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "NoteInput": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "AcceptInput": {
+        "type": "object",
+        "properties": {
+          "offer_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "terms_hash": {
+            "type": "string"
+          },
+          "acknowledged_warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WarningCode"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "offer_version",
+          "terms_hash",
+          "acknowledged_warnings"
+        ],
+        "additionalProperties": false
+      },
+      "VersionAction": {
+        "type": "object",
+        "properties": {
+          "offer_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "offer_version"
+        ],
+        "additionalProperties": false
+      },
+      "CancelInput": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "Operation": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "rejected",
+              "unresolved"
+            ]
+          },
+          "resource_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "http_status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "outcome",
+          "resource_type",
+          "resource_id",
+          "http_status",
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "ValuationInput": {
+        "type": "object",
+        "properties": {
+          "amount_cents": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 1000000000000
+          },
+          "analysis_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "amount_cents"
+        ],
+        "additionalProperties": false,
+        "description": "Source and last-set time are server-owned. An analysis_id must belong to this owner/item/current source revision. Unchanged accepted saved estimate is labeled assisted; changed/manual amount is owner-entered; null is unknown. Arbitrary source/date claims are rejected."
+      },
+      "ItemDraftFacts": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "category_id": {
+            "type": "string"
+          },
+          "product_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "good",
+              "fair",
+              "needs_repair"
+            ]
+          },
+          "valuation": {
+            "$ref": "#/components/schemas/Valuation"
+          },
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 0,
+            "maxItems": 4,
+            "uniqueItems": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "description": "Owner-only incomplete draft facts, using server-computed valuation provenance. Publication validates the complete ItemFacts shape."
+      },
+      "TradeEvent": {
+        "type": "object",
+        "properties": {
+          "entry_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trade_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "offer_submitted",
+              "counteroffer_submitted",
+              "agreed",
+              "declined",
+              "withdrawn",
+              "invalidated",
+              "cancel_requested",
+              "cancelled",
+              "handoff_confirmed",
+              "completed"
+            ]
+          },
+          "offer_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "trade_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "entry_id",
+          "trade_id",
+          "actor_id",
+          "kind",
+          "offer_version",
+          "trade_revision",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "AnalysisSuggestions": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "category_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "product_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                }
+              },
+              "required": [
+                "name",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "valuation": {
+            "type": "object",
+            "properties": {
+              "estimate_cents": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 1000000000000
+              },
+              "currency": {
+                "const": "USD"
+              },
+              "uncertainty": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 240
+                }
+              }
+            },
+            "required": [
+              "estimate_cents",
+              "currency",
+              "uncertainty",
+              "reasons"
+            ],
+            "additionalProperties": false
+          },
+          "uncertain_fields": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "title",
+                "category_id",
+                "product_type",
+                "brand",
+                "model",
+                "condition",
+                "attributes",
+                "valuation"
+              ]
+            }
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "description": "Backend-validated advisory fields only. Catalog values must belong to the supplied catalog. Saved analysis_id proves owner/item/source revision; suggestions do not update confirmed item facts."
+      }
+    }
+  },
+  "x-contract-rules": {
+    "errorCodes": {
+      "stale_offer": 412,
+      "terms_changed": 412,
+      "item_unavailable": 409,
+      "invalid_state": 409,
+      "exclusion_conflict": 409,
+      "community_mismatch": 409,
+      "idempotency_conflict": 409,
+      "missing_precondition": 428,
+      "rate_limited": 429,
+      "assistance_unavailable": 503,
+      "generation_incomplete": 503,
+      "deadline_exceeded": 504
+    },
+    "privacy": "Private responses no-store. IDs are never authorization. Published available listings exclude owner-only fields; reviewed historical image/snapshot access is restricted to participants.",
+    "versions": "Every protected state-changing item/member/preference/trade command revalidates stored revision. Notes increment trade revision. Image attachment also increments item and trading revisions. Analysis never overwrites confirmed facts.",
+    "knownValues": "Each amount_cents <=10^12 to keep bundle arithmetic within safe browser integer bounds; amount null remains unknown and cannot be zero. Gap eligibility is exact cents cross-multiplication with bps, not rounded gap_percentage.",
+    "unresolved": "An unknown commit returns202 only after the command has a stable actor-scoped key. Receipt and effect are transactional; missing receipt cannot prove failure. No success is claimed while unresolved.",
+    "warnings": "Preview/submission identify warnings. Both senders and acceptors acknowledge the warnings shown for their current action. Preview terms_hash is recomputed on submission/counteroffer; acceptance compares the immutable stored hash plus current hard eligibility. Compatible policy or soft preference edits alone never change the offer hash. Current warnings can be displayed separately without revising the offer or bypassing hard constraints.",
+    "valuationProvenance": "Clients submit amount_cents and optional analysis_id only. Backend owns source/date. Saved, owner/item/revision-bound unchanged AI estimates can be assisted; edits become owner values. Null is unknown."
+  }
+}
