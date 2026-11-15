@@ -274,7 +274,7 @@ test("inventory create, photo attachment and edit remain usable inside Profile",
   expect(state.itemSaves[1]).toMatchObject({ title: "Reviewed synthetic desk lamp", expected_revision: 2 });
 });
 
-test("Home Profile Trade navigation remains usable at 390px without offers", async ({ page }) => {
+test("Home Profile Trade navigation and recommendation review remain usable at 390px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installApi(page);
   await page.goto("/profile");
@@ -285,14 +285,17 @@ test("Home Profile Trade navigation remains usable at 390px without offers", asy
   await expect(profile.getByRole("link")).toHaveText(["Account", "Inventory", "Preferences"]);
   await main.getByRole("link", { name: "Trade", exact: true }).click();
   await expect(page).toHaveURL(/\/trade$/);
-  await expect(page.getByRole("heading", { name: "Trading is coming next" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /offer|accept|handoff|Discover bundles/i })).toHaveCount(0);
+  await page.getByRole("button", { name: "Discover bundles", exact: true }).click();
+  await page.getByRole("button", { name: "Review proposal", exact: true }).click();
+  await expect(page).toHaveURL(/\/trade\/offers$/);
+  await expect(page.getByRole("checkbox", { name: /Test chair/ })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Test monitor/ })).toBeChecked();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 for (const [legacy, canonical] of [
   ["/inventory", "/profile/inventory"], ["/preferences", "/profile/preferences"],
-  ["/discover", "/trade"], ["/trades", "/trade"],
+  ["/discover", "/trade"], ["/trades", "/trade/offers"],
 ]) {
   test(`legacy ${legacy} redirects to ${canonical}`, async ({ page }) => {
     await installApi(page);
