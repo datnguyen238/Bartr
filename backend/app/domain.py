@@ -70,7 +70,9 @@ def snapshot(state, actor, other, left_ids, right_ids):
             require(item is not None and item['owner'] == owner, 'An item is missing or belongs to another member.', 'INVALID_OWNER')
             require(item['status'] == 'available', f"{item['title'] or 'Item'} is no longer available.", 'ITEM_UNAVAILABLE')
             require(not term_matches(item, recipient['exclusions']), f"{item['title']} conflicts with a participant exclusion.", 'EXCLUDED_ITEM')
-            side.append(deepcopy(item))
+            reviewed=deepcopy(item)
+            reviewed['analysis']=None
+            side.append(reviewed)
         sides.append(side)
     left, right = sides
     total_left, total_right = gap(left), gap(right)
@@ -144,7 +146,7 @@ class Marketplace:
         state = self.repo.read()
         own = user(state, actor)
         return {'profile': own_user(own), 'members': [public_user(x) for x in state['users'].values() if x['community'].casefold() == own['community'].casefold()],
-                'items': [x for x in state['items'].values() if x['owner'] == actor or
+                'items': [{**x, 'analysis': x.get('analysis') if x['owner']==actor else None} for x in state['items'].values() if x['owner'] == actor or
                           (x['status'] == 'available' and state['users'][x['owner']]['community'].casefold() == own['community'].casefold())],
                 'trades': [x for x in state['trades'].values() if actor in x['participants']]}
 
@@ -162,6 +164,8 @@ class Marketplace:
         return self.repo.mutate(op)
 
     def save_item(self, actor, item_id, revision, changes):
+        analysis_id=changes.get('analysis_id')
+        changes={key:value for key,value in changes.items() if key!='analysis_id'}
         def op(state):
             user(state, actor)
             if item_id:
@@ -177,8 +181,20 @@ class Marketplace:
             if changes.get('status') == 'available':
                 require(all(str(changes.get(k, item.get(k)) or '').strip() for k in ('title','description','category','condition','image_id')),
                         'Publication needs a title, description, category, condition and uploaded image. Save a draft first if needed.', 'INCOMPLETE_LISTING', 422)
-            if 'value_minor' in changes and changes['value_minor'] != item.get('value_minor'):
-                item.update(value_source='owner' if changes['value_minor'] else 'unknown', value_set_at=now(), uncertainty=None)
+            accepted=None
+            if analysis_id is not None:
+                accepted=next((value for value in state.get('valuations',{}).values() if value.get('analysis_id')==analysis_id),None)
+                require(accepted is not None and accepted.get('owner')==actor and accepted.get('item_id')==item['id'], 'Analysis does not belong to this listing.', 'INVALID_ANALYSIS', 403)
+                require(accepted['item_revision']==item['revision'] and accepted.get('image_id')==item.get('image_id'), 'Analysis is stale. Analyze the current listing revision.', 'STALE_ANALYSIS')
+            if 'value_minor' in changes:
+                amount=changes['value_minor']
+                require(amount is None or (type(amount) is int and 0<amount<=1_000_000_000_000), 'Comparison value must be positive integer USD cents or unknown.', 'INVALID_VALUE', 422)
+                assisted=bool(accepted and amount is not None and amount==accepted.get('estimate_minor'))
+                if assisted or amount!=item.get('value_minor'):
+                    item.update(value_source='assisted' if assisted else 'owner' if amount else 'unknown',
+                                value_set_at=now() if amount else None,
+                                uncertainty=accepted.get('uncertainty') if assisted else None,
+                                valuation_analysis_id=analysis_id if assisted else None)
             item.update(changes, revision=item['revision']+1, updated_at=now(), analysis=None)
             state['items'][item['id']] = item
             invalidate_open(state)
@@ -190,7 +206,7 @@ class Marketplace:
             item = state['items'].get(item_id)
             require(item is not None and item['owner'] == actor, 'Item not found.', 'NOT_FOUND', 404)
             require(item['revision'] == revision, 'Item changed during analysis. Retry the new revision.', 'STALE_ITEM')
-            item['analysis'] = {**analysis, 'item_revision': revision, 'generated_at': now()}
+            item['analysis'] = {**analysis, 'analysis_id':uuid4().hex, 'item_id':item_id, 'owner':actor, 'image_id':item.get('image_id'), 'item_revision': revision, 'generated_at': now()}
             state.setdefault('valuations', {})[digest([item_id, revision])] = deepcopy(item['analysis'])
             return item
         return self.repo.mutate(op)

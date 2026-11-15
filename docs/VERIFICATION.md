@@ -10,6 +10,8 @@ Backend capabilities include account registration/sign-in/out with hashed passwo
 
 The current frontend exposes Home authentication, direct Inventory/Preferences navigation and Account in the header. Trade is a public preparation screen; discovery and offers controls remain deferred. The redesign and its evidence are recorded below. See the [profile guide](PROFILE.md), [original profile plan](../.claude/plans/profile-page.plan.md) and [original TDD evidence](../.claude/tdd/profile-page.tdd.md). The backend trading rules remain implemented.
 
+DynamoDB is the default saved-data backend in the combined branch; MongoDB and explicit temporary-memory storage remain available. The DynamoDB schema and image-valuation history imported from `main` is recorded separately below. Historical results describe their labeled revisions and do not certify this merge.
+
 ## Verification in progress
 
 Backend domain, account/API, photo-upload, Gemini adapter/evidence and Bedrock fixtures are exercised offline. Browser checks use explicitly temporary memory storage and fake photo content, with owner-entered example prices. This is not a live valuation or Atlas search validation.
@@ -17,10 +19,10 @@ Backend domain, account/API, photo-upload, Gemini adapter/evidence and Bedrock f
 ## External and evaluation limitations
 
 - Gemini/Bedrock/Atlas credentials and live vector index access have not been supplied or tested in this repository. Model availability and permissions must be checked in the team's accounts.
-- MongoDB compare-and-swap persistence is implemented; actual Atlas restart/concurrent-write verification remains required. The domain's concurrency tests use isolated in-memory storage.
+- MongoDB compare-and-swap persistence is implemented; actual Atlas restart/concurrent-write verification remains required. DynamoDB has the historical scoped evidence below; this does not establish production load or migration/recovery readiness. The domain's isolated tests use temporary memory, and DynamoDB fixtures use Moto.
 - Exact-text local mode does not meet the semantic-equivalence criteria; the configured semantic adapters need their labeled retrieval evaluation.
 - The spec's 20-person pilot, 40-case recommendation quality set, 20 paraphrase cases, screen-reader audit, 1,000-listing/20-request load test and associated numerical targets have not been run and are not claimed achieved.
-- An individual document aggregate bounds this prototype's scale. Request contention or capacity failure is reported explicitly instead of falling back to unsaved data.
+- Storage and transaction capacity bound this prototype's scale. The MongoDB adapter uses a bounded document aggregate; DynamoDB uses normalized records with a snapshot compatibility layer. Request contention or capacity failure is reported explicitly instead of falling back to unsaved data.
 
 ## Profile frontend increment — 2026-11-14
 
@@ -57,3 +59,37 @@ The owner requested all five prior critique priorities and Apple's design princi
 Initial browser failures were test mismatches with the new chip/field-feedback UI and Next's empty route announcer; the assertions were corrected while preserving their behavioral checks. A subsequent enlarged-text check caught a preview-header overflow; flexible wrapping fixed it, the affected case passed, and the final full 27-scenario suite passed. An independent source review also found dirty-draft availability feedback; that gap was fixed with reserved/removed/missing-item regressions.
 
 Unfinished drafts are account-scoped memory retained across item switching and in-app navigation, not persistence across full reloads. The checks do not establish actual Atlas durability/contention, live AI quality, semantic evaluation, hosted configuration, full screen-reader acceptance, physical-device behavior, load or pilot outcomes. No deployment or backend persistence migration occurred. Browser test services use isolated output directories and are stopped by Playwright after each run.
+
+## DynamoDB schema v1 — historical verification imported from main
+
+This record was imported from `main` at `0d5d1cc`; the original revision labels and outcomes below describe that earlier work, not the current merge.
+
+Revision `a6b4d5d` plus the uncommitted schema and numeric-normalization changes; Python 3.12 project virtual environment. The complete backend suite in temporary memory and Moto fixture modes was run locally. A separate synthetic scoped test against the existing `bartr-dev` table in `us-east-1` passed live read/write, competing acceptance, restart, cancellation, replay, completion and cleanup (provider fixtures; no live Gemini or semantic evaluation): `BARTR_LIVE_DYNAMODB=1 AWS_PROFILE=bartr-dev AWS_REGION=us-east-1 .venv/bin/python -m pytest backend/tests/test_dynamodb_live.py -q` — **1 passed**. An initial sandboxed run failed DNS; an unrestricted first run exposed numeric normalization in offer hashes, fixed before the passing run. This does not prove production load, migration, recovery, or provider quality. The adapter still scans a consistent snapshot for domain operations; the Query helpers are not the primary API access path. Existing legacy data requires a separately reviewed migration.
+
+`.venv/bin/python -m pytest backend/tests -q` — **62 passed, 1 skipped** (live test requires the explicit command above). An earlier run failed in Moto's concurrent in-memory bookkeeping; the fixture now tests overlap sequentially, while the live test exercises simultaneous acceptance.
+
+Follow-up on the same revision and uncommitted working tree: the live scoped DynamoDB test also passed synthetic login, session authentication and logout. Frontend `npm run typecheck` passed. `npm run build` failed because the available Node version is 18.17.0; the project requires Node 20.19 or newer. Browser interaction and live Gemini valuation were not run.
+
+## Earlier DynamoDB login and image valuation increment — historical status
+
+New code selects a namespaced DynamoDB repository, retains profile/password/session identity, normalizes and chunks uploaded JPEGs, requests one Gemini image estimate, and requires explicit revision-bound owner acceptance before the amount appears as an assisted listing value. Fixtures cover conditional-write conflict handling, multi-chunk photo roundtrip/deletion, stale/foreign analysis rejection and corrected-owner-value provenance.
+
+Evidence at that earlier checkpoint: source inspection only. App, unit tests, builds, AWS calls, table lookup and Gemini calls were **NOT RUN** under the owner's instruction for that increment. Previous test totals do not cover this increment. Table name/key schema remain a configuration dependency. The frontend is unchanged. Existing MongoDB data is not migrated. The bounded aggregate/chunk storage design is documented separately and is not claimed scalable or production-verified.
+
+## Profile merge with main — 2026-11-14
+
+Change identity: resolution of `main` at `0d5d1cc` into `profile` at `76594a9`, evaluated in the working tree before the merge commit. Scope: preserve profile UI and session/listing behavior (FR-001–003, FR-006, FR-028, FR-030) while retaining main's DynamoDB, image-assessment and privacy changes. All existing profile routes, layouts, visual components, CSS, assets, frontend configuration and package files match the pre-merge profile revision. Frontend differences are limited to storage/analysis response types, optional explicit `analysis_id` forwarding and a regression for consent/revision handling. Backend files match the incoming main revision exactly. Profile ignore rules, plans, test setup and documentation were retained, including files automatically removed by main's earlier reverts.
+
+Environment: macOS, Node 25.6.0 / npm 11.17.0 / Next 16.4.6; project virtual environment Python 3.14.2. Installed declared boto3/Moto and Google GenAI dependencies after initial backend collection failed because the AWS SDK was absent. No application credentials were used for verification. The initial browser run could not bind localhost under restricted permissions; its approved retry passed.
+
+| Evaluation | Mode and outcome |
+|---|---|
+| `env BARTR_STORAGE=memory BARTR_LIVE_DYNAMODB=0 AWS_EC2_METADATA_DISABLED=true GEMINI_API_KEY= .venv/bin/python -m pytest backend/tests -q -rs` (root) | **62 passed, 1 skipped**, 9.17 s; memory/domain/API, Moto DynamoDB emulator and provider fixtures. The explicitly opted-out live DynamoDB check is the only skip. |
+| `npm run typecheck` (`frontend/`) | **Passed**, including a final run after restoring Next-generated configuration changes. |
+| `npm test` (`frontend/`) | **91 passed** in 6 files, 3.45 s; Vitest/jsdom and mocked API responses. |
+| `BARTR_NEXT_DIST_DIR=.next-build npm run build` (`frontend/`) | **Passed** webpack production compilation, TypeScript and generation of all 14 pages. |
+| `npm run test:e2e` (`frontend/`) | **27 passed**, 23.5 s; installed Chrome, synthetic intercepted API fixtures, isolated Next output and port 3100. |
+| `npm run test:backend` (`frontend/`) | **1 passed**, 7.9 s; installed Chrome, real local cookie/session/profile/inventory requests against one temporary-memory Uvicorn service on port 8101 and frontend port 3101. Gemini/Bedrock settings empty; providers not invoked. |
+| Source and merge review | **Passed** independent review, all profile visual files compared with their pre-merge contents, backend compared with main, conflict-marker/relative-link/whitespace checks. Local and remote main remained `0d5d1cc`. |
+
+The browser test services stopped after verification. Build, coverage and browser-result files remain ignored and are excluded from the merge. This merge evaluation does not repeat historical live AWS tests or establish live Gemini quality, real database migration/recovery, production load, full screen-reader acceptance or deployment readiness.

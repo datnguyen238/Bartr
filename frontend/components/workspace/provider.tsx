@@ -150,7 +150,7 @@ function useWorkspaceState() {
       form.value === "" ? null : Math.round(Number(form.value) * 100),
     status: form.status,
   });
-  async function saveItem(options: { status?: Item["status"] } = {}) {
+  async function saveItem(options: { status?: Item["status"]; analysisId?: string } = {}) {
     const generation = session.generation;
     const submitted = { ...form };
     const previousItem = editing;
@@ -159,6 +159,7 @@ function useWorkspaceState() {
       ? await api<Item>(`items/${editing.id}`, "PATCH", {
           ...data,
           expected_revision: editing.revision,
+          ...(options.analysisId ? { analysis_id: options.analysisId } : {}),
         })
       : await api<Item>("items", "POST", data);
     session.assertCurrent(generation);

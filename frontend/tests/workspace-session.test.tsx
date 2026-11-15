@@ -115,6 +115,9 @@ function Consumer() {
       <button onClick={() => invoke(workspace.run(async () => {
         await workspace.saveItem({ status: "available" });
       }))}>Publish current listing</button>
+      <button onClick={() => invoke(workspace.run(async () => {
+        await workspace.saveItem({ analysisId: "synthetic-reviewed-analysis" });
+      }))}>Save reviewed estimate</button>
       <button onClick={() => workspace.edit(null)}>Open new listing</button>
       <button onClick={() => workspace.edit(item)}>Return to chair</button>
       <button onClick={() => invoke(workspace.run(async () => {
@@ -318,12 +321,34 @@ describe("Workspace session lifecycle", () => {
     await waitFor(() => expect(mocks.api).toHaveBeenCalledWith(`items/${item.id}`, "PATCH", expect.objectContaining({
       title: "Private unsaved title", status: "available", expected_revision: 1,
     })));
+    const request = mocks.api.mock.calls.find(([path, method]) => path === `items/${item.id}` && method === "PATCH");
+    expect(request?.[2]).not.toHaveProperty("analysis_id");
     await waitFor(() => expect(value("Listing status")).toBe("available"));
     expect(value("Listing dirty")).toBe("false");
     fireEvent.click(screen.getByRole("button", { name: "Open new listing" }));
     fireEvent.click(screen.getByRole("button", { name: "Return to chair" }));
     expect(value("Listing status")).toBe("available");
     expect(JSON.parse(value("Private state")!).title).toBe("Private unsaved title");
+  });
+
+  it("sends explicit estimate-review consent with the saved listing revision in a DynamoDB workspace", async () => {
+    const initial = { ...savedView(), storage: "dynamodb" as const };
+    mocks.api.mockResolvedValue(initial);
+    renderWorkspace();
+    await expectAuthenticated();
+    fireEvent.click(screen.getByRole("button", { name: "Return to chair" }));
+    const assisted = { ...item, revision: 2, value_source: "assisted", uncertainty: "high" };
+    const updated = { ...initial, items: [assisted] };
+    mocks.api.mockImplementation((path: string) => Promise.resolve(path === "me" ? updated : assisted));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save reviewed estimate" }));
+
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledWith(`items/${item.id}`, "PATCH", expect.objectContaining({
+      expected_revision: 1, analysis_id: "synthetic-reviewed-analysis", value_minor: 4000, status: "draft",
+    })));
+    await waitFor(() => expect(value("Listing dirty")).toBe("false"));
+    expect(value("Authenticated")).toBe("true");
+    expect(value("Listing status")).toBe("draft");
   });
 
   it("preserves a dirty profile draft while an unrelated refresh updates saved data", async () => {

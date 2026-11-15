@@ -26,6 +26,8 @@ class SemanticSearch:
         self.embeddings=BedrockEmbeddings()
 
     def index_item(self,item,community):
+        if getattr(self.repo,'backend',None)=='dynamodb':
+            raise AppError('Semantic search still requires Atlas and is not included in this DynamoDB login/photo-valuation increment.', 'SEMANTIC_STORAGE_UNSUPPORTED', 503)
         if self.repo.memory:
             raise AppError('Atlas indexing needs MongoDB storage, not temporary memory mode.','ATLAS_REQUIRED',503)
         db=self.repo.database()
@@ -57,6 +59,8 @@ class SemanticSearch:
         return record
 
     def candidates(self,state,actor):
+        if getattr(self.repo,'backend',None)=='dynamodb':
+            raise AppError('Semantic search still requires Atlas and is not included in this DynamoDB login/photo-valuation increment.', 'SEMANTIC_STORAGE_UNSUPPORTED', 503)
         if self.repo.memory:
             raise AppError('Semantic discovery needs MongoDB Atlas. Select exact-text discovery for temporary local testing.','ATLAS_REQUIRED',503)
         model=os.getenv('GEMINI_MODEL') or os.getenv('GEMINI_VALUATION_MODEL','')
