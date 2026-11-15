@@ -14,6 +14,10 @@ export interface Member {
   community: string;
 }
 export interface Analysis {
+  analysis_id: string;
+  estimate_minor?: number | null;
+  uncertainty?: string;
+  uncertainty_reasons?: string[];
   attributes: {
     description: string;
     brand: string | null;
@@ -72,7 +76,7 @@ export interface Trade {
   reason: string | null;
 }
 export interface View {
-  storage: "temporary-memory" | "mongodb";
+  storage: "temporary-memory" | "mongodb" | "dynamodb";
   integrations: { gemini_configured: boolean; bedrock_configured: boolean };
   profile: Profile;
   members: Member[];

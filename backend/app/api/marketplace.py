@@ -11,7 +11,7 @@ from ..errors import AppError
 from ..services.images import MAX_UPLOAD_BYTES, normalize_image
 from ..services.preferences import interpret_preferences
 from ..services.search import SemanticSearch
-from ..services.valuation import GeminiValuationProvider, calculate
+from ..services.image_analysis import GeminiImageAnalysis
 
 Text=Annotated[str,Field(min_length=1,max_length=200)]
 Revision=Annotated[int,Field(ge=1,strict=True)]
@@ -45,12 +45,13 @@ class ItemInput(Closed):
     description:Annotated[str,Field(max_length=3000)]=''
     category:Annotated[str,Field(max_length=100)]=''
     condition:Annotated[str,Field(max_length=300)]=''
-    value_minor:Annotated[int,Field(gt=0,le=100_000_000)]|None=None
+    value_minor:Annotated[int,Field(gt=0,le=1_000_000_000_000)]|None=None
     status:Literal['draft','available','removed']='draft'
 
 
 class ItemUpdate(ItemInput):
     expected_revision:Revision
+    analysis_id:Text|None=None
 
 
 class Expected(Closed):
@@ -118,7 +119,7 @@ def logout(request:Request,response:Response,who=Depends(actor)):
 @router.get('/me')
 def me(request:Request,who=Depends(actor)):
     service=market(request)
-    return {**service.view(who), 'storage':'temporary-memory' if service.repo.memory else 'mongodb',
+    return {**service.view(who), 'storage':'temporary-memory' if service.repo.memory else getattr(service.repo,'backend','mongodb'),
             'integrations':{'gemini_configured':bool(os.getenv('GEMINI_API_KEY') and (os.getenv('GEMINI_MODEL') or os.getenv('GEMINI_VALUATION_MODEL'))),
                             'bedrock_configured':bool(os.getenv('AWS_REGION') and os.getenv('BEDROCK_EMBEDDING_MODEL'))}}
 
@@ -167,27 +168,23 @@ def image(image_id:str,request:Request,who=Depends(actor)):
 
 
 @router.post('/items/{item_id}/analysis')
-def analysis(item_id:str,body:Expected,request:Request,who=Depends(actor)):
-    service=market(request); item=service.repo.read()['items'].get(item_id)
-    if not item or item['owner']!=who: raise AppError('Item not found.','NOT_FOUND',404)
-    if item['revision']!=body.expected_revision: raise AppError('Item changed. Reload first.','STALE_ITEM')
+async def analysis(item_id:str,body:Expected,request:Request,who=Depends(actor)):
+    service=market(request)
+    from starlette.concurrency import run_in_threadpool
+    state=await run_in_threadpool(service.repo.read)
+    item=state['items'].get(item_id)
+    if not item or item['owner']!=who:
+        raise AppError('Item not found.','NOT_FOUND',404)
+    if item['revision']!=body.expected_revision:
+        raise AppError('Item changed. Reload first.','STALE_ITEM')
     prior=item.get('analysis')
-    if prior and prior['item_revision']==item['revision']: return prior
-    provider=GeminiValuationProvider()
-    if not provider.configured: raise AppError('Configure GEMINI_API_KEY and GEMINI_MODEL before analysis. You can still list manually.','GEMINI_NOT_CONFIGURED',503)
-    image=service.repo.image(item.get('image_id')) if item.get('image_id') else None
-    try:
-        result=provider.valuate({k:item[k] for k in ('title','description','category','condition')},image=image)
-        value={**calculate(result['extraction'],result['sources'],now()),
-               'attributes':result['attributes'],'model':provider.model,'attribution':result['attribution']}
-        if result['attributes']['clarification_needed']:
-            value.update(status='clarification_required',range=None,reason='Review the clarification questions before choosing a comparison value.')
-        return service.review_analysis(who,item_id,body.expected_revision,value)['analysis']
-    except AppError: raise
-    except Exception as exc:
-        import logging
-        logging.getLogger('uvicorn.error').warning('Gemini analysis failed stage=%s status=%s type=%s',getattr(exc,'stage',None),getattr(exc,'status_code',None),type(exc).__name__)
-        raise AppError('Gemini analysis is unavailable. Enter listing facts and a comparison value manually, or retry later.','ANALYSIS_UNAVAILABLE',503) from exc
+    if prior and prior['item_revision']==item['revision']:
+        return prior
+    image=await run_in_threadpool(service.repo.image,item['image_id']) if item.get('image_id') else None
+    value=await GeminiImageAnalysis().analyze(
+        {k:item[k] for k in ('title','description','category','condition')},image)
+    updated=await run_in_threadpool(service.review_analysis,who,item_id,body.expected_revision,value)
+    return updated['analysis']
 
 
 @router.post('/preferences/interpret')
@@ -257,3 +254,12 @@ def list_items(request:Request,who=Depends(actor)):
 @router.get('/trades')
 def list_trades(request:Request,who=Depends(actor)):
     return market(request).view(who)['trades']
+
+
+@router.get('/items/{item_id}')
+def get_item(item_id:str,request:Request,who=Depends(actor)):
+    visible=market(request).view(who)['items']
+    record=next((item for item in visible if item['id']==item_id),None)
+    if record is None:
+        raise AppError('Item not found.','NOT_FOUND',404)
+    return record

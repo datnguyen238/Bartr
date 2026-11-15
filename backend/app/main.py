@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from .api.marketplace import router
 from .api.routes import create_router
@@ -17,9 +18,16 @@ from .storage.state import StateRepository
 
 def create_app(repository=None) -> FastAPI:
     name=application_name()
-    mode=os.getenv('BARTR_STORAGE','mongo')
-    if mode not in {'mongo','memory'}: raise ValueError('BARTR_STORAGE must be mongo or memory.')
-    repo=repository or StateRepository(memory=mode=='memory')
+    mode=os.getenv('BARTR_STORAGE','dynamodb').lower()
+    if mode not in {'mongo','memory','dynamodb'}:
+        raise ValueError('BARTR_STORAGE must be dynamodb, mongo or memory.')
+    if repository is not None:
+        repo=repository
+    elif mode=='dynamodb':
+        from .storage.dynamodb import DynamoRepository
+        repo=DynamoRepository()
+    else:
+        repo=StateRepository(memory=mode=='memory')
 
     @asynccontextmanager
     async def lifespan(app):
@@ -56,6 +64,11 @@ def create_app(repository=None) -> FastAPI:
     @app.exception_handler(PyMongoError)
     async def database_error(request,exc):
         return JSONResponse(status_code=503,content={'detail':'MongoDB is unavailable. Check configuration and retry; inspect current trade state before repeating an interrupted action.','code':'DATABASE_UNAVAILABLE'})
+
+    @app.exception_handler(ClientError)
+    @app.exception_handler(BotoCoreError)
+    async def aws_error(request, exc):
+        return JSONResponse(status_code=503, content={'detail': 'AWS storage is unavailable. Check the configured region, table key schema, AWS profile and DynamoDB permissions. Reload the saved outcome before repeating an interrupted write.', 'code': 'DYNAMODB_UNAVAILABLE'})
 
     return app
 

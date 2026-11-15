@@ -176,3 +176,25 @@ def test_both_percentage_limits_apply_and_semantic_ids_support_equivalent_wordin
     matched=app.recommend(a,semantic={a:{monitor},b:{chair,calc}})['recommendations']
     assert len(matched)==1
     assert app.recommend(a,semantic={a:{monitor},b:{chair,calc}},semantic_excluded={a:{monitor}})['recommendations']==[]
+
+
+def test_accepting_saved_image_estimate_sets_assisted_provenance(market):
+    app,a,b,c,chair,*_=market
+    reviewed=app.review_analysis(a,chair,1,{'estimate_minor':4100,'uncertainty':'high'})
+    analysis=reviewed['analysis']
+    item=app.save_item(a,chair,1,{'value_minor':4100,'analysis_id':analysis['analysis_id']})
+    assert item['value_source']=='assisted' and item['uncertainty']=='high'
+    assert item['value_set_at'] and item['analysis'] is None
+    assert next(x for x in app.view(b)['items'] if x['id']==chair)['analysis'] is None
+    with pytest.raises(AppError):
+        app.save_item(a,chair,2,{'value_minor':4100,'analysis_id':analysis['analysis_id']})
+
+
+def test_correcting_saved_estimate_is_owner_value_and_foreign_analysis_rejected(market):
+    app,a,b,c,chair,calc,monitor,_=market
+    result=app.review_analysis(a,chair,1,{'estimate_minor':4100,'uncertainty':'high'})
+    id=result['analysis']['analysis_id']
+    with pytest.raises(AppError):
+        app.save_item(b,monitor,1,{'value_minor':4100,'analysis_id':id})
+    item=app.save_item(a,chair,1,{'value_minor':3900,'analysis_id':id})
+    assert item['value_source']=='owner' and item['uncertainty'] is None

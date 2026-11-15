@@ -105,11 +105,12 @@ function useWorkspaceState() {
       form.value === "" ? null : Math.round(Number(form.value) * 100),
     status: form.status,
   });
-  async function saveItem() {
+  async function saveItem(analysisId?: string) {
     const saved = editing
       ? await api<Item>(`items/${editing.id}`, "PATCH", {
           ...facts(),
           expected_revision: editing.revision,
+          ...(analysisId ? { analysis_id: analysisId } : {}),
         })
       : await api<Item>("items", "POST", facts());
     edit(saved);

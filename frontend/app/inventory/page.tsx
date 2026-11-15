@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { api, upload, money, type Item, type Analysis } from "@/lib/marketplace";
 import { useWorkspace } from "@/components/workspace/provider";
 import { control } from "@/components/workspace/constants";
+import { useState } from "react";
 
 export default function InventoryPage() {
+  const [acceptedAnalysis, setAcceptedAnalysis] = useState<string | null>(null);
   const {
     view,
     busy,
@@ -105,7 +107,8 @@ export default function InventoryPage() {
             onSubmit={(e) => {
               e.preventDefault();
               run(async () => {
-                await saveItem();
+                await saveItem(acceptedAnalysis === editing?.analysis?.analysis_id ? acceptedAnalysis : undefined);
+                setAcceptedAnalysis(null);
               });
             }}
           >
@@ -264,6 +267,12 @@ export default function InventoryPage() {
                   your reviewed comparison value above.
                 </p>
               )}
+              {editing.analysis.estimate_minor != null && (
+                <p className="mt-3">
+                  Image-assisted estimate: {money(editing.analysis.estimate_minor)} · uncertainty: {editing.analysis.uncertainty}. This is not a market appraisal.
+                </p>
+              )}
+              {editing.analysis.uncertainty_reasons?.map((reason) => <p key={reason} className="mt-2">{reason}</p>)}
               {editing.analysis.attributes.clarification_questions.map(
                 (q) => (
                   <p key={q} className="mt-2">
@@ -272,6 +281,13 @@ export default function InventoryPage() {
                 ),
               )}
               <div className="mt-3 flex flex-wrap gap-2">
+                {editing.analysis.estimate_minor != null && (
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setForm({ ...form, value: String(editing.analysis!.estimate_minor! / 100) });
+                    setAcceptedAnalysis(editing.analysis!.analysis_id);
+                    setMessage("Estimate selected. Save the listing to record your review.");
+                  }}>Use this estimate</Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"

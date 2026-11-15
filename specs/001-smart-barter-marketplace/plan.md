@@ -1,5 +1,7 @@
 # Implementation Plan: Bartr Smart Bartering Marketplace
 
+
+**DynamoDB update (2026-11-14):** The approved [DynamoDB entity/access-pattern design](dynamodb-data-model.md) supersedes the MongoDB storage choice for the implemented MVP. Planned richer contracts below remain distinguished from the compatibility adapter.
 **Branch**: `main` (actual checkout; setup feature identifier: `001-smart-barter-marketplace`) | **Date**: 2026-11-14 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/001-smart-barter-marketplace/spec.md`

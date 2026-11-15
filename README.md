@@ -1,5 +1,7 @@
 # Bartr — AI-Powered Smart Bartering Marketplace
 
+**Backend update:** the owner has switched the login/photo valuation increment to DynamoDB. Use [the DynamoDB setup and API flow](docs/DYNAMODB-LOGIN-VALUATION.md); older Atlas setup sections below describe the previous backend and semantic-search work, not the new DynamoDB configuration.
+
 Bartr discovers item bundles across two inventories, with reviewed item values and voluntary agreement. The canonical requirements are in [`specs/001-smart-barter-marketplace/spec.md`](specs/001-smart-barter-marketplace/spec.md). The earlier `docs/specs/001-bundle-matching` draft is superseded.
 
 ## Stack and implemented journeys
