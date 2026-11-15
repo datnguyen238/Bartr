@@ -75,11 +75,40 @@ async def upload_draft(client, title, category, value):
 
 
 async def publish(client, facts, item):
+    actor = (await client.get('/api/me')).json()['profile']['id']
+    app = client._transport.app
+    reviewed = app.state.marketplace.review_analysis(actor, item['id'], item['revision'], {
+        'status': 'estimated', 'price_basis': 'market_comparables', 'estimate_minor': facts['value_minor'], 'uncertainty': 'high',
+    })
     response = await client.patch(f'/api/items/{item["id"]}', json={
-        **facts, 'status': 'available', 'expected_revision': item['revision'],
+        **facts, 'status': 'available', 'expected_revision': item['revision'], 'analysis_id': reviewed['analysis']['analysis_id'],
     })
     assert response.status_code == 200
     return response.json()
+
+
+def test_dynamodb_rejects_manual_publication_and_accepts_reviewed_estimate(repository, monkeypatch):
+    from backend.app.services.market_analysis import MarketAnalysis
+
+    async def assess(self, facts, image):
+        return {'status': 'estimated', 'price_basis': 'market_comparables', 'estimate_minor': 4500, 'uncertainty': 'high', 'attributes': {'description': 'Synthetic'}}
+
+    monkeypatch.setattr(MarketAnalysis, 'analyze', assess)
+
+    async def check():
+        app = create_app(repository)
+        async with api_client(app) as owner:
+            await register(owner, 'required-value')
+            facts, item = await upload_draft(owner, 'Desk chair', 'Furniture', None)
+            path = f'/api/items/{item["id"]}'
+            bad = await owner.patch(path, json={**facts, 'status': 'available', 'value_minor': 99999, 'expected_revision': item['revision']})
+            assert bad.status_code == 422 and bad.json()['code'] == 'EVALUATION_REQUIRED'
+            assert (await owner.get(path)).json()['status'] == 'draft'
+            result = await owner.post(path + '/analysis', json={'expected_revision': item['revision']})
+            assert result.status_code == 200
+            published = await owner.patch(path, json={**facts, 'status': 'available', 'value_minor': 4500, 'analysis_id': result.json()['analysis_id'], 'expected_revision': item['revision']})
+            assert published.status_code == 200 and published.json()['value_source'] == 'assisted'
+    asyncio.run(check())
 
 
 def test_dynamodb_api_landing_inventory_session_restart_and_visibility(repository):
@@ -147,7 +176,8 @@ def test_dynamodb_api_landing_inventory_session_restart_and_visibility(repositor
     asyncio.run(check())
 
 
-def test_dynamodb_api_exact_text_discovery_and_explicit_semantic_unavailable(repository):
+def test_dynamodb_api_exact_text_discovery_and_explicit_semantic_unavailable(repository, monkeypatch):
+    monkeypatch.setenv('BEDROCK_EMBEDDING_MODEL', '')
     async def check():
         app = create_app(repository)
         async with api_client(app) as alice, api_client(app) as brian:
@@ -178,12 +208,12 @@ def test_dynamodb_api_exact_text_discovery_and_explicit_semantic_unavailable(rep
 
             semantic = await alice.get('/api/recommendations?semantic=true')
             assert semantic.status_code == 503
-            assert semantic.json()['code'] == 'SEMANTIC_STORAGE_UNSUPPORTED'
+            assert semantic.json()['code'] == 'EMBEDDINGS_NOT_CONFIGURED'
             index = await alice.post(f'/api/items/{chair["id"]}/embedding', json={
                 'expected_revision': chair['revision'],
             })
             assert index.status_code == 503
-            assert index.json()['code'] == 'SEMANTIC_STORAGE_UNSUPPORTED'
+            assert index.json()['code'] == 'EMBEDDINGS_NOT_CONFIGURED'
             # Provider unavailability does not clear published records or create a trade.
             view = (await alice.get('/api/me')).json()
             assert len(view['items']) == 2 and view['trades'] == []
@@ -192,20 +222,20 @@ def test_dynamodb_api_exact_text_discovery_and_explicit_semantic_unavailable(rep
 
 
 def test_dynamodb_api_reviewed_image_estimate_is_revision_bound(repository, monkeypatch):
-    from backend.app.services.image_analysis import GeminiImageAnalysis
+    from backend.app.services.market_analysis import MarketAnalysis
 
     async def synthetic_assessment(self, facts, image):
         assert facts['title'] == 'Desk chair'
         assert image['data'].startswith(b'\xff\xd8')
         return {
-            'estimate_minor': 4500, 'uncertainty': 'high',
+            'status': 'estimated', 'price_basis': 'market_comparables', 'estimate_minor': 4500, 'uncertainty': 'high',
             'attributes': {'description': 'Synthetic chair description', 'brand': None,
                            'model': None, 'clarification_needed': False,
                            'clarification_questions': []},
             'uncertainty_reasons': ['Synthetic image assessment fixture'],
         }
 
-    monkeypatch.setattr(GeminiImageAnalysis, 'analyze', synthetic_assessment)
+    monkeypatch.setattr(MarketAnalysis, 'analyze', synthetic_assessment)
 
     async def check():
         app = create_app(repository)
@@ -251,8 +281,7 @@ def test_dynamodb_api_reviewed_image_estimate_is_revision_bound(repository, monk
                 **facts, 'status': 'available', 'value_minor': 4700,
                 'expected_revision': accepted['revision'],
             })
-            assert corrected.status_code == 200
-            assert corrected.json()['value_source'] == 'owner'
-            assert corrected.json()['uncertainty'] is None
+            assert corrected.status_code == 422 and corrected.json()['code'] == 'EVALUATION_REQUIRED'
+            assert (await alice.get(path)).json()['value_minor'] == 4500
 
     asyncio.run(check())

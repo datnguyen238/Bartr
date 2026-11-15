@@ -15,11 +15,14 @@ export interface Member {
 }
 export interface Analysis {
   analysis_id: string;
+  status?: "estimated" | "insufficient_evidence" | "clarification_required" | "unknown";
   estimate_minor?: number | null;
   uncertainty?: string;
   uncertainty_reasons?: string[];
   attributes: {
     description: string;
+    title?: string | null;
+    category?: string | null;
     brand: string | null;
     model: string | null;
     clarification_needed: boolean;
@@ -27,7 +30,9 @@ export interface Analysis {
   };
   range?: { low_minor: number; high_minor: number };
   reason?: string;
-  evidence?: { uri: string; title: string; price_minor: number }[];
+  comparison_basis?: "asking" | "sold" | null;
+  evidence?: { uri: string; title: string; price_minor: number; price_type?: string; condition?: string; match_kind?: "exact" | "similar" | "unknown" }[];
+  attribution?: { search_entry_point_html?: string | null };
   generated_at: string;
   item_revision: number;
 }
@@ -93,6 +98,8 @@ export interface Recommendations {
   recommendations: Recommendation[];
   reason: string | null;
   retrieval: string;
+  matching_item_ids?: string[];
+  matching_item_revisions?: Record<string, number>;
 }
 export interface ApiFieldError { field: string; message: string }
 export type FieldIssue = ApiFieldError;
@@ -134,7 +141,12 @@ export async function api<T>(
       0,
     );
   }
-  const value = await response.json();
+  let value: any;
+  try {
+    value = await response.json();
+  } catch {
+    throw new ApiError("The server returned an unreadable response. Reload to check the saved outcome, then try again.", response.status);
+  }
   if (!response.ok) {
     const fields = errorFields(value.fields);
     throw new ApiError(

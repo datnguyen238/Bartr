@@ -1,3 +1,4 @@
+from backend.tests.legacy_fixtures import seed_legacy_available
 from uuid import uuid4
 
 import pytest
@@ -13,8 +14,8 @@ def test_trade_live_authorization_updates_and_reconnect():
     service = app.state.marketplace
     users = [service.register(n, 'synthetic-password', n, 'Tempe')['id'] for n in ('alice', 'brian', 'carol')]
     def item(owner, title):
-        return service.save_item(owner, None, None, {'title': title, 'description': title, 'category': title,
-            'condition': 'Good', 'image_id': 'synthetic', 'value_minor': 1000, 'status': 'available'})['id']
+        return seed_legacy_available(service, owner, {'title': title, 'description': title, 'category': title,
+            'condition': 'Good', 'image_id': 'synthetic', 'value_minor': 1000})['id']
     trade = service.create_trade(users[0], users[1], [item(users[0], 'chair')], [item(users[1], 'desk')], False, uuid4().hex)
     tokens = [service.login(name, 'synthetic-password')[0] for name in ('alice', 'brian', 'carol')]
     path = f'/api/trades/{trade["id"]}/live'

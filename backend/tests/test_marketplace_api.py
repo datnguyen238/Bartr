@@ -8,6 +8,103 @@ from backend.app.main import create_app
 from backend.app.storage.state import StateRepository
 
 
+def test_photo_identification_is_owner_only_revision_bound_and_not_persisted(monkeypatch):
+    from backend.app.services.image_analysis import GeminiImageAnalysis
+    calls = []
+    async def identify(self, facts, image):
+        calls.append((facts, image))
+        return {'title': 'Synthetic chair', 'category': 'Furniture', 'description': 'A chair'}
+    monkeypatch.setattr(GeminiImageAnalysis, 'identify', identify)
+    async def check():
+        app = create_app(StateRepository(memory=True))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test', headers={'X-Bartr-Request': '1'}) as owner, httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test', headers={'X-Bartr-Request': '1'}) as other:
+            for client, name in [(owner, 'photo_owner'), (other, 'photo_other')]:
+                await client.post('/api/auth/register', json={'username': name, 'password': 'synthetic-password', 'name': name, 'community': 'Test'})
+            item = (await owner.post('/api/items', json={})).json()
+            image = BytesIO(); Image.new('RGB', (80, 80), 'tan').save(image, 'JPEG')
+            item = (await owner.post(f"/api/items/{item['id']}/image?expected_revision=1", files={'file': ('test.jpg', image.getvalue(), 'image/jpeg')})).json()
+            path = f"/api/items/{item['id']}/identify"
+            assert (await other.post(path, json={'expected_revision': item['revision']})).status_code == 404
+            assert (await owner.post(path, json={'expected_revision': item['revision'] - 1})).json()['code'] == 'STALE_ITEM'
+            response = await owner.post(path, json={'expected_revision': item['revision']})
+            assert response.json()['title'] == 'Synthetic chair' and len(calls) == 1
+            saved = (await owner.get(f"/api/items/{item['id']}")).json()
+            assert saved['title'] == '' and saved['revision'] == item['revision'] and saved['analysis'] is None
+            async def stale(self, facts, image):
+                app.state.marketplace.save_item(item['owner'], item['id'], item['revision'], {'title': 'Updated'})
+                return {'title': 'Old', 'category': None, 'description': ''}
+            monkeypatch.setattr(GeminiImageAnalysis, 'identify', stale)
+            assert (await owner.post(path, json={'expected_revision': item['revision']})).json()['code'] == 'STALE_ITEM'
+    asyncio.run(check())
+
+
+def test_publication_requires_current_owned_ai_estimate(monkeypatch):
+    from backend.app.services.market_analysis import MarketAnalysis
+
+    async def assess(self, facts, image):
+        return {'status': 'estimated', 'price_basis': 'market_comparables', 'estimate_minor': 4200, 'uncertainty': 'high', 'attributes': {'description': 'Synthetic', 'clarification_questions': []}}
+
+    monkeypatch.setattr(MarketAnalysis, 'analyze', assess)
+
+    async def check():
+        app = create_app(StateRepository(memory=True))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test', headers={'X-Bartr-Request': '1'}) as client:
+            assert (await client.post('/api/auth/register', json={'username': 'owner', 'password': 'synthetic-password', 'name': 'Owner', 'community': 'Test'})).status_code == 200
+            facts = {'title': 'Chair', 'description': 'Wooden chair', 'category': 'Furniture', 'condition': 'Good', 'value_minor': None, 'status': 'draft'}
+            created = (await client.post('/api/items', json=facts)).json()
+            image = BytesIO(); Image.new('RGB', (80, 80), 'tan').save(image, 'JPEG')
+            uploaded = await client.post(f"/api/items/{created['id']}/image?expected_revision=1", files={'file': ('test.jpg', image.getvalue(), 'image/jpeg')})
+            item = uploaded.json(); path = f"/api/items/{item['id']}"
+            rejected = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 99999, 'expected_revision': item['revision']})
+            assert rejected.status_code == 422 and rejected.json()['code'] == 'EVALUATION_REQUIRED'
+            analysis = (await client.post(path + '/analysis', json={'expected_revision': item['revision']})).json()
+            tampered = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 99999, 'expected_revision': item['revision'], 'analysis_id': analysis['analysis_id']})
+            assert tampered.status_code == 422 and tampered.json()['code'] == 'EVALUATION_REQUIRED'
+            changed = await client.patch(path, json={**facts, 'title': 'Different item', 'status': 'available', 'value_minor': 4200, 'expected_revision': item['revision'], 'analysis_id': analysis['analysis_id']})
+            assert changed.status_code == 409 and changed.json()['code'] == 'STALE_ANALYSIS'
+            assert (await client.get(path)).json()['status'] == 'draft'
+            # Historical photo-only estimates cannot be reused as search evidence.
+            legacy = app.state.marketplace.review_analysis(created['owner'], item['id'], item['revision'], {'status': 'estimated', 'price_basis': 'image_assisted_estimate', 'estimate_minor': 4200})
+            legacy_id = legacy['analysis']['analysis_id']
+            denied = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4200, 'expected_revision': item['revision'], 'analysis_id': legacy_id})
+            assert denied.status_code == 422 and denied.json()['code'] == 'EVALUATION_REQUIRED'
+            # Restore a current grounded result after replacing the saved record.
+            analysis = (await client.post(path + '/analysis', json={'expected_revision': item['revision']})).json()
+            published = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4200, 'expected_revision': item['revision'], 'analysis_id': analysis['analysis_id']})
+            assert published.status_code == 200 and published.json()['value_source'] == 'assisted'
+            replay = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4200, 'expected_revision': item['revision'], 'analysis_id': analysis['analysis_id']})
+            assert replay.status_code == 409
+    asyncio.run(check())
+
+
+def test_insufficient_comparables_keep_draft_private_and_allow_retry(monkeypatch):
+    from backend.app.services.market_analysis import MarketAnalysis
+    calls = []
+    async def assess(self, facts, image):
+        calls.append(1)
+        return {'status': 'insufficient_evidence', 'price_basis': 'market_comparables', 'estimate_minor': None,
+                'attributes': {'description': 'Synthetic', 'clarification_questions': []}, 'evidence': []}
+    monkeypatch.setattr(MarketAnalysis, 'analyze', assess)
+
+    async def check():
+        app = create_app(StateRepository(memory=True))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test', headers={'X-Bartr-Request': '1'}) as client:
+            await client.post('/api/auth/register', json={'username': 'retryuser', 'password': 'synthetic-password', 'name': 'User', 'community': 'Test'})
+            facts = {'title': 'Lamp', 'description': 'Used lamp', 'category': 'Furniture', 'condition': 'Good', 'value_minor': None, 'status': 'draft'}
+            item = (await client.post('/api/items', json=facts)).json()
+            image = BytesIO(); Image.new('RGB', (80, 80), 'tan').save(image, 'JPEG')
+            item = (await client.post(f"/api/items/{item['id']}/image?expected_revision=1", files={'file': ('test.jpg', image.getvalue(), 'image/jpeg')})).json()
+            path = f"/api/items/{item['id']}"
+            first = (await client.post(path + '/analysis', json={'expected_revision': item['revision']})).json()
+            assert first['status'] == 'insufficient_evidence' and first['estimate_minor'] is None
+            rejected = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4000, 'expected_revision': item['revision'], 'analysis_id': first['analysis_id']})
+            assert rejected.status_code == 422 and rejected.json()['code'] == 'EVALUATION_REQUIRED'
+            assert (await client.get(path)).json()['status'] == 'draft'
+            await client.post(path + '/analysis', json={'expected_revision': item['revision']})
+            assert len(calls) == 2
+    asyncio.run(check())
+
+
 def test_api_account_draft_photo_publication_and_private_access():
     async def check():
         app=create_app(StateRepository(memory=True))
@@ -29,7 +126,9 @@ def test_api_account_draft_photo_publication_and_private_access():
             assert uploaded.status_code==200
             item=uploaded.json();assert item['revision']==2 and item['image_id']
             assert (await bob.get('/api/images/'+item['image_id'])).status_code==404
-            published=await alice.patch('/api/items/'+item['id'],json={**data,'status':'available','expected_revision':2})
+            actor=(await alice.get('/api/me')).json()['profile']['id']
+            reviewed=app.state.marketplace.review_analysis(actor,item['id'],2,{'status':'estimated','price_basis':'market_comparables','estimate_minor':4000,'uncertainty':'high'})
+            published=await alice.patch('/api/items/'+item['id'],json={**data,'status':'available','expected_revision':2,'analysis_id':reviewed['analysis']['analysis_id']})
             assert published.status_code==200
             assert len((await bob.get('/api/me')).json()['items'])==1
             assert (await bob.get('/api/images/'+item['image_id'])).status_code==200

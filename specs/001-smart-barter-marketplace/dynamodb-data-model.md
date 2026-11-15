@@ -75,15 +75,24 @@ command receipts prevent duplicate effects after AWS's token window.
 
 ## Embeddings, environment and migration
 
-Read-only actual DescribeTable verified ACTIVE PK/SK and no GSI/LSI/vector index.
-Native DynamoDB SearchVectors exists in the installed SDK and AWS API, but needs
-an ACTIVE dedicated vector index, matching dimensions, float32 inputs and search
-schema. Titan V2 currently uses 1024 dimensions/cosine. No actual vector index
-exists; permissions/model access and semantic quality are not verified. Keep
-semantic search explicitly unavailable until separately implemented/configured.
+Read-only actual DescribeTable previously verified ACTIVE PK/SK and no GSI/LSI/vector index.
+The bounded MVP implementation compares Titan V2 embeddings with cosine similarity
+in the backend; it does not provision or use a DynamoDB vector index. The local
+configuration selects 256 dimensions. It limits a request to 30 community listings
+and 40 preference terms and reports capacity or provider failures explicitly.
+One isolated Bedrock/DynamoDB smoke test passed after lowering provisional similarity
+thresholds; exclusion testing also demonstrated a false positive. The thresholds,
+semantic quality and performance are not validated on a representative dataset.
 Embeddings are separate rebuildable projections, never authoritative profile,
 item, offer or reservation data; imports containing embedded vectors fail rather
 than silently discarding them. [SearchVectors requirements](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_SearchVectors.html).
+
+The projection records use `SEMANTIC#ITEM#{id}` or `SEMANTIC#PREFERENCES#{user_id}`
+with sort key `DETAILS` and `_schema=bartr-semantic-v1`. They hold vectors with
+revision, model and dimensions; preference terms themselves are not stored in the
+projection. Conditional writes prevent an older revision from replacing a newer
+one. These records are excluded from authoritative snapshots and must be considered
+separately during backup, retention, cleanup, model changes and rollback.
 
 No table recreation, indexes, automatic startup migration, or source deletion.
 Existing chunked IMAGE keys stay compatible and separate. Their existing

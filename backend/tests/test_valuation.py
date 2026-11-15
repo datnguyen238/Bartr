@@ -8,7 +8,7 @@ def evidence_fixture():
     for index, price in enumerate([2000, 3000, 4000]):
         source_id = f's{index}'
         comparables.append(Comparable(source_id=source_id, price_minor=price, currency='USD',
-            price_type='asking', condition='used', comparable_match=True, condition_match=True, identity=f'offer-{index}'))
+            price_type='asking', condition='used', comparable_match=True, condition_match=True, match_kind='exact', identity=f'offer-{index}'))
         sources[source_id] = {'uri': f'https://example.com/item/{index}', 'title': f'Used lamp {index}',
                               'supported_text': f'Used lamp without bulb. Asking USD {price / 100:.2f}.'}
     return {'attributes': Attributes(description='Used lamp without bulb', brand=None, model=None,
@@ -38,6 +38,17 @@ def test_usd_amount_check_handles_decimal_and_thousands():
     assert not supported_price('USD 29.99', 2900)
     assert not supported_price('No price available', 1000)
 
+def test_category_suggestion_is_optional_and_bounded():
+    from pydantic import ValidationError
+    data = {'description': 'Webcam', 'brand': None, 'model': None, 'clarification_needed': False, 'clarification_questions': []}
+    assert Attributes(**data).category is None
+    assert Attributes(**data, category='Electronics').category == 'Electronics'
+    with pytest.raises(ValidationError):
+        Attributes(**data, category='Unlisted category')
+    assert Attributes(**data, title='Webcam').title == 'Webcam'
+    with pytest.raises(ValidationError):
+        Attributes(**data, title='x' * 151)
+
 def test_sold_evidence_gets_its_own_basis_and_range():
     fixture = evidence_fixture()
     for item in fixture['extraction'].comparables:
@@ -45,6 +56,72 @@ def test_sold_evidence_gets_its_own_basis_and_range():
     value = calculate(fixture['extraction'], fixture['sources'], now().isoformat())
     assert value['price_basis'] == 'sold' and value['confidence'] == 'medium'
     assert value['range']['high_minor'] == 4000
+
+def test_similar_model_comparables_are_accepted_but_lower_confidence():
+    fixture = evidence_fixture()
+    for item in fixture['extraction'].comparables:
+        item.price_type = 'sold'
+    fixture['extraction'].comparables[0].match_kind = 'similar'
+    result = calculate(fixture['extraction'], fixture['sources'], now().isoformat())
+    assert result['status'] == 'estimated' and result['confidence'] == 'low'
+    assert result['evidence'][0]['match_kind'] == 'similar'
+    fixture['extraction'].comparables[0].comparable_match = False
+    assert calculate(fixture['extraction'], fixture['sources'], now().isoformat())['status'] == 'insufficient_evidence'
+
+
+def test_market_analysis_computes_median_and_requires_sufficient_comparables(monkeypatch):
+    import asyncio
+    from backend.app.services.market_analysis import MarketAnalysis
+    fixture = evidence_fixture()
+    class Provider:
+        configured = True
+        model = 'synthetic-model'
+        fingerprint = 'synthetic-policy'
+        def valuate(self, facts, image):
+            return fixture
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    result = asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
+    assert result['status'] == 'estimated' and result['estimate_minor'] == 3000
+    assert result['range']['low_minor'] == 2000 and result['range']['high_minor'] == 4000
+    assert result['comparison_basis'] == 'asking' and len(result['evidence']) == 3
+    fixture['extraction'].comparables[0].price_minor = 9999
+    rejected = asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
+    assert rejected['status'] == 'insufficient_evidence' and rejected['estimate_minor'] is None
+    assert len(rejected['evidence']) == 2
+    assert all(entry['price_minor'] != 9999 for entry in rejected['evidence'])
+
+
+def test_market_analysis_clarification_prevents_numeric_estimate(monkeypatch):
+    import asyncio
+    from backend.app.services.market_analysis import MarketAnalysis
+    fixture = evidence_fixture()
+    fixture['attributes']['clarification_needed'] = True
+    fixture['attributes']['clarification_questions'] = ['Is the lamp working?']
+    class Provider:
+        configured = True
+        model = 'synthetic-model'
+        fingerprint = 'synthetic-policy'
+        def valuate(self, facts, image):
+            return fixture
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    result = asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
+    assert result['status'] == 'clarification_required' and result['estimate_minor'] is None
+
+
+def test_market_analysis_surfaces_quota_failure_without_provider_details(monkeypatch):
+    import asyncio
+    from backend.app.errors import AppError
+    from backend.app.services.market_analysis import MarketAnalysis
+    from backend.app.services.valuation import ValuationProviderError
+    class Provider:
+        configured = True
+        def valuate(self, facts, image):
+            raise ValuationProviderError('search', 429, 30)
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    with pytest.raises(AppError) as caught:
+        asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
+    assert caught.value.code == 'ANALYSIS_RATE_LIMITED'
+    assert 'quota' in str(caught.value).lower()
 
 def test_real_adapter_uses_grounding_metadata_and_separate_extraction(monkeypatch):
     genai = pytest.importorskip("google.genai")
@@ -85,7 +162,7 @@ def test_real_adapter_uses_grounding_metadata_and_separate_extraction(monkeypatc
     assert len(calls) == 2 and calls[0]['tools'] == [{'type': 'google_search'}]
     assert calls[0]['input'][1] == {'type': 'image', 'data': 'bm9ybWFsaXplZC1waG90bw==', 'mime_type': 'image/jpeg'}
     assert 'data' not in calls[1]['input']
-    assert all(call['store'] is False and 0 < call['timeout'] <= 35 for call in calls)
+    assert all(call['store'] is False and 0 < call['timeout'] <= 75 for call in calls)
     assert calls[1]['timeout'] <= calls[0]['timeout']
     assert all(call['automatic_continuation'] is False for call in calls)
     assert calls[1]['response_format']['schema']['additionalProperties'] is False
@@ -151,4 +228,18 @@ def test_market_timeout_can_be_configured(monkeypatch):
     monkeypatch.setenv('GEMINI_MARKET_TIMEOUT_SECONDS','0')
     with pytest.raises(ValueError):
         GeminiValuationProvider()
+
+def test_market_analysis_timeout_is_actionable_and_does_not_expose_provider_error(monkeypatch):
+    import asyncio
+    from backend.app.errors import AppError
+    from backend.app.services.market_analysis import MarketAnalysis
+    class Provider:
+        configured = True
+        def valuate(self, facts, image):
+            raise TimeoutError('private provider details')
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    with pytest.raises(AppError) as caught:
+        asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
+    assert caught.value.code == 'ANALYSIS_TIMEOUT' and caught.value.status == 503
+    assert 'private' not in str(caught.value) and 'try again' in str(caught.value).lower()
 

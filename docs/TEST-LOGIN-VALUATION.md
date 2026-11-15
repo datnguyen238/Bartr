@@ -16,9 +16,15 @@ If already in `backend/`, activate `../.venv/bin/activate` and use `python3 -m u
 
 Root `.env` is loaded automatically. Explicit shell environment variables take precedence, so clear an old exported `BARTR_STORAGE=memory` or conflicting `AWS_PROFILE` before starting. Keep terminal 1 open. The frontend is not needed.
 
-For frontend testing, start the frontend in another terminal with Node 20.19 or newer: `cd frontend && npm run dev`. Open `http://localhost:3000` and sign in with a test account before checking authenticated pages. Create the account first if necessary. Set `NEXT_PUBLIC_USE_SEED_DATA=false` in `frontend/.env.local` so actions reach the backend, then restart the frontend after changing it. For valuation, save a draft, upload a photo, and select **Analyze photo & value**. Review the estimate and uncertainty, select **Use this estimate**, then save the listing. A corrected amount is recorded as owner-entered. Gemini model access and image valuation have not yet been verified live.
+For frontend testing, start the frontend in another terminal with Node 20.19 or newer: `cd frontend && npm run dev`. Open `http://localhost:3000` and sign in with a test account before checking authenticated pages. Create the account first if necessary. Set `NEXT_PUBLIC_USE_SEED_DATA=false` in `frontend/.env.local` so actions reach the backend, then restart the frontend after changing it. For valuation, upload a photo, review the suggested details, choose the condition, and select **Estimate price**. Review the estimate, uncertainty, and sources before publishing; a successful current estimate is applied automatically. Live provider smoke tests do not establish price accuracy.
+
+The Add item dialog uses **Estimate price** to search for comparable listings. The market-search model uses `GEMINI_VALUATION_MODEL` or falls back to `GEMINI_MODEL`; `GEMINI_EXTRACTION_MODEL` optionally selects the extraction model. Restart the backend after changing settings. Review the sources before publication. If search is unavailable or there is insufficient evidence, keep the draft and retry later.
+
+For a faster local valuation, set both `GEMINI_VALUATION_MODEL` and `GEMINI_EXTRACTION_MODEL` to `gemini-3.5-flash-lite`. One synthetic-image smoke test was faster than `gemini-3.8-flash`, but it does not establish real-item accuracy or typical latency. The same source and evidence checks still apply. Model access and charges depend on the configured Google project.
 
 For trade chat, restart both servers after installing the current `requirements.txt`, disable seed mode, and sign in with two different accounts in separate browser profiles. Create a trade and open it in both profiles. The conversation should show **Live**, and a sent message should appear in the other profile within a few seconds. A disconnect changes the status to **Reconnecting**; reopening recovers saved messages. For a different frontend origin, add it exactly to `WEB_ORIGINS`; any hosting proxy must support WebSocket upgrades. Local proxy verification uses temporary memory storage and does not validate your deployed setup.
+
+For DynamoDB semantic matching, configure `AWS_REGION`, `BEDROCK_EMBEDDING_MODEL=amazon.titan-embed-text-v2:0` and `BEDROCK_EMBEDDING_DIMENSIONS=256` in the backend environment, with model access and `bedrock:InvokeModel` permissions. Restart the backend after changing settings. In Home, open **Your matches**, enable **Semantic matching**, and select **Find bundle matches**. The first search lazily builds separate projections and may incur Bedrock and DynamoDB charges. A provider error is not a no-match result. The current bounded search supports up to 30 same-community available listings and 40 participant preference terms; use exact matching if it reports capacity. Semantic exclusions are conservative heuristics, and quality has not been established on a labeled real-world dataset.
 
 The following commands go in terminal 2. They create real test records in the existing DynamoDB table and send one image to Gemini, consuming normal API quota. The credentials below are public sample credentials for testing only; do not reuse the password elsewhere. If the username is taken, change its number in both commands. The cookie file contains a session credential; do not share or commit it.
 
@@ -77,11 +83,11 @@ curl -b /tmp/bartr-test-cookies.txt \
   http://127.0.0.1:8000/api/items/ITEM_ID/analysis
 ```
 
-Expected: saved `analysis_id`, image-derived suggestions, `estimate_minor` in USD cents or null, uncertainty/reasons, and any clarification questions. This is an advisory image estimate, not Google Search market comparison. Failure or unknown value must not silently publish or assign a price. Analysis is saved without automatic expiry for that exact revision.
+Expected: saved `analysis_id`, `estimate_minor` in USD cents or null, comparable range and source links when sufficient evidence exists, uncertainty/reasons, and any clarification questions. The backend calculates the median of at least three eligible cited comparable prices. Provider-cited output is not independent verification that a source page currently lists that price. Failure or insufficient evidence must not silently publish or assign a price. Analysis is saved for the exact revision.
 
 ## 6. Review the estimate and publish
 
-Replace `ANALYSIS_ID` with the returned ID, and `4000` with the actual estimate you reviewed (the number here is illustrative, not a prescribed valuation). Use the exact estimate to record `value_source=assisted`; a corrected amount records `value_source=owner`. If the estimate is null or clarification is needed, correct the draft or supply a manual value instead; do not manufacture an assisted value.
+Replace `ANALYSIS_ID` with the returned ID, and `4000` with the actual estimate you reviewed (the number here is illustrative, not a prescribed valuation). Publication requires the exact estimate and records `value_source=assisted`. If the estimate is null or clarification is needed, correct the draft and evaluate the new revision; do not manufacture an assisted value.
 
 ```sh
 curl -X PATCH -b /tmp/bartr-test-cookies.txt \
@@ -100,6 +106,7 @@ Expected: published listing, image ID, selected comparison value, source, last-s
 ## Errors to report
 
 - 503 `DYNAMODB_UNAVAILABLE`: region/profile/permissions/table availability; DescribeTable, GetItem, PutItem and TransactWriteItems are required. A successful health endpoint alone does not validate storage.
+- 503 `ANALYSIS_RATE_LIMITED`: Google Search returned a quota/rate-limit response; check Gemini project billing and Search grounding quota, then retry.
 - 503 `INVALID_TABLE_SCHEMA`: configured string key names do not match the existing table.
 - 401: cookie missing/expired; sign in and reuse the cookie jar on the same host.
 - 403: missing `X-Bartr-Request: 1`, disallowed Origin, or another owner's record.

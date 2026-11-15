@@ -144,7 +144,7 @@
 .inventory-status { font-size: .75rem; font-weight: 550; }
 .inventory-photo { background: var(--muted); border: 1px dashed var(--input); border-radius: 12px; padding: 20px; }
 .inventory-readiness { color: var(--muted-foreground); font-size: .875rem; }
-.inventory-editor-actions { padding-top: 20px; border-top: 1px solid var(--border); }
+.inventory-editor-actions { border-top: 0; padding-top: 0; }
 .inventory-filters { display: flex; flex-wrap: wrap; gap: 4px; }
 .inventory-filters button { min-height: 44px; }
 .inventory-empty { padding: 32px 0; color: var(--muted-foreground); }

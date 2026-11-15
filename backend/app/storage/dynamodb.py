@@ -17,6 +17,7 @@ from .dynamodb_records import IMMUTABLE, assemble, canonical, records
 from .state import empty_state
 
 SCHEMA = 'bartr-single-table-v1'
+VECTOR_SCHEMA = 'bartr-semantic-v1'
 SERIALIZER, DESERIALIZER = TypeSerializer(), TypeDeserializer()
 
 
@@ -39,6 +40,28 @@ class DynamoRepository(DynamoImages):
 
     def entity_key(self, pk, sk):
         return {'PK': {'S': self.scope + pk}, 'SK': {'S': sk}}
+
+    def semantic_projection(self, kind, entity_id):
+        row = self.connection().get_item(TableName=self.table, Key=self.entity_key(f'SEMANTIC#{kind}#{entity_id}', 'DETAILS'), ConsistentRead=True).get('Item')
+        if not row:
+            return None
+        value = decode(row)
+        if value.get('_schema') != VECTOR_SCHEMA or value.get('_scope') != self.scope:
+            raise AppError('An incompatible semantic record occupies this key.', 'NAMESPACE_CONFLICT', 503)
+        return {k: v for k, v in value.items() if k not in {'PK', 'SK', '_schema', '_scope'}}
+
+    def save_semantic_projection(self, kind, entity_id, projection):
+        key = self.entity_key(f'SEMANTIC#{kind}#{entity_id}', 'DETAILS')
+        row = {**key, **encode({'_schema': VECTOR_SCHEMA, '_scope': self.scope, **projection})}
+        try:
+            self.connection().put_item(TableName=self.table, Item=row,
+                ConditionExpression='attribute_not_exists(#pk) OR #revision <= :revision',
+                ExpressionAttributeNames={'#pk': 'PK', '#revision': 'revision'},
+                ExpressionAttributeValues={':revision': {'N': str(projection['revision'])}})
+        except ClientError as exc:
+            if exc.response.get('Error', {}).get('Code') == 'ConditionalCheckFailedException':
+                raise AppError('The listing or preferences changed during indexing. Retry.', 'STALE_EMBEDDING', 409) from exc
+            raise
 
     def _get(self, pk, sk):
         row = self.connection().get_item(TableName=self.table, Key=self.entity_key(pk, sk), ConsistentRead=True).get('Item')

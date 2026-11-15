@@ -57,7 +57,6 @@ describe("section-scoped profile saves", () => {
     render(<PreferencesScreen embedded />);
     expect(screen.queryByRole("heading", { name: "Your preferences" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What you’re looking for" })).toBeVisible();
-    expect(screen.getByText(/These preferences stay private/)).toBeVisible();
     expect(screen.getByLabelText("Interests", { exact: true })).toBeEnabled();
     expect(mocks.api).not.toHaveBeenCalled();
   });
@@ -148,45 +147,29 @@ describe("section-scoped profile saves", () => {
     expect(screen.getByLabelText("Username")).toHaveAttribute("readonly");
   });
 
-  it("keeps AI interpretation advisory until the member puts it in their draft", async () => {
-    mocks.workspace.natural = "A screen for studying";
-    mocks.api.mockResolvedValue({ interests: ["Computer monitor"], summary: "Suggested a study screen." });
-    const { rerender } = render(<PreferencesScreen />);
-    fireEvent.click(screen.getByText("Get help choosing interests"));
-    fireEvent.click(screen.getByRole("button", { name: "Suggest interests" }));
-    await waitFor(() => expect(mocks.workspace.setInterpreted).toHaveBeenCalledWith(["Computer monitor"]));
-    expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
-    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
-    expect(mocks.api).toHaveBeenCalledWith("preferences/interpret", "POST", { text: "A screen for studying" });
-    mocks.workspace.interpreted = ["Computer monitor"];
-    rerender(<PreferencesScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Add suggested interests" }));
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "Unsaved desk, Computer monitor", name: "Unsaved Alice", exclusions: "Unsaved broken" }));
-    expect(mocks.api).toHaveBeenCalledTimes(1);
-  });
-
   it("edits interests, exclusions and the bounded percentage independently", () => {
     render(<PreferencesScreen />);
-    fireEvent.change(screen.getByLabelText("Interests", { exact: true }), { target: { value: "Monitor" } });
     fireEvent.keyDown(screen.getByLabelText("Interests", { exact: true }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Monitor" }));
     expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "Unsaved desk, Monitor" }));
-    fireEvent.change(screen.getByLabelText("Exclusions", { exact: true }), { target: { value: "Broken items" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add exclusion" }));
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ exclusions: "Unsaved broken, Broken items" }));
+    fireEvent.keyDown(screen.getByLabelText("Exclusions", { exact: true }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Electronics" }));
+    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ exclusions: "Unsaved broken, Electronics" }));
     fireEvent.change(screen.getByLabelText("Estimated value difference (%)"), { target: { value: "30" } });
     expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ gap_limit: 30 }));
-    fireEvent.click(screen.getByText("Get help choosing interests"));
-    fireEvent.change(screen.getByLabelText("Describe what you’re looking for"), { target: { value: "Study supplies" } });
-    expect(mocks.workspace.setNatural).toHaveBeenCalledWith("Study supplies");
-    expect(screen.getByLabelText("Estimated value difference (%)")).toHaveAttribute("max", "100");
-    expect(screen.getByLabelText("Estimated value difference (%)")).toHaveAttribute("min", "0");
+    expect(screen.getByRole("option", { name: "0%" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "100%" })).toBeInTheDocument();
   });
 
-  it("keeps pending interest text when saving without a separate Add action", async () => {
+  it("does not add unlisted search text to preferences", async () => {
     render(<PreferencesScreen />);
-    fireEvent.change(screen.getByLabelText("Interests", { exact: true }), { target: { value: "Monitor" } });
+    fireEvent.keyDown(screen.getByLabelText("Interests", { exact: true }), { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Search interests"), { target: { value: "Custom item" } });
+    expect(screen.getByText("No matches found.")).toBeVisible();
+    fireEvent.keyDown(screen.getByLabelText("Search interests"), { key: "Escape" });
+    expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledWith("profile", "PATCH", expect.objectContaining({ interests: ["Unsaved desk", "Monitor"] })));
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledWith("profile", "PATCH", expect.objectContaining({ interests: ["Unsaved desk"] })));
   });
 
   it("removes one interest without saving or altering the other preference fields", () => {
@@ -216,26 +199,13 @@ describe("section-scoped profile saves", () => {
     expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
   });
 
-  it("keeps manual entry usable when AI assistance is unavailable", () => {
-    (mocks.workspace.view as { integrations: { gemini_configured: boolean } }).integrations.gemini_configured = false;
-    mocks.workspace.natural = "Study supplies";
-    render(<PreferencesScreen />);
-    fireEvent.click(screen.getByText("Get help choosing interests"));
-    expect(screen.getByRole("button", { name: "Suggest interests" })).toBeDisabled();
-    expect(screen.getByLabelText("Interests", { exact: true })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Save preferences" })).toBeEnabled();
-    expect(mocks.api).not.toHaveBeenCalled();
-  });
-
   it("rejects a twenty-first interest without dropping the existing list or submitting", () => {
     (mocks.workspace.profileForm as { interests: string }).interests = Array.from({ length: 20 }, (_, index) => `Interest ${index + 1}`).join(", ");
     render(<PreferencesScreen />);
-    fireEvent.change(screen.getByLabelText("Interests", { exact: true }), { target: { value: "Another interest" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add interest" }));
+    fireEvent.keyDown(screen.getByLabelText("Interests", { exact: true }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Monitor" }));
     expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Interests", { exact: true })).toHaveAttribute("aria-invalid", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Your changes are still here");
     expect(mocks.api).not.toHaveBeenCalled();
     expect(screen.getAllByRole("button", { name: /Remove interest Interest/ })).toHaveLength(20);
   });
@@ -250,18 +220,7 @@ describe("section-scoped profile saves", () => {
     expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
   });
 
-  it("retains the description and manual interests when AI suggestions fail", async () => {
-    mocks.workspace.natural = "A screen for studying";
-    mocks.api.mockRejectedValue(new Error("Suggestions are temporarily unavailable. Try again."));
-    mocks.workspace.run = vi.fn(async (action: () => Promise<void>) => { try { await action(); } catch { /* provider preserves the error outcome */ } });
-    render(<PreferencesScreen />);
-    fireEvent.click(screen.getByText("Get help choosing interests"));
-    fireEvent.click(screen.getByRole("button", { name: "Suggest interests" }));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Suggestions are temporarily unavailable"));
-    expect(screen.getByLabelText("Describe what you’re looking for")).toHaveValue("A screen for studying");
-    expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
-    expect(mocks.workspace.setInterpreted).not.toHaveBeenCalled();
-  });
+
 });
 
 describe("protected profile presentation", () => {

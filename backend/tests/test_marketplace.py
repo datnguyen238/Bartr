@@ -1,3 +1,4 @@
+from backend.tests.legacy_fixtures import seed_legacy_available
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
@@ -19,7 +20,7 @@ def market(request,tmp_path):
     for actor,interests in [(a,['monitor']),(b,['chair','calculator']),(c,['chair'])]:
         app.update_profile(actor,1,{'interests':interests})
     def add(actor,title,value):
-        return app.save_item(actor,None,None,{'title':title,'description':title,'category':title,'condition':'Good','image_id':'test-image','value_minor':value,'status':'available'})['id']
+        return seed_legacy_available(app,actor,{'title':title,'description':title,'category':title,'condition':'Good','image_id':'test-image','value_minor':value})['id']
     chair=add(a,'chair',4000); calculator=add(a,'calculator',2000); monitor=add(b,'monitor',6500)
     return app,a,b,c,chair,calculator,monitor,add
 
@@ -140,7 +141,7 @@ def test_all_nine_supported_bundle_shapes(left_count,right_count):
     app.update_profile(b,1,{'interests':['chair'],'gap_limit':0})
     for actor,title,count,value in [(a,'chair',left_count,600//left_count),(b,'monitor',right_count,600//right_count)]:
         for i in range(count):
-            app.save_item(actor,None,None,{'title':f'{title} {i}','description':title,'category':title,'condition':'Good','image_id':'test','value_minor':value,'status':'available'})
+            seed_legacy_available(app,actor,{'title':f'{title} {i}','description':title,'category':title,'condition':'Good','image_id':'test','value_minor':value})
     matches=app.recommend(a)['recommendations']
     assert any(len(x['terms']['left'])==left_count and len(x['terms']['right'])==right_count for x in matches)
 
@@ -180,9 +181,9 @@ def test_both_percentage_limits_apply_and_semantic_ids_support_equivalent_wordin
     assert app.recommend(a,semantic={a:{monitor},b:{chair,calc}},semantic_excluded={a:{monitor}})['recommendations']==[]
 
 
-def test_accepting_saved_image_estimate_sets_assisted_provenance(market):
+def test_accepting_saved_comparable_estimate_sets_assisted_provenance(market):
     app,a,b,c,chair,*_=market
-    reviewed=app.review_analysis(a,chair,1,{'estimate_minor':4100,'uncertainty':'high'})
+    reviewed=app.review_analysis(a,chair,1,{'status':'estimated','price_basis':'market_comparables','estimate_minor':4100,'uncertainty':'high'})
     analysis=reviewed['analysis']
     item=app.save_item(a,chair,1,{'value_minor':4100,'analysis_id':analysis['analysis_id']})
     assert item['value_source']=='assisted' and item['uncertainty']=='high'
@@ -192,11 +193,12 @@ def test_accepting_saved_image_estimate_sets_assisted_provenance(market):
         app.save_item(a,chair,2,{'value_minor':4100,'analysis_id':analysis['analysis_id']})
 
 
-def test_correcting_saved_estimate_is_owner_value_and_foreign_analysis_rejected(market):
+def test_altered_estimate_and_foreign_analysis_are_rejected(market):
     app,a,b,c,chair,calc,monitor,_=market
-    result=app.review_analysis(a,chair,1,{'estimate_minor':4100,'uncertainty':'high'})
+    result=app.review_analysis(a,chair,1,{'status':'estimated','price_basis':'market_comparables','estimate_minor':4100,'uncertainty':'high'})
     id=result['analysis']['analysis_id']
     with pytest.raises(AppError):
         app.save_item(b,monitor,1,{'value_minor':4100,'analysis_id':id})
-    item=app.save_item(a,chair,1,{'value_minor':3900,'analysis_id':id})
-    assert item['value_source']=='owner' and item['uncertainty'] is None
+    with pytest.raises(AppError):
+        app.save_item(a,chair,1,{'value_minor':3900,'analysis_id':id})
+    assert app.repo.read()['items'][chair]['value_minor'] == 4000

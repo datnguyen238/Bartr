@@ -8,11 +8,13 @@ from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadF
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..domain import now
+from ..domain import now, term_matches
 from ..errors import AppError
 from ..services.images import MAX_UPLOAD_BYTES, normalize_image
 from ..services.preferences import interpret_preferences
 from ..services.search import SemanticSearch
+from ..services.dynamodb_semantic import DynamoSemanticSearch
+from ..services.market_analysis import MarketAnalysis
 from ..services.image_analysis import GeminiImageAnalysis
 
 Text=Annotated[str,Field(min_length=1,max_length=200)]
@@ -222,13 +224,29 @@ async def analysis(item_id:str,body:Expected,request:Request,who=Depends(actor))
     if item['revision']!=body.expected_revision:
         raise AppError('Item changed. Reload first.','STALE_ITEM')
     prior=item.get('analysis')
-    if prior and prior['item_revision']==item['revision']:
+    if prior and prior['item_revision']==item['revision'] and prior.get('price_basis')=='market_comparables' and prior.get('status') in {'estimated', 'clarification_required'}:
         return prior
     image=await run_in_threadpool(service.repo.image,item['image_id']) if item.get('image_id') else None
-    value=await GeminiImageAnalysis().analyze(
+    value=await MarketAnalysis().analyze(
         {k:item[k] for k in ('title','description','category','condition')},image)
     updated=await run_in_threadpool(service.review_analysis,who,item_id,body.expected_revision,value)
     return updated['analysis']
+
+
+@router.post('/items/{item_id}/identify')
+async def identify_item(item_id:str,body:Expected,request:Request,who=Depends(actor)):
+    service=market(request)
+    from starlette.concurrency import run_in_threadpool
+    state=await run_in_threadpool(service.repo.read)
+    item=state['items'].get(item_id)
+    if not item or item['owner']!=who: raise AppError('Item not found.','NOT_FOUND',404)
+    if item['revision']!=body.expected_revision: raise AppError('Item changed. Reload first.','STALE_ITEM',409)
+    image=await run_in_threadpool(service.repo.image,item['image_id']) if item.get('image_id') else None
+    result=await GeminiImageAnalysis().identify({k:item[k] for k in ('title','description','category')},image)
+    latest=(await run_in_threadpool(service.repo.read))['items'].get(item_id)
+    if not latest or latest['owner']!=who or latest['revision']!=body.expected_revision or latest.get('image_id')!=item.get('image_id'):
+        raise AppError('Item changed during identification. Reload first.','STALE_ITEM',409)
+    return result
 
 
 @router.post('/preferences/interpret')
@@ -241,7 +259,8 @@ def embed(item_id:str,body:Expected,request:Request,who=Depends(actor)):
     service=market(request); state=service.repo.read(); item=state['items'].get(item_id)
     if not item or item['owner']!=who: raise AppError('Item not found.','NOT_FOUND',404)
     if item['revision']!=body.expected_revision: raise AppError('Item changed. Reload first.','STALE_ITEM')
-    return SemanticSearch(service.repo).index_item(item,state['users'][who]['community'])
+    search = DynamoSemanticSearch(service.repo) if getattr(service.repo, 'backend', None) == 'dynamodb' else SemanticSearch(service.repo)
+    return search.index_item(item,state['users'][who]['community'])
 
 
 @router.get('/recommendations')
@@ -255,12 +274,19 @@ def recommendations(request:Request,semantic:bool=True,who=Depends(actor)):
         raise AppError('Add an interest before requesting recommendations.','MISSING_INTERESTS',422)
     if semantic:
         try:
-            relevant,excluded=SemanticSearch(service.repo).candidates(service.repo.read(),who)
+            if getattr(service.repo, 'backend', None) == 'dynamodb':
+                state, relevant, excluded = DynamoSemanticSearch(service.repo).candidates(state, who)
+            else:
+                relevant,excluded=SemanticSearch(service.repo).candidates(state,who)
         except AppError: raise
-        except Exception as exc: raise AppError('Semantic discovery failed. Check Bedrock, Gemini and the Atlas vector index; this does not mean no trades exist.','SEARCH_UNAVAILABLE',503) from exc
-        result=service.recommend(who,relevant,excluded)
+        except Exception as exc: raise AppError('Semantic discovery failed. Check the configured embedding service and retry; this does not mean no trades exist.','SEARCH_UNAVAILABLE',503) from exc
+        result=service.recommend(who,relevant,excluded,state=state)
     else: result=service.recommend(who)
-    return {**result,'retrieval':'semantic' if semantic else 'exact-text (local testing)'}
+    visible_items = [x for x in state['items'].values() if x['status'] == 'available' and x['owner'] != who and state['users'][x['owner']]['community'].casefold() == member['community'].casefold()]
+    matches = [x['id'] for x in visible_items if x['id'] not in excluded.get(who, set()) and not term_matches(x, member['exclusions']) and (x['id'] in relevant.get(who, set()) or term_matches(x, member['interests']))] if semantic else []
+    return {**result,'retrieval':'semantic' if semantic else 'exact-text (local testing)',
+            'matching_item_ids': sorted(matches),
+            'matching_item_revisions': {x['id']: x['revision'] for x in visible_items if x['id'] in matches}}
 
 
 @router.post('/recommendations/dismiss')

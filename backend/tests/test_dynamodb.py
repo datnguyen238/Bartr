@@ -1,4 +1,5 @@
 """DynamoDB emulator tests. No application server or external providers."""
+from backend.tests.legacy_fixtures import seed_legacy_available
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from threading import Barrier
@@ -40,8 +41,8 @@ def setup_market(repo):
     actors = [app.register(name, 'synthetic-password', name, 'Test campus')['id'] for name in ('alice', 'brian', 'carol')]
     ids = []
     for actor, title, value in [(actors[0], 'chair', 4000), (actors[0], 'calculator', 2000), (actors[1], 'monitor', 6000), (actors[2], 'screen', 6000)]:
-        ids.append(app.save_item(actor, None, None, dict(title=title, description=title, category=title,
-            condition='Good', image_id='synthetic', value_minor=value, status='available'))['id'])
+        ids.append(seed_legacy_available(app, actor, dict(title=title, description=title, category=title,
+            condition='Good', image_id='synthetic', value_minor=value))['id'])
     return app, actors, ids
 
 

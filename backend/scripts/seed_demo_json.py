@@ -134,12 +134,15 @@ def _create_item(
                 "height": 48,
             },
         )
-        marketplace.save_item(
+        created = marketplace.save_item(
             actor,
             None,
             None,
-            {**facts, "image_id": image_id, "status": "available"},
+            {**facts, "image_id": image_id, "status": "draft"},
         )
+        # The explicitly fictional seed represents pre-policy legacy listings;
+        # it must never fabricate an AI estimate or be used for real publication.
+        repository.mutate(lambda state: state["items"][created["id"]].update(status="available"))
         return
 
     created = marketplace.save_item(actor, None, None, {**facts, "status": "draft"})

@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,16 @@ import { useWorkspace } from "./provider";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
-  const { view, hasSession, seeded, busy, message, error, signOut } = useWorkspace();
+  const { view, hasSession, seeded, busy, message, error, setError, signOut } = useWorkspace();
   const pathname = usePathname();
   const router = useRouter();
   const [signOutError, setSignOutError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    if (previousPath.current !== pathname && hasSession) setError("");
+    previousPath.current = pathname;
+  }, [pathname, hasSession, setError]);
   const links = hasSession
     ? [{ href: "/", label: "Home", icon: "home" }, { href: "/profile", label: "Profile", icon: "account" }, { href: "/trades", label: "Trade", icon: "trade" }] as const
     : [{ href: "/", label: "Home", icon: "home" }, { href: "/trades", label: "Trade", icon: "trade" }] as const;

@@ -57,8 +57,8 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   await page.goto("/profile/preferences");
 
   for (const interest of ["Monitor", "Study supplies"]) {
-    await page.getByLabel("Interests", { exact: true }).fill(interest);
-    await page.getByLabel("Interests", { exact: true }).press("Enter");
+    await page.getByLabel("Interests", { exact: true }).click();
+    await page.getByRole("menuitem", { name: interest, exact: true }).click();
     await expect(page.getByRole("button", { name: `Remove interest ${interest}`, exact: true })).toBeVisible();
   }
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();

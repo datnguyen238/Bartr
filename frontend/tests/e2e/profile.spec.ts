@@ -119,9 +119,20 @@ async function installApi(page: Page, authenticated = true): Promise<Stub> {
     if (path === "images/test-uploaded-image" && method === "GET") {
       return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64") });
     }
+    if (/^items\/[^/]+\/identify$/.test(path) && method === "POST") {
+      return json(route, 200, { title: "Synthetic lamp", category: "Household essentials", description: "Synthetic lamp description" });
+    }
+    const analysisId = /^items\/([^/]+)\/analysis$/.exec(path)?.[1];
+    if (analysisId && method === "POST") {
+      const analysis = { analysis_id: "test-analysis", status: "estimated" as const, comparison_basis: "asking" as const, estimate_minor: 4200, uncertainty: "low", generated_at: fixtureTime, item_revision: 1, attributes: { description: "Synthetic lamp", brand: null, model: null, clarification_needed: false, clarification_questions: [] }, range: { low_minor: 3000, high_minor: 5000 }, evidence: [{ uri: "https://example.com/synthetic-lamp", title: "Comparable lamp", price_minor: 4200, condition: "used" }], attribution: { search_entry_point_html: '<a href="https://example.com/search" target="_blank">Search</a>' } };
+      state.view.items = state.view.items.map((candidate) => candidate.id === analysisId ? { ...candidate, analysis } : candidate);
+      return json(route, 200, analysis);
+    }
     if (path === "recommendations" && method === "GET") {
       return json(route, 200, {
         retrieval: "synthetic frontend test", reason: null,
+        matching_item_ids: ["test-monitor"],
+        matching_item_revisions: { "test-monitor": state.view.items[1].revision },
         recommendations: [{
           id: "test-recommendation", member: state.view.members[1], explanation: "Synthetic eligible recommendation.",
           terms: {
@@ -153,8 +164,8 @@ async function setEntries(page: Page, kind: "interest" | "exclusion", values: st
     await expect(removals).toHaveCount(count - 1);
   }
   for (const value of values) {
-    await input.fill(value);
-    await input.press("Enter");
+    await input.click();
+    await page.getByRole("menuitem", { name: value, exact: true }).click();
     await expect(page.getByRole("button", { name: `Remove ${kind} ${value}`, exact: true })).toBeVisible();
   }
 }
@@ -253,14 +264,14 @@ test("preferences update on the same profile page and preserve the saved account
   await page.goto("/profile");
   await selectSection(page, "Preferences");
   await expect(page).toHaveURL(/\/profile$/);
-  await setEntries(page, "interest", ["Desk", "Computer monitor"]);
-  await setEntries(page, "exclusion", ["Damaged electronics"]);
-  await page.getByLabel("Estimated value difference (%)", { exact: true }).fill("15");
+  await setEntries(page, "interest", ["Furniture", "Monitor"]);
+  await setEntries(page, "exclusion", ["Electronics"]);
+  await page.getByLabel("Estimated value difference (%)", { exact: true }).selectOption("15");
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();
   await expect.poll(() => state.profileSaves.length).toBe(1);
   expect(state.profileSaves[0]).toMatchObject({
-    name: "Alice Example", community: "Test Campus", interests: ["Desk", "Computer monitor"],
-    exclusions: ["Damaged electronics"], gap_limit: 15, expected_revision: 3,
+    name: "Alice Example", community: "Test Campus", interests: ["Furniture", "Monitor"],
+    exclusions: ["Electronics"], gap_limit: 15, expected_revision: 3,
   });
   await expect(page.getByRole("heading", { name: "Alice Example", exact: true, level: 1 })).toBeVisible();
   await expect(page.getByRole("tabpanel", { name: "Preferences", exact: true }).getByRole("status")).toContainText("Preferences saved");
@@ -361,7 +372,7 @@ test("inventory draft saving and photo attachment preserve unsaved details", asy
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
   });
   await expect.poll(() => state.uploads).toBe(1);
-  await expect(page.getByText("Photo saved. Review your details before publishing.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Photo saved. Enter your item details.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title before upload");
   await expect(page.getByLabel("Description", { exact: true })).toHaveValue("Unsaved description before upload");
   expect(state.itemSaves).toHaveLength(1);
@@ -369,6 +380,66 @@ test("inventory draft saving and photo attachment preserve unsaved details", asy
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect.poll(() => state.itemSaves.length).toBe(2);
   expect(state.itemSaves[1]).toMatchObject({ title: "Reviewed synthetic desk lamp", expected_revision: 2 });
+});
+
+test("an item can be removed from the inventory after confirmation", async ({ page }) => {
+  const state = await installApi(page);
+  await page.goto("/profile/inventory");
+  const item = state.view.items.find(candidate => candidate.owner === state.view.profile.id && candidate.status === "available")!;
+  await page.getByRole("button", { name: `Remove ${item.title}`, exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(state.itemSaves).toHaveLength(0);
+  await page.getByRole("button", { name: `Remove ${item.title}`, exact: true }).click();
+  await page.getByRole("button", { name: "Remove item", exact: true }).click();
+  await expect.poll(() => state.itemSaves.length).toBe(1);
+  expect(state.itemSaves[0]).toMatchObject({ status: "removed", expected_revision: item.revision, title: item.title });
+});
+
+test("photo assistance shows the estimate for review without changing the draft", async ({ page }) => {
+  const state = await installApi(page);
+  state.view.integrations.gemini_configured = true;
+  await page.goto("/profile/inventory");
+  await page.getByRole("button", { name: "Add item", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add item" });
+  await dialog.getByLabel("Title", { exact: true }).fill("My draft title");
+  await dialog.getByLabel("Item photo", { exact: true }).setInputFiles({
+    name: "synthetic.png", mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
+  });
+  await expect(dialog.getByRole("button", { name: "Estimate price", exact: true })).toBeDisabled();
+  await dialog.getByLabel("Condition", { exact: true }).selectOption("Used");
+  await expect(dialog.getByRole("button", { name: "Estimate price", exact: true })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Estimate price", exact: true }).click();
+  await expect(dialog.getByText(/Suggested value: \$42\.00/)).toBeVisible();
+  expect(state.itemSaves).toHaveLength(2);
+  await expect(dialog.getByText(/Comparable range: \$30\.00–\$50\.00/)).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /Comparable lamp/ })).toHaveAttribute("href", "https://example.com/synthetic-lamp");
+  await expect(dialog.getByTitle("Google Search suggestions")).toHaveCount(0);
+  await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("My draft title");
+  await expect(dialog.getByLabel("Comparison value (USD)")).toHaveCount(0);
+  await expect(dialog.getByText("Estimate selected")).toBeVisible();
+});
+
+test("item evaluation errors stay in the item dialog when navigating to trades", async ({ page }) => {
+  const state = await installApi(page);
+  state.view.integrations.gemini_configured = true;
+  await page.route("**/api/items/*/analysis", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Evaluation temporarily unavailable", code: "ANALYSIS_UNAVAILABLE" }) }));
+  await page.goto("/profile/inventory");
+  await page.getByRole("button", { name: "Add item", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add item" });
+  await dialog.getByLabel("Item photo", { exact: true }).setInputFiles({
+    name: "synthetic.png", mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
+  });
+  await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Synthetic lamp");
+  await dialog.getByLabel("Condition", { exact: true }).selectOption("Used");
+  await dialog.getByRole("button", { name: "Estimate price", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Evaluation temporarily unavailable");
+  await dialog.getByRole("button", { name: "Close Add item" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Trade", exact: true }).click();
+  await expect(page).toHaveURL(/\/trades$/);
+  await expect(page.getByText("Evaluation temporarily unavailable")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Trades", exact: true })).toBeVisible();
 });
 
 test("a stale item edit retains its reviewed revision and unsaved draft", async ({ page }) => {
@@ -386,8 +457,14 @@ test("a stale item edit retains its reviewed revision and unsaved draft", async 
 
 test("photo-first preparation creates only a private draft until reviewed publication", async ({ page }) => {
   const state = await installApi(page);
+  state.view.integrations.gemini_configured = true;
   await page.goto("/profile/inventory");
   await page.getByRole("button", { name: "Add item", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add item", exact: true });
+  for (const field of ["Item photo", "Title", "Category", "Condition", "Description"]) {
+    const label = dialog.locator("label").filter({ hasText: field });
+    await expect(label.locator(".." )).toContainText("*");
+  }
   const photo = page.getByLabel("Item photo", { exact: true });
   await expect(photo).toBeEnabled();
   await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
@@ -396,20 +473,22 @@ test("photo-first preparation creates only a private draft until reviewed public
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
   });
   await expect.poll(() => state.uploads).toBe(1);
-  await expect(page.getByText("Photo saved. Review your details before publishing.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Photo saved. Review the suggested details and choose a condition.", { exact: true })).toBeVisible();
   expect(state.itemSaves).toHaveLength(1);
   expect(state.itemSaves[0]).toMatchObject({ title: "", status: "draft" });
   expect(state.view.items.find(candidate => candidate.id === "test-new-item")?.status).toBe("draft");
   await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
   await page.getByLabel("Title", { exact: true }).fill("Reviewed synthetic lamp");
-  await page.getByLabel("Category", { exact: true }).fill("Household essentials");
-  await page.getByLabel("Condition", { exact: true }).fill("Good");
+  await page.getByLabel("Category", { exact: true }).selectOption("Household essentials");
+  await page.getByLabel("Condition", { exact: true }).selectOption("Good");
   await page.getByLabel("Description", { exact: true }).fill("A synthetic lamp prepared for publication.");
+  await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Estimate price", exact: true }).click();
   await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Publish listing", exact: true }).click();
   await expect(page.getByText("Listing published. It is available for trading.", { exact: true })).toBeVisible();
-  expect(state.itemSaves).toHaveLength(2);
-  expect(state.itemSaves[1]).toMatchObject({ title: "Reviewed synthetic lamp", status: "available", expected_revision: 2, value_minor: null });
+  expect(state.itemSaves).toHaveLength(3);
+  expect(state.itemSaves[2]).toMatchObject({ title: "Reviewed synthetic lamp", status: "available", expected_revision: 3, value_minor: 4200, analysis_id: "test-analysis" });
   expect(state.view.items.find(candidate => candidate.id === "test-new-item")).toMatchObject({ status: "available", image_id: "test-uploaded-image" });
   expect(state.unexpected).toEqual([]);
 });
@@ -493,13 +572,13 @@ test("preferences draft remains in the profile while switching its tabs", async 
   const state = await installApi(page);
   await page.goto("/profile");
   await selectSection(page, "Preferences");
-  await page.getByLabel("Interests", { exact: true }).fill("Keyboard");
-  await page.getByLabel("Interests", { exact: true }).press("Enter");
-  await page.getByLabel("Estimated value difference (%)", { exact: true }).fill("12");
+  await page.getByLabel("Interests", { exact: true }).click();
+  await page.getByRole("menuitem", { name: "Monitor", exact: true }).click();
+  await page.getByLabel("Estimated value difference (%)", { exact: true }).selectOption("12");
   await selectSection(page, "Items");
   await expect(page.getByRole("button", { name: "Add item", exact: true })).toBeVisible();
   await selectSection(page, "Preferences");
-  await expect(page.getByRole("button", { name: "Remove interest Keyboard", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove interest Monitor", exact: true })).toBeVisible();
   await expect(page.getByLabel("Estimated value difference (%)", { exact: true })).toHaveValue("12");
   await expect(page).toHaveURL(/\/profile$/);
   expect(state.profileSaves).toEqual([]);
@@ -543,6 +622,20 @@ test("discovery retains the signed-in marketplace and profile sidebar", async ({
   await page.getByRole("button", { name: "Build an offer" }).first().click();
   await expect(page).toHaveURL(/\/trades$/);
   await expect(page.getByLabel("Trade with")).toHaveValue("test-bob");
+});
+
+test("DynamoDB semantic matching displays semantic candidates", async ({ page }) => {
+  const state = await installApi(page);
+  state.view.storage = "dynamodb";
+  state.view.integrations.bedrock_configured = true;
+  state.view.profile.interests = ["computer display"];
+  await page.goto("/?view=matches#browse");
+  await expect(page.getByRole("switch", { name: "Semantic matching" })).toBeChecked();
+  const request = page.waitForRequest((candidate) => candidate.url().includes('/api/recommendations?') && candidate.method() === 'GET');
+  await page.getByRole("button", { name: "Find bundle matches" }).click();
+  expect(new URL((await request).url()).searchParams.get('semantic')).toBe('true');
+  await expect(page.getByText("Test monitor").first()).toBeVisible();
+  await expect(page.getByText("Synthetic eligible recommendation.")).toBeVisible();
 });
 
 test("the signed-out landing page offers account access without a sidebar", async ({ page }) => {

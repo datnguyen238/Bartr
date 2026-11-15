@@ -186,6 +186,14 @@ class Marketplace:
                 accepted=next((value for value in state.get('valuations',{}).values() if value.get('analysis_id')==analysis_id),None)
                 require(accepted is not None and accepted.get('owner')==actor and accepted.get('item_id')==item['id'], 'Analysis does not belong to this listing.', 'INVALID_ANALYSIS', 403)
                 require(accepted['item_revision']==item['revision'] and accepted.get('image_id')==item.get('image_id'), 'Analysis is stale. Analyze the current listing revision.', 'STALE_ANALYSIS')
+            publishing = changes.get('status', item['status']) == 'available' and item['status'] != 'available'
+            changing_value = item['status'] == 'available' and 'value_minor' in changes and changes['value_minor'] != item.get('value_minor')
+            if publishing or changing_value:
+                amount = changes.get('value_minor', item.get('value_minor'))
+                require(accepted is not None and accepted.get('price_basis') == 'market_comparables' and accepted.get('status') == 'estimated' and type(accepted.get('estimate_minor')) is int and accepted['estimate_minor'] > 0 and amount == accepted['estimate_minor'],
+                        'Evaluate this item and use its current AI estimate before publishing or changing its value.', 'EVALUATION_REQUIRED', 422)
+                require(all(changes.get(k, item.get(k)) == item.get(k) for k in ('title', 'description', 'category', 'condition', 'image_id')),
+                        'Item details changed after evaluation. Save and evaluate the current item again.', 'STALE_ANALYSIS', 409)
             if 'value_minor' in changes:
                 amount=changes['value_minor']
                 require(amount is None or (type(amount) is int and 0<amount<=1_000_000_000_000), 'Comparison value must be positive integer USD cents or unknown.', 'INVALID_VALUE', 422)
@@ -216,8 +224,8 @@ class Marketplace:
                        'left': [(x['id'],x['revision']) for x in terms['left']],
                        'right': [(x['id'],x['revision']) for x in terms['right']]})
 
-    def recommend(self, actor, semantic=None, semantic_excluded=None):
-        state = self.repo.read()
+    def recommend(self, actor, semantic=None, semantic_excluded=None, *, state=None):
+        state = state if state is not None else self.repo.read()
         me = user(state, actor)
         mine = [x for x in state['items'].values() if x['owner'] == actor and x['status'] == 'available']
         require(mine, 'Publish an available item to discover exchanges.', 'MISSING_INVENTORY', 422)

@@ -85,9 +85,9 @@ export function Discovery() {
   const [query, setQuery] = useState("");
 
   const semanticAvailable =
-    view.storage === "mongodb" &&
+    (view.storage === "mongodb" || view.storage === "dynamodb") &&
     view.integrations.bedrock_configured &&
-    view.integrations.gemini_configured;
+    (view.storage === "dynamodb" || view.integrations.gemini_configured);
   const useSemantic = semanticAvailable && semantic;
 
   const memberDiscoveries = useMemo<MemberDiscovery[]>(() => {
@@ -95,8 +95,13 @@ export function Discovery() {
 
     const recommendationsByMember = new Map<string, Recommendation[]>();
     const recommendedItemsByMember = new Map<string, Set<string>>();
+    const currentItems = new Map(view.items.map((item) => [item.id, item]));
 
     for (const recommendation of results?.recommendations ?? []) {
+      if ([...recommendation.terms.left, ...recommendation.terms.right].some((item) => {
+        const current = currentItems.get(item.id);
+        return !current || current.status !== "available" || current.revision !== item.revision;
+      })) continue;
       const memberId = recommendation.member.id;
       recommendationsByMember.set(memberId, [
         ...(recommendationsByMember.get(memberId) ?? []),
@@ -122,8 +127,9 @@ export function Discovery() {
           .map((item): DiscoveryItem | null => {
             const excluded = matchingTerms(item, view.profile.exclusions).length > 0;
             const matchedInterests = matchingTerms(item, view.profile.interests);
-            const recommended = recommendedIds.has(item.id);
+            const recommended = recommendedIds.has(item.id) || (useSemantic && (results?.matching_item_ids ?? []).includes(item.id));
 
+            if (useSemantic && results && (!(results.matching_item_ids ?? []).includes(item.id) || results.matching_item_revisions?.[item.id] !== item.revision)) return null;
             if (excluded || (!matchedInterests.length && !recommended)) return null;
             return { item, matchedInterests, recommended };
           })
@@ -146,7 +152,7 @@ export function Discovery() {
         if (a.items.length !== b.items.length) return b.items.length - a.items.length;
         return a.member.name.localeCompare(b.member.name);
       });
-  }, [results, view.items, view.members, view.profile, who]);
+  }, [results, useSemantic, view.items, view.members, view.profile, who]);
 
   const filteredDiscoveries = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -217,10 +223,6 @@ export function Discovery() {
           >
             Items matching your interests
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Browse available items that match your saved preferences. Other members&apos; private preferences are
-            never shown here.
-          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/preferences">Edit your preferences</Link>
@@ -276,7 +278,7 @@ export function Discovery() {
               id="semantic-discovery"
               checked={useSemantic}
               disabled={!semanticAvailable}
-              onCheckedChange={setSemantic}
+              onCheckedChange={(checked) => { setSemantic(checked); setResults(null); }}
               aria-describedby="semantic-help"
             />
             <label htmlFor="semantic-discovery" className="text-sm font-medium">
@@ -308,7 +310,7 @@ export function Discovery() {
                 ? "Semantic matching is on. Equivalent wording can be considered by the configured providers."
                 : "Exact-text matching is on. Turn on semantic matching to consider equivalent wording."
               : view.storage === "dynamodb"
-                ? "Matching uses your saved interests as exact text. Semantic matching is not yet available with DynamoDB."
+                ? "Matching uses exact text. Configure Bedrock to enable semantic matching."
                 : "Exact-text local testing is active. Semantic matching requires MongoDB Atlas, Bedrock and Gemini."}
           </p>
         </CardContent>
