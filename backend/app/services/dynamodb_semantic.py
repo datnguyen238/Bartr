@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from math import isfinite, sqrt
 
 from ..errors import AppError
+from ..domain import INTEREST_CATEGORIES
 from .embeddings import BedrockEmbeddings
 
 MAX_ITEMS = 30
@@ -85,5 +86,9 @@ class DynamoSemanticSearch:
             exclusion_vectors = prefs[user['id']][interest_count:]
             candidates = [item for item in available if item['owner'] != user['id']]
             excluded[user['id']] = {item['id'] for item in candidates if any(similarity(item_vectors[item['id']], vector) >= EXCLUSION_THRESHOLD for vector in exclusion_vectors)}
-            relevant[user['id']] = {item['id'] for item in candidates if item['id'] not in excluded[user['id']] and any(similarity(item_vectors[item['id']], vector) >= MATCH_THRESHOLD for vector in interest_vectors)}
+            relevant[user['id']] = {item['id'] for item in candidates if item['id'] not in excluded[user['id']] and any(
+                str(item.get('category', '')).strip().casefold() == term.strip().casefold()
+                if term.strip().casefold() in INTEREST_CATEGORIES
+                else similarity(item_vectors[item['id']], vector) >= MATCH_THRESHOLD
+                for term, vector in zip(user['interests'], interest_vectors))}
         return latest, relevant, excluded

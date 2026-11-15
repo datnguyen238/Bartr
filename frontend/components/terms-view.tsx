@@ -27,13 +27,7 @@ export function TermsView({ terms, who }: { terms: Terms; who: string }) {
                   {item.title} · {money(item.value_minor)}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {item.description} · {item.condition}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {item.value_source} ·{" "}
-                  {item.value_set_at
-                    ? new Date(item.value_set_at).toLocaleString()
-                    : "Value unknown"}
+                  {item.condition}
                 </p>
               </div>
             ))}
@@ -59,9 +53,8 @@ export function TermsView({ terms, who }: { terms: Terms; who: string }) {
           : `${terms.gap_percent.toFixed(1)}%`}
       </p>
       {terms.value_warning && (
-        <p className="mt-2 text-sm text-destructive">
-          Unknown values or a gap beyond a participant’s recommendation limit.
-          Explicit review is required; estimates never obligate acceptance.
+        <p className="mt-2 rounded-lg bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+          Values are missing or the gap exceeds a member’s limit. Review before agreeing.
         </p>
       )}
     </div>

@@ -41,6 +41,28 @@ function renderEditor() {
   return result;
 }
 
+it("hides removed items from inventory counts and filters while retaining past trades", () => {
+  mocks.workspace.mine = [
+    { ...savedItem, id: "gone", title: "Removed item", status: "removed" },
+    { ...savedItem, id: "past", title: "Exchanged item", status: "exchanged" },
+    { ...savedItem, id: "current", title: "Available item", status: "available" },
+  ];
+  render(<InventoryScreen />);
+  expect(screen.getByText("2 items in your inventory")).toBeVisible();
+  expect(screen.queryByText("Removed item")).not.toBeInTheDocument();
+  expect(screen.getByText("Available item")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Past trades" }));
+  expect(screen.getByText("Exchanged item")).toBeVisible();
+  expect(screen.queryByText("Removed item")).not.toBeInTheDocument();
+});
+
+it("shows the empty inventory state when every item is removed", () => {
+  mocks.workspace.mine = [{ ...savedItem, status: "removed" }];
+  render(<InventoryScreen />);
+  expect(screen.getByText("0 items in your inventory")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Add your first item" })).toBeVisible();
+});
+
 it("does not require a separate discoverability action for published listings", () => {
   const item = { ...savedItem, status: "available" as const };
   mocks.workspace.editing = item;

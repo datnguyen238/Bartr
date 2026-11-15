@@ -8,7 +8,7 @@ from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadF
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..domain import now, term_matches
+from ..domain import now, term_matches, interest_matches
 from ..errors import AppError
 from ..services.images import MAX_UPLOAD_BYTES, normalize_image
 from ..services.preferences import interpret_preferences
@@ -282,7 +282,7 @@ def recommendations(request:Request,semantic:bool=True,who=Depends(actor)):
         result=service.recommend(who,relevant,excluded,state=state)
     else: result=service.recommend(who)
     visible_items = [x for x in state['items'].values() if x['status'] == 'available' and x['owner'] != who]
-    matches = [x['id'] for x in visible_items if x['id'] not in excluded.get(who, set()) and not term_matches(x, member['exclusions']) and (x['id'] in relevant.get(who, set()) or term_matches(x, member['interests']))] if semantic else []
+    matches = [x['id'] for x in visible_items if x['id'] not in excluded.get(who, set()) and not term_matches(x, member['exclusions']) and (x['id'] in relevant.get(who, set()) or interest_matches(x, member['interests']))] if semantic else []
     return {**result,'retrieval':'semantic' if semantic else 'exact-text (local testing)',
             'matching_item_ids': sorted(matches),
             'matching_item_revisions': {x['id']: x['revision'] for x in visible_items if x['id'] in matches}}

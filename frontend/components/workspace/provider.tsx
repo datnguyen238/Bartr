@@ -171,13 +171,7 @@ function useWorkspaceState() {
   }
   async function submitOffer(counter = false) {
     if (!view) return;
-    if (
-      !ack &&
-      !window.confirm(
-        "Review the exact selected items. Submitting records your consent to this version; it does not reserve items until the other member accepts. Continue?",
-      )
-    )
-      return;
+    if (!ack) return;
     await run(async () => {
       let t: Trade;
       if (counter && trade) {
@@ -208,18 +202,7 @@ function useWorkspaceState() {
   }
   async function act(kind: string, note = "") {
     if (!trade) return;
-    const effects: Record<string, string> = {
-      accept:
-        "Accept these exact terms? This records mutual agreement and reserves every included item together.",
-      handoff:
-        "Confirm you report that the physical handoff occurred? Completion requires both members.",
-      cancel: trade.handoffs.length
-        ? "Request cancellation? After a reported handoff, both members must approve before items are released."
-        : "Cancel this agreement and release all reserved items?",
-      decline: "Decline the current offer and close the proposal?",
-      withdraw: "Withdraw your current offer and close the proposal?",
-    };
-    if (effects[kind] && !window.confirm(effects[kind])) return;
+    let saved = false;
     await run(async () => {
       await command(`trades/${trade.id}/actions`, {
         kind,
@@ -228,11 +211,13 @@ function useWorkspaceState() {
         acknowledged: ack,
       });
       await load();
+      saved = true;
       setMessage(
         "Action saved. The displayed trade is the current recorded outcome.",
       );
       setAck(false);
     });
+    return saved;
   }
   function toggle(side: "left" | "right", id: string) {
     const set = side === "left" ? setLeft : setRight;

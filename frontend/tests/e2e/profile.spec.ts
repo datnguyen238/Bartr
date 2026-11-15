@@ -621,7 +621,18 @@ test("discovery retains the signed-in marketplace and profile sidebar", async ({
   await expect(page.getByText("Test monitor").first()).toBeVisible();
   await page.getByRole("button", { name: "Build an offer" }).first().click();
   await expect(page).toHaveURL(/\/trades$/);
-  await expect(page.getByLabel("Trade with")).toHaveValue("test-bob");
+  await expect(page.getByText("Bob Example", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Trade with")).toHaveCount(0);
+});
+
+test("a listing on Home starts an offer with its owner and item selected", async ({ page }) => {
+  await installApi(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "View details for Test monitor" }).click();
+  await page.getByRole("link", { name: "Compose an offer" }).click();
+  await expect(page).toHaveURL(/\/trades$/);
+  await expect(page.getByText("Bob Example", { exact: true })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Test monitor/ })).toBeChecked();
 });
 
 test("DynamoDB semantic matching displays semantic candidates", async ({ page }) => {
@@ -701,4 +712,26 @@ test("keyboard sign-in and profile saving work in the mobile layout", async ({ p
   await page.getByRole("button", { name: "Add item", exact: true }).click();
   await expect(page.getByRole("button", { name: "Save draft", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("browse listings stay usable on desktop and mobile", async ({ page }, testInfo) => {
+  const state = await installApi(page);
+  state.view.items.push(
+    item("test-lamp", "test-bob", "A longer synthetic desk lamp name"),
+    item("test-keyboard", "test-bob", "Synthetic keyboard"),
+    item("test-speaker", "test-bob", "Synthetic speaker"),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const member = page.getByRole("article", { name: "Bob Example" });
+  await expect(member).toBeVisible();
+  await member.getByRole("button", { name: "Show all 4 items" }).click();
+  await expect(member.getByText("Synthetic speaker")).toBeVisible();
+  await member.getByRole("button", { name: "View details for Test monitor" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Synthetic test listing");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(member).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("browse-mobile.png"), fullPage: true });
 });

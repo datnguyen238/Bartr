@@ -47,6 +47,18 @@ def term_matches(item, terms):
     return any(term.strip().casefold() in text for term in terms if term.strip())
 
 
+INTEREST_CATEGORIES = frozenset(x.casefold() for x in (
+    'Books', 'Clothing', 'Electronics', 'Furniture', 'Home goods',
+    'Household essentials', 'Kitchenware', 'Sports equipment', 'Study supplies', 'Other',
+))
+
+
+def interest_matches(item, terms):
+    category = str(item.get('category', '')).strip().casefold()
+    return any((category == term.strip().casefold() if term.strip().casefold() in INTEREST_CATEGORIES
+                else term_matches(item, [term])) for term in terms if term.strip())
+
+
 def gap(items):
     values = [x['value_minor'] for x in items]
     return sum(values) if all(type(x) is int and x > 0 for x in values) else None
@@ -237,7 +249,7 @@ class Marketplace:
                 continue
             theirs = [x for x in state['items'].values() if x['owner'] == other['id'] and x['status'] == 'available']
             def fits(item, recipient):
-                return item['id'] not in (semantic_excluded or {}).get(recipient['id'], set()) and not term_matches(item, recipient['exclusions']) and (term_matches(item, recipient['interests']) or
+                return item['id'] not in (semantic_excluded or {}).get(recipient['id'], set()) and not term_matches(item, recipient['exclusions']) and (interest_matches(item, recipient['interests']) or
                        (semantic is not None and item['id'] in semantic.get(recipient['id'], set())))
             left = sorted([x for x in mine if fits(x, other)], key=lambda x:x['id'])
             right = sorted([x for x in theirs if fits(x, me)], key=lambda x:x['id'])

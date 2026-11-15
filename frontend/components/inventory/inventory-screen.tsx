@@ -59,7 +59,8 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
     { name: "AI evaluation", complete: Boolean(editing?.analysis?.estimate_minor && Number(form.value) * 100 === editing.analysis.estimate_minor && ["title", "description", "category", "condition"].every((key) => form[key as "title" | "description" | "category" | "condition"] === editing[key as "title" | "description" | "category" | "condition"])) },
   ];
   const complete = readiness.every((entry) => entry.complete);
-  const visibleItems = mine.filter((item) => filter === "all" || (filter === "unavailable" ? !["draft", "available"].includes(item.status) : item.status === filter));
+  const inventoryItems = mine.filter((item) => item.status !== "removed");
+  const visibleItems = inventoryItems.filter((item) => filter === "all" || (filter === "unavailable" ? !["draft", "available"].includes(item.status) : item.status === filter));
 
   function openEditor(item: Item | null, trigger: HTMLElement) {
     editorInvoker.current = trigger;
@@ -144,7 +145,7 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
       <section className="inventory-list-pane surface-panel min-w-0" aria-label="Inventory items">
         {listFailure && <p role="alert" className="inline-feedback m-4 text-sm" data-tone="error">{listFailure}</p>}
         <div className="inventory-toolbar flex flex-wrap items-center justify-between gap-3 border-b p-5">
-          <p className="text-sm font-medium">{mine.length} {mine.length === 1 ? "item" : "items"} in your inventory</p>
+          <p className="text-sm font-medium">{inventoryItems.length} {inventoryItems.length === 1 ? "item" : "items"} in your inventory</p>
           <p className="text-sm text-muted-foreground">Drafts stay private</p>
         </div>
         <div className="inventory-filters flex flex-wrap gap-1 border-b px-3 py-2" aria-label="Filter inventory">
@@ -169,9 +170,9 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
           </li>)}
         </ul>
         {!visibleItems.length && <div className="inventory-empty space-y-3 px-6 py-12 text-center">
-          <h3 className="text-lg font-medium">{mine.length ? "No items here yet" : "Start with one thing"}</h3>
-          <p className="mx-auto max-w-xs text-sm leading-6 text-muted-foreground">{mine.length ? "Choose another filter to see your other items." : "A chair, a calculator, something you’re ready to pass on. Add a photo or start with the details."}</p>
-          {!mine.length && <Button variant="outline" disabled={busy || seeded} onClick={event => openEditor(null, event.currentTarget)}>Add your first item</Button>}
+          <h3 className="text-lg font-medium">{inventoryItems.length ? "No items here yet" : "Start with one thing"}</h3>
+          <p className="mx-auto max-w-xs text-sm leading-6 text-muted-foreground">{inventoryItems.length ? "Choose another filter to see your other items." : "A chair, a calculator, something you’re ready to pass on. Add a photo or start with the details."}</p>
+          {!inventoryItems.length && <Button variant="outline" disabled={busy || seeded} onClick={event => openEditor(null, event.currentTarget)}>Add your first item</Button>}
         </div>}
       </section>
       <ModalSheet open={editorOpen} onOpenChange={setEditorOpen} title={editorMode === "edit" ? "Edit item" : "Add item"} description={editing ? `${editing.title || "Untitled draft"}. ${listingDirty ? "Your unfinished edits stay here when you close." : statusNames[currentItem?.status ?? editing.status]}` : "Add a photo and item details. Your unfinished draft stays in this session."} returnFocusRef={editorInvoker} fallbackFocusRef={addItemButton} className="item-modal-sheet">

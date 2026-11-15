@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ListingItemRow, MemberListing } from "./member-listing";
 import { Compass, Package, Search, Sparkles } from "@/components/icons";
@@ -52,11 +53,13 @@ function itemText(item: Item) {
     .toLocaleLowerCase();
 }
 
-function matchingTerms(item: Item, terms: string[]) {
+const categoryInterests = new Set(["books", "clothing", "electronics", "furniture", "home goods", "household essentials", "kitchenware", "sports equipment", "study supplies", "other"]);
+
+function matchingTerms(item: Item, terms: string[], interests = false) {
   const text = itemText(item);
   return terms.filter((term) => {
     const normalized = normalize(term);
-    return normalized.length > 0 && text.includes(normalized);
+    return normalized.length > 0 && (interests && categoryInterests.has(normalized) ? normalize(item.category) === normalized : text.includes(normalized));
   });
 }
 
@@ -67,6 +70,7 @@ function recommendationIncomingItems(recommendation: Recommendation, who: string
 }
 
 export function Discovery() {
+  const router = useRouter();
   const {
     view,
     setTab,
@@ -125,7 +129,7 @@ export function Discovery() {
           .filter((item) => item.owner === member.id && item.status === "available")
           .map((item): DiscoveryItem | null => {
             const excluded = matchingTerms(item, view.profile.exclusions).length > 0;
-            const matchedInterests = matchingTerms(item, view.profile.interests);
+            const matchedInterests = matchingTerms(item, view.profile.interests, true);
             const recommended = recommendedIds.has(item.id) || (useSemantic && (results?.matching_item_ids ?? []).includes(item.id));
 
             if (useSemantic && results && (!(results.matching_item_ids ?? []).includes(item.id) || results.matching_item_revisions?.[item.id] !== item.revision)) return null;
@@ -204,6 +208,7 @@ export function Discovery() {
     setRight([]);
     setTradeId("");
     setTab("trades");
+    router.push("/trades");
   };
 
   if (!who) return null;
@@ -306,8 +311,8 @@ export function Discovery() {
           >
             {semanticAvailable
               ? useSemantic
-                ? "Semantic matching is on. Equivalent wording can be considered by the configured providers."
-                : "Exact-text matching is on. Turn on semantic matching to consider equivalent wording."
+                ? "Click Find bundle matches to compare your saved interests with similar item descriptions."
+                : "Exact text is used. Turn on semantic matching, then click Find bundle matches to include similar wording."
               : view.storage === "dynamodb"
                 ? "Matching uses exact text. Configure Bedrock to enable semantic matching."
                 : "Exact-text local testing is active. Semantic matching requires MongoDB Atlas, Bedrock and Gemini."}
@@ -425,6 +430,7 @@ export function Discovery() {
                                   );
                                   setTradeId("");
                                   setTab("trades");
+                                  router.push("/trades");
                                 }}
                               >
                                 Review proposal

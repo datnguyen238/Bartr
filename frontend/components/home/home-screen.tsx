@@ -63,9 +63,6 @@ export function HomeScreen() {
     <Button disabled={busy} onClick={() => void retrySession()}>Retry session</Button>
   </section>;
   if (hasSession) return <section className="max-w-3xl space-y-8">
-    <header className="screen-heading">
-      <h1 className="screen-title">Welcome back, {view.profile.name}.</h1>
-    </header>
     <div className="surface-panel space-y-6">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Inventory and interests</h2>

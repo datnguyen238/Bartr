@@ -154,7 +154,6 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
         password,
       });
       await refresh();
-      toast.success(`Welcome back, ${profile.name}.`);
       return profile;
     },
     [refresh],

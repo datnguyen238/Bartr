@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
-import { Package } from "@/components/icons";
+import { ArrowRight, Package } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -31,13 +31,13 @@ export function MemberListing({
       aria-labelledby={headingId}
       className="w-full min-w-0 gap-0 overflow-hidden py-0 shadow-none"
     >
-      <CardHeader className="border-b bg-secondary/40 px-5 py-5 sm:px-6">
-        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="border-b bg-secondary/30 px-4 py-4 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar name={member.name} tone="light" className="size-12" />
+            <Avatar name={member.name} tone="light" className="size-10" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 id={headingId} className="break-words text-lg font-semibold">
+                <h3 id={headingId} className="break-words text-base font-semibold">
                   {member.name}
                 </h3>
                 {own && <Badge variant="outline">Your listings</Badge>}
@@ -70,8 +70,8 @@ export function ListingItemRow({
   onOpen?: (item: Item, trigger: HTMLButtonElement) => void;
 }) {
   return (
-    <li className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 p-5 sm:gap-x-5 sm:p-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
-      <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border bg-secondary sm:size-24">
+    <li className="flex min-w-0 items-start gap-4 px-4 py-4 sm:px-5">
+      <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border bg-secondary sm:size-20">
         {item.image_id ? (
           <img
             src={`/api/images/${item.image_id}`}
@@ -85,18 +85,16 @@ export function ListingItemRow({
         )}
       </div>
 
-      <div className="min-w-0">
-        <h4 className="break-words text-base font-semibold leading-6">
-          {item.title || "Untitled item"}
-        </h4>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <h4 className="min-w-0 flex-1 break-words text-sm font-semibold leading-5">
+            {item.title || "Untitled item"}
+          </h4>
+          <p className="shrink-0 text-sm font-semibold">{money(item.value_minor)}</p>
+        </div>
         <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">
           {item.category || "Uncategorized"} · {item.condition || "Condition not provided"}
         </p>
-        {item.description && (
-          <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">
-            {item.description}
-          </p>
-        )}
         {(matchedInterests.length > 0 || recommended) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {matchedInterests.map((interest) => (
@@ -109,12 +107,7 @@ export function ListingItemRow({
             )}
           </div>
         )}
-      </div>
-
-      <div className="col-start-2 flex min-w-0 flex-col items-start gap-2 lg:col-start-3 lg:row-start-1 lg:max-w-52 lg:items-end lg:text-right">
-        <div>
-          <p className="text-base font-semibold">{money(item.value_minor)}</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        {!onOpen && <p className="mt-2 text-xs leading-5 text-muted-foreground">
             {item.value_minor === null
               ? "Comparison value not set"
               : item.value_source === "owner"
@@ -123,22 +116,16 @@ export function ListingItemRow({
             {item.value_set_at && (
               <> · {new Date(item.value_set_at).toLocaleDateString()}</>
             )}
-          </p>
-          {item.uncertainty && (
-            <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">
-              {item.uncertainty}
-            </p>
-          )}
-        </div>
+          </p>}
         {onOpen && (
           <Button
             size="sm"
-            variant="outline"
-            className="mt-1"
+            variant="ghost"
+            className="-ml-2 mt-1 h-8 gap-1 px-2 text-xs"
             aria-label={`View details for ${item.title || "item"}`}
             onClick={(event) => onOpen(item, event.currentTarget)}
           >
-            View details
+            View details <ArrowRight className="size-3.5" aria-hidden="true" />
           </Button>
         )}
       </div>

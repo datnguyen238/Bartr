@@ -54,6 +54,30 @@ def test_dynamodb_semantic_matches_equivalent_words_and_caches_private_projectio
     assert app.repo.read()['items'][chair['id']]['revision'] == chair['revision']
 
 
+def test_category_interests_exclude_unrelated_categories_even_with_similar_vectors(semantic_setup):
+    app, alice, bob, _, monitor, _, _ = semantic_setup
+    monitor = app.save_item(bob, monitor['id'], monitor['revision'], {'category': 'Electronics'})
+    tape = seed_legacy_available(app, bob, {'title': 'Tape dispenser', 'description': 'Tape for electronics',
+        'category': 'Study supplies', 'condition': 'Good', 'image_id': 'fixture-image', 'value_minor': 400})
+    app.update_profile(alice, 2, {'interests': ['Electronics']})
+    _, relevant, _ = DynamoSemanticSearch(app.repo).candidates(app.repo.read(), alice)
+    assert monitor['id'] in relevant[alice]
+    assert tape['id'] not in relevant[alice]
+    with TestClient(create_app(app.repo), headers={'X-Bartr-Request': '1'}) as client:
+        assert client.post('/api/auth/login', json={'username': 'alice', 'password': 'synthetic-password'}).status_code == 200
+        result = client.get('/api/recommendations?semantic=true')
+        assert result.status_code == 200
+        assert monitor['id'] in result.json()['matching_item_ids']
+        assert tape['id'] not in result.json()['matching_item_ids']
+
+
+def test_specific_interest_still_uses_semantic_similarity_with_category_interests(semantic_setup):
+    app, alice, _, _, monitor, private, _ = semantic_setup
+    app.update_profile(alice, 2, {'interests': ['Electronics', 'computer display']})
+    _, relevant, _ = DynamoSemanticSearch(app.repo).candidates(app.repo.read(), alice)
+    assert monitor['id'] in relevant[alice] and private['id'] in relevant[alice]
+
+
 def test_semantic_exclusion_takes_precedence_and_profile_change_invalidates_cache(semantic_setup):
     app, alice, _, _, monitor, _, calls = semantic_setup
     search = DynamoSemanticSearch(app.repo)

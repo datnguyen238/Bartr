@@ -5,6 +5,7 @@ import os
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..errors import AppError
+from ..domain import INTEREST_CATEGORIES, interest_matches
 from .embeddings import BedrockEmbeddings
 
 
@@ -110,5 +111,8 @@ class SemanticSearch:
             if not set(assessed.relevant_ids+assessed.excluded_ids)<=allowed:
                 raise AppError('Semantic assessment contained unexpected item references.','INVALID_SEARCH_OUTPUT',502)
             excluded[assessed.recipient_id]=set(assessed.excluded_ids)
-            relevant[assessed.recipient_id]=set(assessed.relevant_ids)-set(assessed.excluded_ids)
+            recipient=state['users'][assessed.recipient_id]
+            only_categories=all(term.strip().casefold() in INTEREST_CATEGORIES for term in recipient['interests'])
+            relevant[assessed.recipient_id]={item_id for item_id in set(assessed.relevant_ids)-set(assessed.excluded_ids)
+                if not only_categories or interest_matches(state['items'][item_id], recipient['interests'])}
         return relevant,excluded

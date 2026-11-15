@@ -55,6 +55,7 @@ describe("Home authentication", () => {
     render(<HomeScreen />);
     expect(screen.getByRole("link", { name: "Go to your profile" })).toHaveAttribute("href", "/profile");
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Welcome back, Synthetic member/)).not.toBeInTheDocument();
   });
 
   it("signs in and returns only to a supported Profile destination", async () => {

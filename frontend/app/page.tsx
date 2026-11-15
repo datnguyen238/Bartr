@@ -15,9 +15,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -38,12 +35,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace/provider";
 import {
   ArrowRight,
-  Compass,
   Handshake,
   Lock,
   Package,
   Search,
-  Shield,
 } from "@/components/icons";
 import { money, type Item } from "@/lib/marketplace";
 
@@ -96,6 +91,10 @@ export default function LandingPage() {
     error,
     run,
     load,
+    setOther,
+    setLeft,
+    setRight,
+    setTradeId,
   } = useWorkspace();
   const [browseView, setBrowseView] = useState<"all" | "matches">("all");
   const [query, setQuery] = useState("");
@@ -103,6 +102,8 @@ export default function LandingPage() {
   const [condition, setCondition] = useState("Any condition");
   const [sort, setSort] = useState("title");
   const [selected, setSelected] = useState<Item | null>(null);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocus = useRef(false);
 
@@ -205,6 +206,7 @@ export default function LandingPage() {
     setCondition("Any condition");
     setSort("title");
   };
+  useEffect(() => { setVisibleCount(8); }, [query, category, condition, sort]);
   const openItem = (item: Item, trigger: HTMLButtonElement) => {
     triggerRef.current = trigger;
     setSelected(item);
@@ -228,9 +230,6 @@ export default function LandingPage() {
             </a>
             <a className="transition-colors hover:text-foreground" href="#how-it-works">
               How it works
-            </a>
-            <a className="transition-colors hover:text-foreground" href="#trust">
-              Why Bartr
             </a>
           </nav>
           <div className="flex items-center gap-2 md:col-start-3 md:justify-self-end">
@@ -265,11 +264,45 @@ export default function LandingPage() {
         </section>
 
         <section
+          id="how-it-works"
+          aria-labelledby="how-heading"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-8 sm:px-6 sm:pb-10"
+        >
+          <div id="trust" className="rounded-xl border bg-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 id="how-heading" className="text-xl font-semibold">How trading works</h2>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={browsing ? "/inventory" : "/register"}>
+                  {browsing ? "List an item" : "Join Bartr"}
+                </Link>
+              </Button>
+            </div>
+            <div className="mt-5 grid gap-5 sm:grid-cols-3">
+              {[
+                { icon: Package, title: "List an item", copy: "Add a photo and item details." },
+                { icon: Search, title: "Find a trade", copy: "Browse listings, set interests and send an offer." },
+                { icon: Handshake, title: "Agree and exchange", copy: "Chat privately, agree on the same offer and both confirm the handoff." },
+              ].map(({ icon: Icon, title, copy }) => (
+                <div key={title} className="flex items-start gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary">
+                    <Icon className="size-4" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="font-medium">{title}</h3>
+                    <p className="mt-1 text-sm leading-5 text-muted-foreground">{copy}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
           id="browse"
           aria-labelledby="browse-heading"
           className="scroll-mt-20 border-y bg-card/40"
         >
-          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="caption mb-3">Browse</p>
@@ -372,7 +405,7 @@ export default function LandingPage() {
               </div>
             ) : (
               <>
-                <div className="mt-8 grid gap-3 rounded-xl border bg-background p-3 sm:p-4 md:grid-cols-[1fr_auto_auto]">
+                <div className="mt-7 grid gap-3 rounded-xl border bg-card p-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
                   <div>
                     <label htmlFor="browse-search" className="sr-only">
                       Search available items
@@ -428,6 +461,7 @@ export default function LandingPage() {
                     <Button
                       key={value}
                       size="sm"
+                      className="rounded-full"
                       variant={category === value ? "default" : "outline"}
                       aria-pressed={category === value}
                       onClick={() => setCategory(value)}
@@ -438,8 +472,8 @@ export default function LandingPage() {
                 </div>
 
                 {filteredItems.length ? (
-                  <ul className="mt-6 w-full space-y-5" aria-label="Members and their available items" role="list">
-                    {memberListings.map(({ member, items }) => (
+                  <ul className="mt-6 grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,27rem),1fr))] items-start gap-4" aria-label="Members and their available items" role="list">
+                    {memberListings.slice(0, visibleCount).map(({ member, items }) => (
                       <li key={member.id} className="min-w-0">
                         <MemberListing
                           member={member}
@@ -447,10 +481,11 @@ export default function LandingPage() {
                           own={member.id === view.profile.id}
                         >
                           <ul className="divide-y" aria-label={`${member.name}'s available items`} role="list">
-                            {items.map((item) => (
+                            {items.slice(0, expandedMembers.includes(member.id) ? undefined : 3).map((item) => (
                               <ListingItemRow key={item.id} item={item} onOpen={openItem} />
                             ))}
                           </ul>
+                          {items.length > 3 && <div className="border-t px-4 py-2"><Button variant="ghost" size="sm" aria-expanded={expandedMembers.includes(member.id)} onClick={() => setExpandedMembers(current => current.includes(member.id) ? current.filter(id => id !== member.id) : [...current, member.id])}>{expandedMembers.includes(member.id) ? "Show fewer items" : `Show all ${items.length} items`}</Button></div>}
                         </MemberListing>
                       </li>
                     ))}
@@ -480,167 +515,12 @@ export default function LandingPage() {
                     </EmptyContent>
                   </Empty>
                 )}
+                {filteredItems.length > 0 && memberListings.length > visibleCount && <Button className="mt-5" variant="outline" onClick={() => setVisibleCount(count => count + 8)}>Show more members</Button>}
               </>
             )}
           </div>
         </section>
 
-        <section
-          id="how-it-works"
-          aria-labelledby="how-heading"
-          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20"
-        >
-          <div className="max-w-2xl">
-            <p className="caption mb-3">How it works</p>
-            <h2
-              id="how-heading"
-              className="font-display text-4xl tracking-[-0.03em] sm:text-5xl"
-            >
-              How trading works
-            </h2>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              Trade one or more items with another member.
-            </p>
-          </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              {
-                icon: Package,
-                step: "01",
-                title: "List what you have",
-                copy: "Add the things you are ready to part with, with a photo, condition and an optional comparison value.",
-              },
-              {
-                icon: Search,
-                step: "02",
-                title: "Say what you need",
-                copy: "Save specific products and broad categories, plus exclusions for anything you do not want.",
-              },
-              {
-                icon: Compass,
-                step: "03",
-                title: "Find a bundle",
-                copy: "Browse items and matches, then review and propose an offer.",
-              },
-            ].map(({ icon: Icon, step, title, copy }) => (
-              <Card key={step} className="shadow-none">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <span className="grid size-10 place-items-center rounded-lg bg-secondary">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </span>
-                    <span className="font-display text-3xl text-muted-foreground/50">
-                      {step}
-                    </span>
-                  </div>
-                  <CardTitle
-                    role="heading"
-                    aria-level={3}
-                    className="mt-2 text-xl"
-                  >
-                    {title}
-                  </CardTitle>
-                  <CardDescription className="leading-6">{copy}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section
-          id="trust"
-          aria-labelledby="trust-heading"
-          className="scroll-mt-20 border-t bg-secondary/30"
-        >
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="grid gap-8 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
-              <div>
-                <p className="caption mb-3">Why Bartr</p>
-                <h2
-                  id="trust-heading"
-                  className="font-display text-4xl tracking-[-0.03em] sm:text-5xl"
-                >
-                  Your items stay yours until you agree.
-                </h2>
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                  Suggestions are advisory. An offer becomes an agreement only
-                  when both participants consent to the same current version.
-                  Acceptance reserves the included items together, or not at
-                  all.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  {
-                    icon: Handshake,
-                    title: "Mutual consent",
-                    copy: "The sender consents to submit. The other member must review and accept the exact terms.",
-                  },
-                  {
-                    icon: Shield,
-                    title: "No double commitments",
-                    copy: "An item cannot be reserved by two agreements. Overlapping acceptances resolve without a partial trade.",
-                  },
-                  {
-                    icon: Lock,
-                    title: "Private negotiation",
-                    copy: "Only the two participants can read notes, offer history and agreement details.",
-                  },
-                  {
-                    icon: Handshake,
-                    title: "Reports, not guesses",
-                    copy: "Completion needs both handoff confirmations. No timer or AI action completes a trade.",
-                  },
-                ].map(({ icon: Icon, title, copy }) => (
-                  <div key={title} className="rounded-xl border bg-background p-5">
-                    <Icon className="size-5 text-accent-warm" aria-hidden="true" />
-                    <h3 className="mt-4 font-medium">{title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {copy}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-          <Card className="overflow-hidden border-foreground/10 bg-primary text-primary-foreground">
-            <CardContent className="flex flex-col items-start justify-between gap-6 p-7 sm:flex-row sm:items-center sm:p-10">
-              <div>
-                <h2 className="font-display mt-2 text-3xl tracking-[-0.03em] sm:text-4xl">
-                  Get started
-                </h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/70">
-                  List items and discover what others are offering.
-                  Nothing is committed until you and the other member agree.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                {browsing ? (
-                  <Button variant="secondary" size="lg" asChild>
-                    <Link href="/inventory">List an item</Link>
-                  </Button>
-                ) : (
-                  <>
-                    <Button variant="secondary" size="lg" asChild>
-                      <Link href="/register">Create an account</Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
-                      asChild
-                    >
-                      <Link href="/sign-in">Sign in</Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
       </main>
 
       <Dialog
@@ -704,15 +584,15 @@ export default function LandingPage() {
                 <Button variant="outline" onClick={closeItem}>
                   Keep browsing
                 </Button>
-                {browsing ? (
+                {browsing && selected.owner !== view.profile.id ? (
                   <Button asChild>
-                    <Link href="/trades">Compose an offer</Link>
+                    <Link href="/trades" onClick={() => { setTradeId(""); setOther(selected.owner); setLeft([]); setRight([selected.id]); }}>Compose an offer</Link>
                   </Button>
-                ) : (
+                ) : !browsing ? (
                   <Button asChild>
                     <Link href="/sign-in?next=%2Ftrades">Sign in to propose</Link>
                   </Button>
-                )}
+                ) : null}
               </DialogFooter>
             </>
           )}
