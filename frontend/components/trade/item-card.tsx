@@ -11,7 +11,7 @@ export function ItemThumb({ item, className }: { item: TradeItem; className?: st
     return <img src={item.imageUrl} alt="" className={cn('size-14 shrink-0 rounded-lg object-cover', className)} />;
   }
   return (
-    <span aria-hidden="true" className={cn('grid size-14 shrink-0 place-items-center rounded-lg bg-secondary font-serif text-xl text-secondary-foreground italic', className)}>
+    <span aria-hidden="true" className={cn('grid size-14 shrink-0 place-items-center rounded-lg bg-secondary text-xl font-semibold text-secondary-foreground', className)}>
       {item.title.charAt(0)}
     </span>
   );
