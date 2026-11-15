@@ -12,7 +12,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [signOutError, setSignOutError] = useState("");
   const links = hasSession
-    ? [{ href: "/home", label: "Home", icon: "home" }, { href: "/profile/inventory", label: "Inventory", icon: "inventory" }, { href: "/profile/preferences", label: "Preferences", icon: "preferences" }, { href: "/trade", label: "Trade", icon: "trade" }] as const
+    ? [{ href: "/home", label: "Home", icon: "home" }, { href: "/profile", label: "Profile", icon: "account" }, { href: "/trade", label: "Trade", icon: "trade" }] as const
     : [{ href: "/home", label: "Home", icon: "home" }, { href: "/trade", label: "Trade", icon: "trade" }] as const;
   const localFeedback = pathname === "/home" || pathname.startsWith("/profile");
   return (
@@ -21,7 +21,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
       <aside className="app-rail">
         <Link className="wordmark" href="/home" aria-label="Bartr home">bartr<span>.</span></Link>
         <nav className="app-navigation" aria-label="Main navigation">
-          {links.map(({ href, label, icon }) => <Link key={href} href={href} className="app-nav-link" aria-current={pathname === href ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>)}
+          {links.map(({ href, label, icon }) => <Link key={href} href={href} className="app-nav-link" aria-current={pathname === href || (href === "/profile" && pathname.startsWith("/profile/")) ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>)}
         </nav>
         {hasSession && <div className="rail-note"><Icon name="trade" /><p>Good things deserve<br />another chapter.</p></div>}
       </aside>
@@ -31,7 +31,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <p className="workspace-community">{view.profile.community}</p>
           {view.storage === "temporary-memory" && <details className="preview-details"><summary>Preview</summary><p>Temporary preview: accounts and listings disappear when the service restarts.</p></details>}
           <div className="account-actions">
-            <Link className="account-link" href="/profile" aria-current={pathname === "/profile" ? "page" : undefined}><span className="account-avatar" aria-hidden="true">{Array.from(view.profile.name.trim())[0]?.toLocaleUpperCase() || "B"}</span><span>Account</span></Link>
+            <Link className="account-link" href="/profile" aria-label="Open your profile"><span className="account-avatar" aria-hidden="true">{Array.from(view.profile.name.trim())[0]?.toLocaleUpperCase() || "B"}</span><span>Your profile</span></Link>
             <Button variant="ghost" disabled={busy} onClick={async () => { setSignOutError(""); try { await signOut(); router.replace("/home"); } catch { setSignOutError("We couldn’t sign you out. Your account is still open; try Sign out again."); } }}>Sign out</Button>
           </div>
         </header>}

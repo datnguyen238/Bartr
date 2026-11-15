@@ -60,7 +60,7 @@ function EntryField({ id, label, kind, value, pending, onPending, onChange, erro
   );
 }
 
-export function PreferencesScreen() {
+export function PreferencesScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const { view, busy, seeded, profileForm, setProfileForm, profileDraftRevision, resetProfileDraft, guardSession, load, run, setResults, setMessage, natural, setNatural, interpreted, setInterpreted } = useWorkspace();
   const [interestEntry, setInterestEntry] = useState("");
   const [exclusionEntry, setExclusionEntry] = useState("");
@@ -110,16 +110,16 @@ export function PreferencesScreen() {
   }
 
   return (
-    <div className="max-w-3xl space-y-7">
-      <header className="screen-heading">
+    <div className={`${embedded ? "w-full" : "max-w-3xl"} space-y-7`}>
+      {!embedded && <header className="screen-heading">
         <h1 className="screen-title">Your preferences</h1>
         <p className="screen-description">Tell Bartr what would be useful to you. These details stay private.</p>
-      </header>
+      </header>}
       <section className="surface-panel" aria-labelledby="preferences-interests-heading">
         <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <h2 id="preferences-interests-heading" className="text-xl font-semibold">What you’re looking for</h2>
-            <p className="text-sm leading-6 text-muted-foreground">A few interests are enough to start. You can change them at any time.</p>
+            <p className="text-sm leading-6 text-muted-foreground">{embedded ? "These preferences stay private. A few interests are enough to start." : "A few interests are enough to start. You can change them at any time."}</p>
           </div>
           <span className="text-sm text-muted-foreground">{dirty ? "Unsaved changes" : "Up to date"}</span>
         </div>
@@ -154,12 +154,14 @@ export function PreferencesScreen() {
           });
         }}>
           <fieldset disabled={busy || seeded} className="space-y-7">
-            <EntryField id="profile-interests" label="Interests" kind="interest" value={profileForm.interests} pending={interestEntry} onPending={value => { setInterestEntry(value); setFeedback(null); }} onChange={values => changeEntries("interests", values)} error={validation.interests || apiFieldError("interests")} />
-            <EntryField id="profile-exclusions" label="Exclusions" kind="exclusion" value={profileForm.exclusions} pending={exclusionEntry} onPending={value => { setExclusionEntry(value); setFeedback(null); }} onChange={values => changeEntries("exclusions", values)} error={validation.exclusions || apiFieldError("exclusions")} />
+            <div className={embedded ? "preferences-entry-grid" : "space-y-7"}>
+              <EntryField id="profile-interests" label="Interests" kind="interest" value={profileForm.interests} pending={interestEntry} onPending={value => { setInterestEntry(value); setFeedback(null); }} onChange={values => changeEntries("interests", values)} error={validation.interests || apiFieldError("interests")} />
+              <EntryField id="profile-exclusions" label="Exclusions" kind="exclusion" value={profileForm.exclusions} pending={exclusionEntry} onPending={value => { setExclusionEntry(value); setFeedback(null); }} onChange={values => changeEntries("exclusions", values)} error={validation.exclusions || apiFieldError("exclusions")} />
+            </div>
             <div className="field-group space-y-3 border-t pt-7">
               <label className="text-sm font-medium" htmlFor="profile-gap">Estimated value difference (%)</label>
               <Input id="profile-gap" className="max-w-36" type="number" inputMode="numeric" min={0} max={100} step={1} required value={profileForm.gap_limit} aria-invalid={Boolean(apiFieldError("gap_limit"))} aria-describedby={`profile-gap-help${apiFieldError("gap_limit") ? " profile-gap-error" : ""}`} onChange={event => { setFeedback(null); setProfileForm({ ...profileForm, gap_limit: Number(event.target.value) }); }} />
-              <div id="profile-gap-help" className="space-y-2 text-sm leading-6 text-muted-foreground">
+              <div id="profile-gap-help" className="max-w-prose space-y-2 text-sm leading-6 text-muted-foreground">
                 <p>How different two estimated bundle totals can be. At 20%, bundles estimated at $80 and $100 meet your limit.</p>
                 <p>Both members’ limits apply to recommendations. These are comparison estimates, not payments; you can still choose a different balance in a manual offer.</p>
               </div>
@@ -182,7 +184,7 @@ export function PreferencesScreen() {
         <details className="mt-8 border-t pt-6">
           <summary className="min-h-11 cursor-pointer text-base font-medium">Get help choosing interests</summary>
           <div className="mt-4 space-y-4">
-            <p className="text-sm leading-6 text-muted-foreground">Optional AI assistance turns a description into suggested interests. Review or dismiss the suggestions before adding them. You can always enter interests yourself above.</p>
+            <p className="max-w-prose text-sm leading-6 text-muted-foreground">Optional AI assistance turns a description into suggested interests. Review or dismiss the suggestions before adding them. You can always enter interests yourself above.</p>
             <div className="field-group space-y-2">
               <label className="text-sm font-medium" htmlFor="profile-natural">Describe what you’re looking for</label>
               <Textarea id="profile-natural" maxLength={3000} disabled={busy || seeded || !aiAvailable} placeholder="For example, a screen for studying and furniture for a small room" value={natural} aria-invalid={Boolean(assistantFieldError)} aria-describedby={assistantFieldError ? "profile-natural-error" : undefined} onChange={event => { setNatural(event.target.value); setAssistantFeedback(null); }} />

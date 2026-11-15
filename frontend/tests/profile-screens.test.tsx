@@ -44,6 +44,52 @@ beforeEach(() => {
 });
 
 describe("section-scoped profile saves", () => {
+  it("embeds account details without a second page title", () => {
+    render(<AccountScreen embedded />);
+    expect(screen.queryByRole("heading", { name: "Your profile" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Public details" })).toBeVisible();
+    expect(screen.getByLabelText("Display name", { exact: true })).toHaveValue("Unsaved Alice");
+    expect(screen.getByText(/Your display name and community are visible to other members/)).toBeVisible();
+    expect(mocks.api).not.toHaveBeenCalled();
+  });
+
+  it("embeds preferences without a second page title while retaining privacy guidance", () => {
+    render(<PreferencesScreen embedded />);
+    expect(screen.queryByRole("heading", { name: "Your preferences" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What you’re looking for" })).toBeVisible();
+    expect(screen.getByText(/These preferences stay private/)).toBeVisible();
+    expect(screen.getByLabelText("Interests", { exact: true })).toBeEnabled();
+    expect(mocks.api).not.toHaveBeenCalled();
+  });
+
+  it("finishes profile editing only after the save and refreshed account are confirmed", async () => {
+    let finishLoad: (value: { profile: typeof saved }) => void = () => {};
+    mocks.workspace.load = vi.fn(() => new Promise<{ profile: typeof saved }>(resolve => { finishLoad = resolve; }));
+    const onSaved = vi.fn();
+    render(<AccountScreen embedded onSaved={onSaved} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    await waitFor(() => expect(mocks.workspace.load).toHaveBeenCalledOnce());
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
+    finishLoad({ profile: saved });
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(mocks.workspace.resetProfileDraft).toHaveBeenCalledWith("account", { ...saved, revision: 8 });
+    expect(vi.mocked(mocks.workspace.resetProfileDraft as () => void).mock.invocationCallOrder[0]).toBeLessThan(onSaved.mock.invocationCallOrder[0]);
+  });
+
+  it.each(["save", "refresh"] as const)("keeps profile editing open when its %s fails", async failureStage => {
+    const onSaved = vi.fn();
+    if (failureStage === "save") mocks.api.mockRejectedValue(new Error("Profile changed. Review your latest saved details."));
+    else mocks.workspace.load = vi.fn(async () => { throw new Error("Connection interrupted. Your edits are still here."); });
+    mocks.workspace.run = vi.fn(async (action: () => Promise<void>) => { try { await action(); } catch { /* Provider preserves the failure outcome. */ } });
+    render(<AccountScreen embedded onSaved={onSaved} />);
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeVisible());
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Display name", { exact: true })).toHaveValue("Unsaved Alice");
+  });
+
   it("saves only account draft fields while preserving saved preferences and the reviewed account revision", async () => {
     render(<AccountScreen />);
     expect(screen.getByRole("heading", { name: "Your profile" })).toBeVisible();

@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { api, ApiError, type Profile } from "@/lib/marketplace";
 import { useWorkspace } from "@/components/workspace/provider";
 
-export function AccountScreen() {
+type AccountScreenProps = { embedded?: boolean; onSaved?: () => void };
+
+export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps = {}) {
   const { view, busy, seeded, profileForm, setProfileForm, profileDraftRevision, resetProfileDraft, guardSession, load, run, setResults, setMessage } = useWorkspace();
   const [feedback, setFeedback] = useState<{ message: string; error?: ApiError | Error } | null>(null);
   const [confirmReload, setConfirmReload] = useState(false);
@@ -36,10 +38,10 @@ export function AccountScreen() {
 
   return (
     <div className="max-w-3xl space-y-7">
-      <header className="screen-heading">
+      {!embedded && <header className="screen-heading">
         <h1 className="screen-title">Your profile</h1>
         <p className="screen-description">A familiar name. A local community. Start here.</p>
-      </header>
+      </header>}
       <section className="surface-panel" aria-labelledby="account-details-heading">
         <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-xl space-y-2">
@@ -64,6 +66,7 @@ export function AccountScreen() {
               setResults(null);
               setFeedback({ message: "Profile saved. Your public details are up to date." });
               setMessage("Profile saved.");
+              onSaved?.();
             } catch (error) {
               setFeedback({ message: error instanceof Error ? error.message : "Your profile couldn’t be saved. Your edits are still here.", error: error instanceof Error ? error : new Error("The action could not be completed.") });
               throw error;

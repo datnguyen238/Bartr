@@ -1,5 +1,5 @@
-import { PreferencesScreen } from "@/components/profile/preferences-screen";
+import { ProfileScreen } from "@/components/profile/profile-screen";
 
 export default function ProfilePreferencesPage() {
-  return <PreferencesScreen />;
+  return <ProfileScreen initialSection="preferences" />;
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-15T01:53:24.904398Z",
+  "generatedAt": "2026-11-15T03:21:43.237089Z",
   "title": "Design System: Bartr",
   "extensions": {
     "colorMeta": {
@@ -415,6 +415,11 @@
         "purpose": "Color and background changes; no spatial movement."
       },
       {
+        "name": "modal-sheet-appearance",
+        "value": "160ms ease-out",
+        "purpose": "Opacity-only entrance for the opaque modal form and its dimmed, blurred backdrop; reduced motion shortens the fade."
+      },
+      {
         "name": "reduced-motion",
         "value": "0.01ms",
         "purpose": "Applied to animation and transition duration when reduced motion is requested; scrolling becomes auto."
@@ -426,15 +431,11 @@
         "value": "360px"
       },
       {
-        "name": "editor-padding-min",
-        "value": "640px"
-      },
-      {
         "name": "rail-to-bottom-navigation",
         "value": "768px"
       },
       {
-        "name": "two-pane-inventory-and-home",
+        "name": "wide-home-composition",
         "value": "1024px"
       },
       {
@@ -496,9 +497,9 @@
       "name": "Main navigation",
       "kind": "nav",
       "refersTo": "navigation-active",
-      "description": "An active inventory destination with the same inline SVG and labeled link used in the rail.",
-      "html": "<nav class=\"ds-navigation\" aria-label=\"Main navigation\"><a class=\"ds-nav-link\" href=\"#inventory\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"3\"/><path d=\"M4 10h16M10 10v10M9 7h6\"/></svg><span>Inventory</span></a><a class=\"ds-nav-link\" href=\"#preferences\">Preferences</a></nav>",
-      "css": ".ds-navigation{display:grid;gap:6px;max-width:216px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}.ds-nav-link{display:flex;gap:12px;align-items:center;min-height:48px;padding:12px 14px;border-radius:10px;font-size:.9375rem;font-weight:500;line-height:1.5;color:var(--muted-foreground,#65675f);text-decoration:none;transition:background-color 160ms,color 160ms}.ds-nav-link:hover{background:var(--accent,#e7e9e0);color:var(--foreground,#20211e)}.ds-nav-link[aria-current=\"page\"]{background:var(--primary,#20211e);color:var(--primary-foreground,#fffefa)}.ds-nav-link:focus-visible{outline:2px solid var(--ring,#52634b);outline-offset:4px}.ds-nav-link span{min-width:0;overflow-wrap:anywhere}@media(prefers-reduced-motion:reduce){.ds-nav-link{transition-duration:.01ms}}"
+      "description": "Home, Profile and Trade use labeled inline SVG links; Profile remains active throughout its subroutes, and compact navigation uses three columns.",
+      "html": "<nav class=\"ds-navigation\" aria-label=\"Main navigation\"><a class=\"ds-nav-link\" href=\"#home\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z\"/></svg><span>Home</span></a><a class=\"ds-nav-link\" href=\"#profile\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-2a8 8 0 0 1 16 0v2\"/></svg><span>Profile</span></a><a class=\"ds-nav-link\" href=\"#trade\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4\"/></svg><span>Trade</span></a></nav>",
+      "css": ".ds-navigation{display:grid;gap:6px;max-width:216px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}.ds-nav-link{display:flex;gap:12px;align-items:center;min-height:48px;padding:12px 14px;border-radius:10px;font-size:.9375rem;font-weight:500;line-height:1.5;color:var(--muted-foreground,#65675f);text-decoration:none;transition:background-color 160ms,color 160ms}.ds-nav-link:hover{background:var(--accent,#e7e9e0);color:var(--foreground,#20211e)}.ds-nav-link[aria-current=\"page\"]{background:var(--primary,#20211e);color:var(--primary-foreground,#fffefa)}.ds-nav-link:focus-visible{outline:2px solid var(--ring,#52634b);outline-offset:4px}.ds-nav-link span{min-width:0;overflow-wrap:anywhere}@media(max-width:767px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr));gap:0;max-width:none;padding:8px 12px max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border,#dedfd7);background:var(--card,#fffefa)}.ds-nav-link{flex-direction:column;gap:4px;min-height:52px;padding:7px 2px;font-size:.6875rem;line-height:1.3}.ds-nav-link[aria-current=\"page\"]{background:var(--secondary,#eaece4);color:var(--foreground,#20211e)}}@media(prefers-reduced-motion:reduce){.ds-nav-link{transition-duration:.01ms}}"
     },
     {
       "name": "Choice chip",
@@ -527,7 +528,7 @@
   ],
   "narrative": {
     "northStar": "The Focused Workspace",
-    "overview": "Bartr uses a warm cream canvas, opaque paper surfaces, ink actions and a quiet neutral navigation system. The interface gives content, editable facts and the next useful action a clear hierarchy. Border and tonal changes carry structure; compact system typography and comfortable controls keep the workspace familiar.\n\nApple’s principles are translated to the web through clear purpose, familiar controls, responsive composition, local feedback and recoverable actions. This is a record of the implemented web system, with no native HIG certification claim. The visual authority is the current source and reviewed captures; product facts remain in [PRODUCT.md](PRODUCT.md), and the chosen surface composition remains in the [surface brief](.impeccable/surfaces/frontend-app-profile-inventory-page-tsx.md).",
+    "overview": "Bartr uses a warm cream canvas, opaque paper surfaces, ink actions and a quiet neutral navigation system. The interface gives content, editable facts and the next useful action a clear hierarchy. Border and tonal changes carry structure; compact system typography and comfortable controls keep the workspace familiar.\n\nApple’s principles are translated to the web through clear purpose, familiar controls, responsive composition, local feedback and recoverable actions. This is a record of the implemented web system, with no native HIG certification claim. The visual authority is the current source and reviewed captures; product facts remain in [PRODUCT.md](PRODUCT.md), and the chosen surface composition remains in the [surface brief](.impeccable/surfaces/frontend-app-profile-page-tsx.md).",
     "keyCharacteristics": [
       "Cream and ink, with a complete system dark appearance.",
       "System sans typography with a fixed rem hierarchy.",
@@ -561,7 +562,7 @@
     ],
     "donts": [
       "Don’t add decorative shadows, translucent panels or gradients to the current bordered surface language.",
-      "Don’t compress the desktop list and editor into an offscreen editing result on compact screens; use the focused editor and its Back action.",
+      "Don’t place item editing beyond the visible collection on compact screens; open the titled modal with its own scrolling body and restore focus on dismissal.",
       "Don’t imply that unsaved drafts survive a reload or session change, or extend their lifetime through browser storage.",
       "Don’t let assistance overwrite reviewed details or make a saved photo appear to publish a listing."
     ]

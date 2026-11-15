@@ -22,11 +22,13 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   }
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();
   await expect(page.getByRole("region", { name: "What you’re looking for", exact: true }).getByRole("status")).toContainText("Preferences saved");
-  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Edit profile", exact: true }).click();
   await page.getByLabel("Display name", { exact: true }).fill("Local updated member");
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Public details", exact: true }).getByRole("status")).toContainText("Profile saved");
+  await expect(page.getByRole("dialog", { name: "Edit profile", exact: true })).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: "Local updated member", exact: true, level: 1 })).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "Edit profile", exact: true }).click();
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Local updated member");
   const saved = await (await page.request.get("/api/me")).json();
   expect(saved.storage).toBe("temporary-memory");
@@ -40,17 +42,21 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   });
   expect(external.ok()).toBe(true);
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Profile changed");
+  await expect(page.getByRole("dialog", { name: "Edit profile", exact: true }).getByRole("alert")).toContainText("Profile changed");
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Unsaved stale member");
 
-  await page.getByRole("link", { name: "Inventory", exact: true }).click();
-  await page.getByRole("button", { name: "New item", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Items", exact: true }).click();
+  await page.getByRole("button", { name: "Add item", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Local synthetic chair");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByText("Private draft saved. You can finish it later.", { exact: true })).toBeVisible();
   const itemState = await (await page.request.get("/api/me")).json();
   expect(itemState.items.some((item: {title: string; status: string}) => item.title === "Local synthetic chair" && item.status === "draft")).toBe(true);
 
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/\/home(?:\?.*)?$/);
   expect((await context.cookies()).some(c => c.name === "bartr_session")).toBe(false);
@@ -59,6 +65,7 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/profile(?:\/.*)?$/);
   await page.goto("/profile");
+  await page.getByRole("button", { name: "Edit profile", exact: true }).click();
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Updated elsewhere");
 
   const logout = await page.request.post("/api/auth/logout", { headers: { "X-Bartr-Request": "1" }, data: {} });

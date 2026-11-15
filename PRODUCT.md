@@ -74,6 +74,8 @@ Preserve the name **Bartr** and the existing approved **black-and-cream** direct
 
 The owner subsequently requested a complete UI redesign following Apple's design principles, translated to the web: clear purpose and hierarchy, familiar controls, comfortable input targets, responsive layouts, local feedback and recoverable actions. The owner confirmed a focused workspace with an inventory list. The implemented visual system is recorded separately in DESIGN.md.
 
+The owner then specified a unified, social-style personal Profile: item management and private preferences on the same page, personal information behind Edit profile, and a focused Add item form that blurs the surrounding view. This changes presentation and navigation, without adding public social metrics or new profile data fields.
+
 ## Evidence on Hand
 
 - The [root specification](specs/001-smart-barter-marketplace/spec.md) includes acceptance scenarios, edge cases and measurable pilot targets. It establishes intended behavior rather than proof that those targets have been met.

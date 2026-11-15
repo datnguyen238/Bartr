@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ModalSheet } from "@/components/ui/modal-sheet";
 import { api, upload, money, ApiError, type Analysis, type Item } from "@/lib/marketplace";
 import { useWorkspace } from "@/components/workspace/provider";
 
@@ -16,29 +17,24 @@ function PhotoIcon() {
   return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="m3 16 5-5 5 5 3-3 5 5M9 5l1-2h4l1 2" /><circle cx="16.5" cy="9.5" r="1" /></svg>;
 }
 
-export function InventoryScreen() {
+export function InventoryScreen({ embedded = false, active = true }: { embedded?: boolean; active?: boolean }) {
   const {
     view, busy, seeded, setMessage, editing, setEditing, form, setForm, load, run,
     guardSession, mine, edit, replaceItemDraft, listingDirty, saveItem,
   } = useWorkspace();
-  const [editorOpen, setEditorOpen] = useState(Boolean(editing) || mine.length === 0);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<"add" | "edit">("add");
   const [filter, setFilter] = useState<Filter>("all");
   const [feedback, setFeedback] = useState("");
   const [failure, setFailure] = useState<ApiError | Error | null>(null);
   const [removeRequested, setRemoveRequested] = useState(false);
-  const [focusRequest, setFocusRequest] = useState(0);
-  const editorHeading = useRef<HTMLHeadingElement>(null);
-  const inventoryHeading = useRef<HTMLHeadingElement>(null);
+  const editorInvoker = useRef<HTMLElement | null>(null);
+  const addItemButton = useRef<HTMLButtonElement>(null);
   const listingForm = useRef<HTMLFormElement>(null);
   const reviewScope = `${view.profile.id}:${editing?.id ?? ""}`;
   const [savedReview, setSavedReview] = useState<{ scope: string; item: Item | null } | null>(null);
+  useEffect(() => { if (!active) setEditorOpen(false); }, [active]);
   useEffect(() => { setSavedReview(null); setRemoveRequested(false); setFailure(null); }, [reviewScope]);
-  useEffect(() => {
-    if (focusRequest) {
-      editorHeading.current?.focus();
-      editorHeading.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
-    }
-  }, [focusRequest]);
   const review = savedReview?.scope === reviewScope ? savedReview : null;
   const latest = review?.item;
   const savedUnavailable = review !== null && (!latest || !["draft", "available"].includes(latest.status));
@@ -59,17 +55,13 @@ export function InventoryScreen() {
   const complete = readiness.every((entry) => entry.complete);
   const visibleItems = mine.filter((item) => filter === "all" || (filter === "unavailable" ? !["draft", "available"].includes(item.status) : item.status === filter));
 
-  function openEditor(item: Item | null) {
+  function openEditor(item: Item | null, trigger: HTMLElement) {
+    editorInvoker.current = trigger;
+    setEditorMode(item ? "edit" : "add");
     edit(item);
     setEditorOpen(true);
     setFeedback("");
     setFailure(null);
-    setFocusRequest((value) => value + 1);
-  }
-  function showInventory() {
-    setEditorOpen(false);
-    inventoryHeading.current?.focus();
-    inventoryHeading.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
   }
   async function perform(action: () => Promise<void>) {
     setFailure(null);
@@ -107,18 +99,18 @@ export function InventoryScreen() {
     });
   }
 
-  return <section className="space-y-7">
+  return <section className="profile-inventory space-y-6">
     <div className="screen-heading flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="screen-title" ref={inventoryHeading} tabIndex={-1}>Your inventory</h1>
+        {embedded ? <h2 className="text-xl font-semibold">Your items</h2> : <h1 className="screen-title">Your inventory</h1>}
         <p className="screen-description">Give the things you no longer need a next chapter.</p>
       </div>
-      <Button disabled={busy || seeded} onClick={() => openEditor(null)}>New item</Button>
+      <Button ref={addItemButton} disabled={busy || seeded} onClick={event => openEditor(null, event.currentTarget)}>Add item</Button>
     </div>
-    <div className="inventory-workspace grid items-start gap-6 lg:grid-cols-[minmax(260px,.85fr)_minmax(0,1.15fr)]" data-editor-open={editorOpen}>
-      <section className={`inventory-list-pane surface-panel min-w-0 ${editorOpen ? "hidden lg:block" : "block"}`} aria-label="Inventory items">
+    <div className="inventory-workspace inventory-profile-list">
+      <section className="inventory-list-pane surface-panel min-w-0" aria-label="Inventory items">
         <div className="inventory-toolbar flex flex-wrap items-center justify-between gap-3 border-b p-5">
-          <h2 className="text-lg font-semibold">Your items <span className="ml-1 font-normal text-muted-foreground">{mine.length}</span></h2>
+          <p className="text-sm font-medium">{mine.length} {mine.length === 1 ? "item" : "items"} in your inventory</p>
           <p className="text-sm text-muted-foreground">Drafts stay private</p>
         </div>
         <div className="inventory-filters flex flex-wrap gap-1 border-b px-3 py-2" aria-label="Filter inventory">
@@ -136,28 +128,19 @@ export function InventoryScreen() {
               <p className="mt-1 text-xs text-muted-foreground">{item.value_source === "owner" ? "Value entered by you" : item.value_minor === null ? "You can add a value later" : "AI-assisted estimate"}{item.value_set_at ? ` · ${new Date(item.value_set_at).toLocaleDateString()}` : ""}</p>
               {item.uncertainty && <p className="mt-1 text-xs text-muted-foreground">Estimate note: {item.uncertainty}</p>}
             </div>
-            {["draft", "available"].includes(item.status) && <Button variant="outline" aria-label={`Edit ${item.title || "untitled draft"}`} onClick={() => openEditor(item)} disabled={busy || seeded}>Edit</Button>}
+            {["draft", "available"].includes(item.status) && <Button variant="outline" aria-label={`Edit ${item.title || "untitled draft"}`} onClick={event => openEditor(item, event.currentTarget)} disabled={busy || seeded}>Edit</Button>}
           </li>)}
         </ul>
         {!visibleItems.length && <div className="inventory-empty space-y-3 px-6 py-12 text-center">
           <h3 className="text-lg font-medium">{mine.length ? "No items here yet" : "Start with one thing"}</h3>
           <p className="mx-auto max-w-xs text-sm leading-6 text-muted-foreground">{mine.length ? "Choose another filter to see your other items." : "A chair, a calculator, something you’re ready to pass on. Add a photo or start with the details."}</p>
-          {!mine.length && <Button variant="outline" disabled={busy || seeded} onClick={() => openEditor(null)}>Add your first item</Button>}
+          {!mine.length && <Button variant="outline" disabled={busy || seeded} onClick={event => openEditor(null, event.currentTarget)}>Add your first item</Button>}
         </div>}
       </section>
-      <section className={`inventory-editor-pane surface-panel min-w-0 ${editorOpen ? "block" : "hidden lg:block"}`} aria-labelledby="listing-editor-heading">
-        <div className="border-b p-5 sm:p-6">
-          <Button type="button" variant="ghost" className="mb-3 lg:hidden" onClick={showInventory}>Back to inventory</Button>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 id="listing-editor-heading" ref={editorHeading} tabIndex={-1} className="break-words text-2xl font-semibold tracking-tight">{editing ? editing.title || "Untitled draft" : "Add an item"}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{listingDirty ? "Unsaved changes · kept while you move between items" : editing ? statusNames[currentItem?.status ?? editing.status] : "Start with a photo or fill in the details."}</p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-7 p-5 sm:p-6">
+      <ModalSheet open={editorOpen} onOpenChange={setEditorOpen} title={editorMode === "edit" ? "Edit item" : "Add item"} description={editing ? `${editing.title || "Untitled draft"}. ${listingDirty ? "Your unfinished edits stay here when you close." : statusNames[currentItem?.status ?? editing.status]}` : "Start with a photo or fill in the details. Closing keeps your unfinished draft in this session."} returnFocusRef={editorInvoker} fallbackFocusRef={addItemButton} className="item-modal-sheet">
+        <div className="inventory-editor-content space-y-7">
           {currentUnavailable && <div className="inline-feedback space-y-3 rounded-xl bg-secondary p-4" role="status">
-            <p className="text-sm leading-6">{currentItem ? `Current status: ${statusNames[currentItem.status]}. This item can’t be changed while it is unavailable for new trades.` : "This listing isn’t in your current saved inventory. Check its saved status before making more changes."} Your unsaved details are kept. You can also choose New item to prepare something else.</p>
+            <p className="text-sm leading-6">{currentItem ? `Current status: ${statusNames[currentItem.status]}. This item can’t be changed while it is unavailable for new trades.` : "This listing isn’t in your current saved inventory. Check its saved status before making more changes."} Your unsaved details are kept. You can also choose Add item to prepare something else.</p>
             <Button type="button" variant="outline" disabled={busy || seeded} onClick={() => void perform(reviewLatest)}>Check saved listing</Button>
           </div>}
           <div className="inventory-photo space-y-3">
@@ -226,7 +209,7 @@ export function InventoryScreen() {
                     <dt>Value</dt><dd>{money(latest.value_minor)}</dd>
                     <dt>Status</dt><dd>{statusNames[latest.status]}</dd>
                   </dl>
-                  {savedUnavailable ? <p className="text-sm leading-6">This listing is no longer editable. Your unsaved draft is retained; choose New item to prepare a separate draft.</p> : <>
+                  {savedUnavailable ? <p className="text-sm leading-6">This listing is no longer editable. Your unsaved draft is retained; choose Add item to prepare a separate draft.</p> : <>
                     <p className="text-sm leading-6 text-muted-foreground">Replacing the draft discards its unsaved fields and adopts these saved facts.</p>
                     <Button variant="outline" disabled={busy || seeded} onClick={() => void perform(async () => {
                       await guardSession(Promise.resolve());
@@ -235,7 +218,7 @@ export function InventoryScreen() {
                       announce("Draft replaced with the latest saved listing. Review before saving further changes.");
                     })}>Replace draft with saved listing</Button>
                   </>}
-                </> : <p className="text-sm leading-6">This listing is no longer available. Your unsaved draft is retained; choose New item to prepare a separate draft.</p>}
+                </> : <p className="text-sm leading-6">This listing is no longer available. Your unsaved draft is retained; choose Add item to prepare a separate draft.</p>}
               </section>}
               {editable && <div className="border-t pt-4">
                 {removeRequested ? <div className="space-y-3"><p className="text-sm leading-6">Remove this listing from trading? It will no longer be available in new exchanges.</p><div className="flex flex-wrap gap-3"><Button variant="destructive" disabled={disabled} onClick={() => void save("removed")}>Remove listing</Button><Button variant="outline" onClick={() => setRemoveRequested(false)}>Keep listing</Button></div></div> : <Button variant="ghost" disabled={disabled} onClick={() => setRemoveRequested(true)}>Remove from trading</Button>}
@@ -278,7 +261,7 @@ export function InventoryScreen() {
             {listingDirty && <p className="text-sm text-muted-foreground">Save your changes before preparing this version for matching.</p>}
           </section>}
         </div>
-      </section>
+      </ModalSheet>
     </div>
   </section>;
 }

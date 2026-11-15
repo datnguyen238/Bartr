@@ -8,7 +8,7 @@ Record future evidence using the [engineering workflow](ENGINEERING.md#evidence-
 
 Backend capabilities include account registration/sign-in/out with hashed passwords and opaque sessions; public profiles and private preferences; draft/photo/publication/edit/removal; reviewed Gemini suggestions; revision-bound valuation evidence; Bedrock embedding and Atlas retrieval adapters; deterministic one-to-three item matching with both gap limits; dismissals; manual proposals, notes/counteroffers and exact-version consent; atomic reservations/overlap invalidation; cancellation and two-party handoff.
 
-The current frontend exposes Home authentication, direct Inventory/Preferences navigation and Account in the header. Trade is a public preparation screen; discovery and offers controls remain deferred. The redesign and its evidence are recorded below. See the [profile guide](PROFILE.md), [original profile plan](../.claude/plans/profile-page.plan.md) and [original TDD evidence](../.claude/tdd/profile-page.tdd.md). The backend trading rules remain implemented.
+The current frontend exposes Home authentication and a unified Profile with in-page Items/Preferences sections, Edit profile and focused item forms. Trade is a public preparation screen; discovery and offers controls remain deferred. The redesign and its evidence are recorded below. See the [profile guide](PROFILE.md), [original profile plan](../.claude/plans/profile-page.plan.md) and [original TDD evidence](../.claude/tdd/profile-page.tdd.md). The backend trading rules remain implemented.
 
 DynamoDB is the default saved-data backend in the combined branch; MongoDB and explicit temporary-memory storage remain available. The DynamoDB schema and image-valuation history imported from `main` is recorded separately below. Historical results describe their labeled revisions and do not certify this merge.
 
@@ -93,3 +93,31 @@ Environment: macOS, Node 25.6.0 / npm 11.17.0 / Next 16.4.6; project virtual env
 | Source and merge review | **Passed** independent review, all profile visual files compared with their pre-merge contents, backend compared with main, conflict-marker/relative-link/whitespace checks. Local and remote main remained `0d5d1cc`. |
 
 The browser test services stopped after verification. Build, coverage and browser-result files remain ignored and are excluded from the merge. This merge evaluation does not repeat historical live AWS tests or establish live Gemini quality, real database migration/recovery, production load, full screen-reader acceptance or deployment readiness.
+
+## Unified Profile and focused forms — 2026-11-14
+
+Requirements: Story 1; FR-001–006, FR-028 and FR-030. Change identity: working tree based on `5732f865ce16c8eb0477363a36b57d1550421652`. The owner specified a social-style Profile with item management and preferences on one page, personal details behind Edit profile, and an Add item form over a blurred surrounding view. The [surface direction](../.impeccable/surfaces/frontend-app-profile-page-tsx.md) records this presentation change. Saved data, API contracts, privacy, revision checks, photo review and explicit publication rules remain unchanged.
+
+Environment: macOS arm64, Node 25.6.0, Python 3.14.2, Next 16.4.6/React 19.3.1, Vitest 4.1.12 and installed Chrome through Playwright 1.65.1. Frontend fixtures use fictional members/items; the local backend journey uses disposable accounts in explicit temporary-memory storage with live providers disabled.
+
+| Evaluation | Result | Evidence boundary |
+|---|---|---|
+| `npm test` (`frontend/`) | **98 passed** in 6 files | Vitest/jsdom with synthetic API/provider fixtures; includes draft, modal dismissal/focus, save/reload, stale and unavailable-item regressions |
+| `npm run test:e2e` (`frontend/`) | **30 passed**, 26.5 s, after the final responsive correction | Real Next.js/Chrome with intercepted API; same-page tabs, profile save, blurred forms, trapped/restored focus, draft retention, authentication, privacy and guarded publication |
+| `npm run test:backend` (`frontend/`) | **1 passed**, 8.2 s | Real local Next.js/FastAPI, HTTP-only cookie/session, saved profile/items, revision rejection, logout and expiry; temporary memory, providers disabled |
+| `BARTR_NEXT_DIST_DIR=.next-build npm run build`; `npm run typecheck` (`frontend/`) | **Passed** after the final correction; typecheck repeated after restoring generated configuration | Production webpack compilation, TypeScript and generation of 14 pages |
+| `BARTR_CAPTURE_REVIEW=1 npx playwright test tests/e2e/responsive-review.spec.ts` (`frontend/`) | **5 passed**, 10.2 s; 30 captures | Profile, both forms, Preferences, Home and Trade at desktop 1440×1000, mobile 390×844, compact 320×760, dark and 200% text settings |
+| Independent finish review | Initial **fix**; the single required correction scored **resolved**, final disposition **ship** at that fix's scope | All 30 initial captures/source reviewed; five replacement Profile captures validated. See the [review record](../.impeccable/review/profile-finish-review.md) |
+| Documentation and workspace checks | **Passed** | Changed Markdown links, sidecar JSON/schema version, preserved token frontmatter, clean whitespace and restored Next-generated configuration |
+
+The review found item words, comparison values and dates fragmenting at 200% text beside fixed thumbnail/Edit columns. A rendered-text regression reproduced the failure; compact rows now place Edit below the details, and the regression passes across all five responsive settings. Modal captures use the viewport so their fixed backdrop is represented accurately. DESIGN.md and its sidecar describe the unified Profile, three-destination navigation and modal patterns.
+
+Unfinished input stays in the mounted account's memory and clears on logout or expiry; full reload persistence is not claimed. This increment does not establish actual screen-reader acceptance, physical-device behavior, live provider quality, database durability/contention, load or pilot outcomes. No backend persistence migration or deployment occurred. Isolated browser services stopped after their runs; the normal development services were preserved.
+
+## Preferences layout polish — 2026-11-14
+
+Scope: FR-006 and FR-028 presentation, on the same `5732f865ce16c8eb0477363a36b57d1550421652` working tree plus the unified Profile increment above. Embedded Preferences now fills the Profile content width. Interests and Exclusions share equal columns when each has 22rem of room and stack otherwise; longer value guidance remains within 65ch. Existing fields, copy, saving, private drafts and assistance behavior are preserved.
+
+Environment and fixture boundaries match the preceding increment. `npx vitest run tests/profile-screens.test.tsx` passed **24 tests**. `BARTR_CAPTURE_REVIEW=1 npx playwright test tests/e2e/responsive-review.spec.ts tests/e2e/profile.spec.ts -g 'core screens|preferences'` passed **9 browser scenarios**, including preference saves and draft retention. After the final field-alignment adjustment, `BARTR_NEXT_DIST_DIR=.next-build npm run build` and `npm run typecheck` passed; generated Next configuration was restored.
+
+Final isolated Chromium inspection against the production build used intercepted fictional API data at 1440, 1280, 1024, 390 and 320px, plus dark and 200% text settings. All seven states had no horizontal overflow, matched the Profile tab edges and kept paired input tops aligned. The [desktop capture](../.impeccable/review/desktop-preferences.png), [1024px capture](../.impeccable/review/preferences-1024.png) and [1280px capture](../.impeccable/review/preferences-1280.png) record the expansion and stacking. An independent reviewer opened all seven captures and returned **ship**, with no material layout regression in the saved state with assistance collapsed. Live providers, database persistence and full screen-reader acceptance were not reevaluated for this layout-only change. The temporary production inspection service was stopped.

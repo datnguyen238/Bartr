@@ -51,7 +51,7 @@ BARTR_STORAGE=memory python -m uvicorn backend.app.main:app --reload --host 127.
 
 This explicitly selects temporary, in-process storage. Accounts, items and trades disappear on restart or reload. There is no silent fallback after a database failure. Use one worker in this mode. Do not use it for saved user data.
 
-Open `/home` to register or sign in. The sidebar or mobile navigation opens Inventory and Preferences directly; Account is in the header. Prepare a listing from a photo or manual details, keep it as a private draft, and explicitly publish when ready. Unfinished listing drafts remain separate while switching items within the current session. Saved cookies restore the account on direct visits and refreshes. Anonymous protected visits return to Home; connection failures offer Retry. See the [profile guide](docs/PROFILE.md) for routes and session behavior.
+Open `/home` to register or sign in. Profile combines your items and private preferences on one page; **Edit profile** opens personal details. **Add item** and listing **Edit** open focused forms over a blurred background. Prepare a listing from a photo or manual details, keep it as a private draft, and explicitly publish when ready. Closing a form preserves its unfinished session draft. Saved cookies restore the account on direct visits and refreshes. Anonymous protected visits return to Home; connection failures offer Retry. See the [profile guide](docs/PROFILE.md) for routes and session behavior.
 
 The current frontend phase defers offers and discovery controls. `/trade` is a placeholder; old `/discover` and `/trades` links lead there. Existing backend matching and trading endpoints remain available and retain their consent, reservation, cancellation and handoff rules.
 

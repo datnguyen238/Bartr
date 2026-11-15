@@ -168,7 +168,7 @@ components:
 
 Bartr uses a warm cream canvas, opaque paper surfaces, ink actions and a quiet neutral navigation system. The interface gives content, editable facts and the next useful action a clear hierarchy. Border and tonal changes carry structure; compact system typography and comfortable controls keep the workspace familiar.
 
-Apple’s principles are translated to the web through clear purpose, familiar controls, responsive composition, local feedback and recoverable actions. This is a record of the implemented web system, with no native HIG certification claim. The visual authority is the current source and reviewed captures; product facts remain in [PRODUCT.md](PRODUCT.md), and the chosen surface composition remains in the [surface brief](.impeccable/surfaces/frontend-app-profile-inventory-page-tsx.md).
+Apple’s principles are translated to the web through clear purpose, familiar controls, responsive composition, local feedback and recoverable actions. This is a record of the implemented web system, with no native HIG certification claim. The visual authority is the current source and reviewed captures; product facts remain in [PRODUCT.md](PRODUCT.md), and the chosen surface composition remains in the [surface brief](.impeccable/surfaces/frontend-app-profile-page-tsx.md).
 
 **Key Characteristics:**
 
@@ -232,21 +232,23 @@ The scale is fixed in rem rather than fluid viewport sizing. Public Home’s dis
 
 ## Layout
 
-The authenticated shell uses a sticky navigation rail (216px) and a flexible main column. Its top bar wraps account actions and community context, and content stays within a maximum width (1400px). Regular content padding is 44px 40px 64px; wide screens from 1280px use 48px 56px 80px. Account and Preferences use a narrower content measure (48rem).
+The authenticated shell uses a sticky navigation rail (216px) and a flexible main column. Its top bar wraps account actions and community context, and content stays within a maximum width (1400px). Regular content padding is 44px 40px 64px; wide screens from 1280px use 48px 56px 80px. The unified Profile is centered within a narrower maximum width (1120px). Embedded Preferences fills that width, pairing Interests and Exclusions when each has at least 22rem of available space and stacking them otherwise; longer value guidance retains a readable measure (65ch).
 
-Below 768px, navigation becomes an opaque four-column bottom bar with safe-area padding. The top bar becomes compact, and content uses 28px 20px with bottom room for navigation. At 360px and below, side gutters reduce to 14px. Links retain text labels with their icons; the selected destination is indicated by `aria-current` and a filled background.
+Below 768px, navigation becomes an opaque three-column bottom bar for Home, Profile and Trade, with safe-area padding. The top bar becomes compact, and content uses 28px 20px with bottom room for navigation. At 360px and below, side gutters reduce to 14px. Links retain text labels with their icons; the selected destination is indicated by `aria-current` and a filled background.
 
 Public pages use a horizontal header instead of the authenticated rail. Public Home has named introduction, authentication and example areas. Above 1023px the introduction and example share the left column while authentication occupies the right; at narrower widths the order is introduction, authentication, example within a maximum width (640px). This keeps its reading and sign-in sequence deliberate without repeating a workspace hero.
 
-Inventory has separate list and editor work areas from 1024px: `minmax(260px, .85fr)` and `minmax(0, 1.15fr)`, with a 24px gap. Below that width it shows one pane at a time. Opening an item moves focus to the editor heading and scrolls it into view; Back to inventory restores focus to the list heading. The New item action stays with the screen heading.
+Profile places saved identity and real inventory counts above Items and Preferences tabs. Inventory uses the available collection width, with Add item beside its section heading. Desktop rows keep thumbnail, item facts and Edit in a horizontal arrangement. Below 768px, each row uses a thumbnail/copy grid (52px and a flexible column); Edit sits below the copy in the second column so enlarged words and dates retain room to wrap.
+
+Edit profile and Add/Edit item open a centered modal form, with a maximum width (720px), viewport side room (48px total) and a maximum height (`100dvh - 48px`). The header stays above an internally scrolling body. Below 768px, the form starts at the safe-area-aware top edge (at least 12px), uses 8px side gutters and nearly the full viewport height, with safe-area room below its content.
 
 Use the recorded spacing steps for controls and form groups. Panels, section dividers and wrapping action rows establish grouping; repeated labels and stacked large promotional headings are unnecessary in the task workspace.
 
 ## Elevation & Depth
 
-The system has no decorative or structural card shadows. Opaque canvas, rail, panel, selected-row and field tones create depth, with thin borders defining edges. The temporary-preview disclosure uses a bordered opaque panel. Focus rings are interaction indicators rather than surface elevation.
+The system has no decorative or structural card shadows. Opaque canvas, rail, panel, selected-row and field tones create depth, with thin borders defining edges. The temporary-preview disclosure uses a bordered opaque panel. Modal forms keep their content opaque while the surrounding page is dimmed and blurred (8px); this backdrop treatment focuses the task without introducing glass content surfaces. Reduced transparency removes the blur and strengthens the dimming. Focus rings are interaction indicators rather than surface elevation.
 
-Color transitions on navigation and inventory rows last 160ms with the browser’s ease timing. Reduced motion changes animation and transition duration to .01ms and disables smooth scrolling. There are no required entrance, parallax or continuous-motion effects.
+Color transitions on navigation and inventory rows last 160ms with the browser’s ease timing. Modal forms and their backdrops enter with a short opacity fade (160ms ease-out). Reduced motion changes animation and transition duration to .01ms and disables smooth scrolling. There is no spatial entrance movement, parallax or continuous motion.
 
 **The Opaque Surface Rule.** Separate content with opaque surfaces, tonal changes and borders; reserve focus rings for interaction feedback.
 
@@ -276,7 +278,19 @@ Opaque panels use a thin divider border, the panel radius and regular padding (2
 
 ### Navigation
 
-Regular rail links combine a 20px inline SVG icon with a text label, a 12px gap and a minimum height (48px). The active link uses the primary pair; hover uses the accent surface. Compact navigation uses a 52px minimum link height with the icon above its label and a soft selected background. Public header navigation stays horizontal. Account access remains in the top bar, with its own current-page state.
+Regular rail links combine a 20px inline SVG icon with a text label, a 12px gap and a minimum height (48px). Authenticated destinations are Home, Profile and Trade; direct Profile subroutes keep Profile selected. The active link uses the primary pair; hover uses the accent surface. Compact navigation uses three equal columns and a 52px minimum link height with the icon above its label and a soft selected background. Public header navigation stays horizontal. The top bar also links to Your profile.
+
+### Profile identity and tabs
+
+The saved name and community lead the personal Profile beside a circular initial avatar (96px regular, 72px compact). Edit profile opens the personal-information form. The summary counts actual items excluding removed listings, available items and private drafts; it adds no social metrics or profile fields. Counts wrap on compact screens, and long identity text retains its available measure.
+
+Items and Preferences are same-page tabs with inline icons, a minimum height (52px), a divider and a foreground underline (2px) for the selected section. They expose the tab/tabpanel relationship and `aria-selected`; Left/Right, Home and End select and focus a tab. Both panels stay mounted while the inactive panel is hidden, retaining unfinished work when sections change. Preferences remains private to the owner.
+
+### ModalSheet
+
+Edit profile and Add/Edit item share an opaque bordered form sheet with the panel radius, a titled header, visible Close and an internally scrolling body. The header uses regular padding (22px 24px), while the body uses 24px; compact forms use 18px 16px in the header and 20px 16px in the body, plus bottom safe-area room. Avoid nested panel borders inside the sheet.
+
+Opening focuses the heading and traps keyboard focus within the dialog. Close, Escape and the outside backdrop dismiss it; focus returns to the invoking control or an available fallback. Closing retains pending account and item edits in workspace memory. Saving personal information closes Edit profile only after the saved state has refreshed; a failed save leaves the form and edits available. The shared modal changes presentation without weakening session, revision, photo or publication guards.
 
 ### Choice chips and filters
 
@@ -286,7 +300,7 @@ Interests and exclusions appear as wrapping soft-surface chips, with a named rem
 
 The photo area leads the editor, followed by item details, a plain-language readiness checklist and adjacent save/publish actions. Attaching the first photo creates a private saved draft when needed; the local result explicitly asks for review before publication. This photo save is not a general autosave of every field. The readiness list names what is added or needed, while publication remains an explicit action.
 
-Unsaved per-item and new-item drafts live in the mounted workspace’s memory, so switching items or routes can retain edits. They clear with session state and do not promise survival across reloads. Latest-saved review leaves the draft unchanged until explicit replacement. Reload and removal actions explain their effect and give a way to keep editing or keep the listing.
+Unsaved per-item and new-item drafts live in the mounted workspace’s memory, so closing the form, switching items or changing Profile sections can retain edits. They clear with session state and do not promise survival across reloads. Latest-saved review leaves the draft unchanged until explicit replacement. Reload and removal actions explain their effect and give a way to keep editing or keep the listing.
 
 Optional assistance is visibly separated from required editing. Preferences uses a disclosure; Inventory labels its assistance section and review output. Suggestions can be applied or dismissed, and unavailable assistance leaves manual entry usable. Do not present an assisted result as an already reviewed fact.
 
@@ -307,6 +321,6 @@ The Bartr wordmark is live text with a muted period. Functional icons are inline
 ### Don't:
 
 - **Don’t** add decorative shadows, translucent panels or gradients to the current bordered surface language.
-- **Don’t** compress the desktop list and editor into an offscreen editing result on compact screens; use the focused editor and its Back action.
+- **Don’t** place item editing beyond the visible collection on compact screens; open the titled modal with its own scrolling body and restore focus on dismissal.
 - **Don’t** imply that unsaved drafts survive a reload or session change, or extend their lifetime through browser storage.
 - **Don’t** let assistance overwrite reviewed details or make a saved photo appear to publish a listing.

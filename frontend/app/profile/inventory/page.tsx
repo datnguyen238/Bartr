@@ -1,5 +1,5 @@
-import { InventoryScreen } from "@/components/inventory/inventory-screen";
+import { ProfileScreen } from "@/components/profile/profile-screen";
 
 export default function ProfileInventoryPage() {
-  return <InventoryScreen />;
+  return <ProfileScreen initialSection="items" />;
 }
