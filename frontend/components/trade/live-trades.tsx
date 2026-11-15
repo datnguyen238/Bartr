@@ -83,17 +83,20 @@ export default function TradesPage() {
   }
   return (
     <div className="space-y-6 pt-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-muted-foreground">Your marketplace</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Trades</h1><p className="mt-1 text-sm text-muted-foreground">Choose items, talk it through, and agree together.</p></div>
-        <Button onClick={() => { setCounterEditing(false); setTradeId(""); setOther(""); setLeft([]); setRight([]); setAck(false); }}><Plus aria-hidden="true" /> New offer</Button>
-      </div>
-      <div className="flex gap-2 overflow-x-auto border-b pb-4" aria-label="Your trades">
-        {view.trades.map((t) => <Button key={t.id} variant={t.id === tradeId ? "default" : "outline"} onClick={() => { setCounterEditing(false); setTradeId(t.id); setOther(""); setLeft([]); setRight([]); setAck(false); }}>
-          {name(t.participants.find((id) => id !== who)!)} <span className="ml-2 text-xs opacity-70">{t.status.replaceAll("_", " ")}</span>
-        </Button>)}
-        {!view.trades.length && <p className="text-sm text-muted-foreground">No trades yet. Start a new offer.</p>}
-      </div>
-      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
+      <header className="screen-heading">
+        <h1 className="screen-title">Trades</h1>
+        <p className="screen-description">Choose items, talk it through, and agree together.</p>
+      </header>
+      <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
+        <aside aria-label="Trade list" className="rounded-2xl border bg-card p-4">
+          <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Your trades</h2><span className="text-xs text-muted-foreground">{view.trades.length}</span></div>
+          <Button variant="outline" className="mt-4 w-full justify-start" onClick={() => { setCounterEditing(false); setTradeId(""); setOther(""); setLeft([]); setRight([]); setAck(false); }}><Plus aria-hidden="true" /> New offer</Button>
+          <nav aria-label="Trade conversations" className="mt-4 flex gap-2 overflow-x-auto lg:max-h-[65vh] lg:flex-col lg:overflow-y-auto">
+            {view.trades.map((t) => <button type="button" key={t.id} aria-current={t.id === tradeId ? "true" : undefined} className={`min-w-40 rounded-xl px-3 py-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:w-full ${t.id === tradeId ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`} onClick={() => { setCounterEditing(false); setTradeId(t.id); setOther(""); setLeft([]); setRight([]); setAck(false); }}><span className="block truncate font-medium">{name(t.participants.find((id) => id !== who)!)}</span><span className="mt-1 block text-xs opacity-70">{t.status.replaceAll("_", " ")} · offer {t.offers.at(-1)?.version}</span></button>)}
+            {!view.trades.length && <p className="px-1 py-2 text-sm text-muted-foreground">No trades yet.</p>}
+          </nav>
+        </aside>
+        <div className="grid min-w-0 items-stretch gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,.9fr)]">
         <Card className="gap-0 overflow-hidden rounded-2xl shadow-none">
           <CardHeader className="border-b pb-5"><CardDescription className="flex items-center gap-2">{trade ? `Offer ${offer?.version} · ${trade.status.replaceAll("_", " ")}` : "New offer"}</CardDescription><CardTitle className="text-xl">{partner ? `Exchange with ${name(partner)}` : "Choose your exchange"}</CardTitle>{editingOffer && <p className="text-sm text-muted-foreground">Choose up to three items on each side, then send your offer.</p>}</CardHeader>
           <CardContent className="space-y-5 pt-5">
@@ -110,6 +113,7 @@ export default function TradesPage() {
           <CardContent className="flex min-h-0 flex-1 flex-col p-0"><div className="flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-5" role="log" aria-label="Trade messages" aria-live="polite">{trade?.offers.slice(0, -1).map((o) => <p key={o.version} className="mx-auto max-w-sm rounded-lg bg-secondary px-3 py-2 text-center text-xs text-muted-foreground">Offer {o.version} by {name(o.sender)} · superseded · {o.terms.left.map((item) => item.title).join(" + ")} ↔ {o.terms.right.map((item) => item.title).join(" + ")}</p>)}{trade?.notes.length ? trade.notes.map((note, i) => <div key={`${note.created_at}-${i}`} className={`flex ${note.sender === who ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${note.sender === who ? "bg-primary text-primary-foreground" : "border bg-card"}`}><p className="mb-1 text-xs opacity-70">{note.sender === who ? "You" : name(note.sender)} · {new Date(note.created_at).toLocaleString()}</p><p className="whitespace-pre-wrap break-words">{note.text}</p></div></div>) : <p className="py-16 text-center text-sm text-muted-foreground">{trade ? "No messages yet. Say hello and discuss your exchange." : "Your messages will appear here."}</p>}</div>
           {trade && !closed.includes(trade.status) && <form className="border-t p-4" onSubmit={(e) => { e.preventDefault(); const note = String(new FormData(e.currentTarget).get("note") || ""); if (!busy && note.trim()) act("note", note); }}><label htmlFor="trade-message" className="sr-only">Message</label><div className="relative"><Input id="trade-message" name="note" placeholder="Write a message…" required maxLength={3000} className="h-12 rounded-full pr-14" /><Button type="submit" variant="ghost" size="icon" disabled={busy} aria-label="Send message" className="absolute right-1 top-1 size-10 rounded-full bg-transparent hover:bg-transparent"><Send aria-hidden="true" /></Button></div><p className="mt-2 text-xs text-muted-foreground">Private to both participants</p></form>}</CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
