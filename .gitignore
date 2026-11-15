@@ -19,7 +19,4 @@ out/
 .swapify/
 .DS_Store
 *.log
-/frontend/coverage/
-/frontend/test-results/
-/frontend/playwright-report/
 /.vscode/
