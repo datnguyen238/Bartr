@@ -10,7 +10,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from .api.marketplace import router
 from .api.routes import create_router
-from .core.config import application_name
+from .core.config import ROOT, application_name
 from .domain import Marketplace
 from .errors import AppError
 from .storage.state import StateRepository

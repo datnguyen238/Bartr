@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { api, command, type View, type Item, type Trade, type Recommendations } from "@/lib/marketplace";
+import { ApiError, api, command, type View, type Item, type Trade, type Recommendations } from "@/lib/marketplace";
 import { seedEnabled, createSeedView, createSeedRecommendations } from "@/data/seed";
 import { blank } from "./constants";
 
@@ -22,8 +22,9 @@ function useWorkspaceState() {
   const [view, setView] = useState<View | null>(() => seedEnabled ? createSeedView() : null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
-    [error, setError] = useState("");
-  const loading = false;
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(!seedEnabled),
+    [anonymous, setAnonymous] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null),
     [form, setForm] = useState(blank),
     [results, setResults] = useState<Recommendations | null>(() => seedEnabled ? createSeedRecommendations() : null),
@@ -45,6 +46,8 @@ function useWorkspaceState() {
   async function load() {
     const v = seedEnabled ? createSeedView() : await api<View>("me");
     setView(v);
+    setAnonymous(false);
+    setError("");
     setProfileForm({
       name: v.profile.name,
       community: v.profile.community,
@@ -54,6 +57,35 @@ function useWorkspaceState() {
     });
     return v;
   }
+  useEffect(() => {
+    if (seedEnabled) {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    load()
+      .catch((reason: unknown) => {
+        if (!active) return;
+        if (reason instanceof ApiError && reason.status === 401) {
+          setAnonymous(true);
+          setView(null);
+          return;
+        }
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Bartr could not load your saved data. Check the backend and try again.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+    // Initial session discovery only; subsequent refreshes call load() explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   async function run(action: () => Promise<void>) {
     if (seedEnabled) {
       setMessage("Frontend seed data only. Backend actions are disabled and no changes are saved.");
@@ -198,6 +230,7 @@ function useWorkspaceState() {
   return {
     view: view ?? emptyWorkspace,
     hasSession: view !== null && !seedEnabled,
+    anonymous,
     seeded: seedEnabled,
     setView,
     tab,

@@ -22,7 +22,11 @@ def test_semantic_search_does_not_report_no_match_when_index_is_stale(monkeypatc
     assert exc.value.code=='INDEX_PENDING'
 
 
-def test_temporary_storage_never_pretends_to_be_atlas():
+@pytest.mark.parametrize('repository_factory',[
+    lambda tmp_path: StateRepository(memory=True),
+    lambda tmp_path: StateRepository(json_path=tmp_path/'bartr.json'),
+])
+def test_temporary_storage_never_pretends_to_be_atlas(repository_factory,tmp_path):
     with pytest.raises(AppError) as exc:
-        SemanticSearch(StateRepository(memory=True)).candidates({},'alice')
+        SemanticSearch(repository_factory(tmp_path)).candidates({},'alice')
     assert exc.value.code=='ATLAS_REQUIRED'

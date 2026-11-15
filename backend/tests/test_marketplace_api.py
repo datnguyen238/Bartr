@@ -42,3 +42,23 @@ def test_api_account_draft_photo_publication_and_private_access():
             assert (await alice.post('/api/auth/logout',json={})).status_code==200
             assert (await alice.get('/api/me')).status_code==401
     asyncio.run(check())
+
+
+def test_json_api_mode_persists_account_and_session_across_restart(tmp_path):
+    async def check():
+        path=tmp_path/'bartr.json'
+        first=create_app(StateRepository(json_path=path))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=first),base_url='http://test',headers={'X-Bartr-Request':'1'}) as client:
+            registered=await client.post('/api/auth/register',json={
+                'username':'json-user','password':'secure-passphrase','name':'JSON User','community':'Tempe'
+            })
+            assert registered.status_code==200
+            cookie=client.cookies.get('bartr_session')
+            assert cookie
+        restarted=create_app(StateRepository(json_path=path))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=restarted),base_url='http://test',headers={'X-Bartr-Request':'1'},cookies={'bartr_session':cookie}) as client:
+            response=await client.get('/api/me')
+            assert response.status_code==200
+            assert response.json()['storage']=='temporary-json'
+            assert response.json()['profile']['username']=='json-user'
+    asyncio.run(check())

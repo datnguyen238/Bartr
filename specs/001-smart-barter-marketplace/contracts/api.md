@@ -2,7 +2,7 @@
 
 All marketplace routes are under `/api`. Authentication uses an HTTP-only opaque session cookie. No endpoint trusts a caller-supplied owner ID. Mutations require a same-origin request and closed schemas. Conflicts use 409; unauthorized/private records are inaccessible; provider/database failures use actionable 503 responses without raw secrets.
 
-- `POST /auth/register`, `/auth/login`, `/auth/logout`; `GET /me`.
+- `POST /auth/register`, `/auth/login`, `/auth/logout`; `GET /me`. The implemented `GET /me` includes `storage` as `mongodb`, `temporary-memory`, or `temporary-json`; this is operational status, not authorization or durability evidence.
 - `GET/PATCH /profile`: own profile and private preferences only; writes require expected revision.
 - `GET/POST /items`, `PATCH /items/{id}`: owner-only draft/update, public available-listing discovery, publication requires reviewed fields and image.
 - `POST /items/{id}/image`, `GET /images/{id}`: normalized owner upload and audience-checked image read.

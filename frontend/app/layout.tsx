@@ -5,7 +5,8 @@ import { WorkspaceShell } from '@/components/workspace/shell';
 
 export const metadata: Metadata = {
   title: 'Bartr',
-  description: 'A foundation for trading what you have for what you need.',
+  description:
+    'A money-free marketplace for campus communities. Trade what you have for what you need.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,0 +1,233 @@
+{
+  "seed_id": "bartr-demo-v1",
+  "community": "ASU Tempe",
+  "viewer": {
+    "username": "demo-alice",
+    "name": "Alice Chen",
+    "interests": [
+      "Electronics",
+      "Study supplies",
+      "Furniture"
+    ],
+    "exclusions": [
+      "Broken items"
+    ],
+    "gap_limit": 20,
+    "items": [
+      {
+        "key": "alice-chair",
+        "title": "Wooden study chair",
+        "description": "Solid wooden chair sized for a dorm or apartment desk.",
+        "category": "Furniture",
+        "condition": "Good — light wear on the seat",
+        "value_minor": 4000,
+        "status": "available",
+        "color": "#b77b4b"
+      },
+      {
+        "key": "alice-calculator",
+        "title": "Scientific calculator",
+        "description": "Working scientific calculator with a protective cover.",
+        "category": "Study supplies",
+        "condition": "Good — tested and working",
+        "value_minor": 2000,
+        "status": "available",
+        "color": "#3f4c5a"
+      },
+      {
+        "key": "alice-lamp-draft",
+        "title": "Desk lamp draft",
+        "description": "A fictional draft that must remain private to Alice.",
+        "category": "Household essentials",
+        "condition": "Condition review pending",
+        "value_minor": null,
+        "status": "draft",
+        "color": "#d5b95f"
+      }
+    ]
+  },
+  "members": [
+    {
+      "username": "demo-brian",
+      "name": "Brian Patel",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": ["Broken items"],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "brian-monitor",
+          "title": "24-inch desktop monitor",
+          "description": "1080p monitor with an HDMI cable, stand, and power adapter.",
+          "category": "Electronics",
+          "condition": "Good — tested and working",
+          "value_minor": 6500,
+          "status": "available",
+          "color": "#4a5968"
+        },
+        {
+          "key": "brian-hdmi-removed",
+          "title": "Old HDMI cable",
+          "description": "A fictional removed listing used to verify discovery filtering.",
+          "category": "Electronics",
+          "condition": "Fair",
+          "value_minor": 500,
+          "status": "removed",
+          "color": "#23272b"
+        }
+      ]
+    },
+    {
+      "username": "demo-carol",
+      "name": "Carol Rivera",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": [],
+      "gap_limit": 25,
+      "items": [
+        {
+          "key": "carol-laptop-stand",
+          "title": "Foldable laptop stand",
+          "description": "Adjustable aluminum stand for a laptop or tablet.",
+          "category": "Study supplies",
+          "condition": "Excellent",
+          "value_minor": 2200,
+          "status": "available",
+          "color": "#9ba4aa"
+        }
+      ]
+    },
+    {
+      "username": "demo-diego",
+      "name": "Diego Morales",
+      "interests": ["Furniture"],
+      "exclusions": [],
+      "gap_limit": 30,
+      "items": [
+        {
+          "key": "diego-keyboard",
+          "title": "Compact mechanical keyboard",
+          "description": "USB mechanical keyboard with working switches and cable.",
+          "category": "Electronics",
+          "condition": "Good — all keys tested",
+          "value_minor": 4500,
+          "status": "available",
+          "color": "#5c6570"
+        }
+      ]
+    },
+    {
+      "username": "demo-elena",
+      "name": "Elena Park",
+      "interests": ["Study supplies"],
+      "exclusions": ["Upholstered furniture"],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "elena-textbooks",
+          "title": "Intro science textbook set",
+          "description": "Three introductory science reference books for first-year courses.",
+          "category": "Study supplies",
+          "condition": "Good — clean pages with light notes",
+          "value_minor": 3500,
+          "status": "available",
+          "color": "#557b63"
+        }
+      ]
+    },
+    {
+      "username": "demo-farah",
+      "name": "Farah Ahmed",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": [],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "farah-desk",
+          "title": "Compact writing desk",
+          "description": "Small wood-look desk that fits a dorm room study corner.",
+          "category": "Furniture",
+          "condition": "Good — minor edge marks",
+          "value_minor": 6000,
+          "status": "available",
+          "color": "#956c4c"
+        }
+      ]
+    },
+    {
+      "username": "demo-gabriel",
+      "name": "Gabriel Stone",
+      "interests": ["Furniture"],
+      "exclusions": [],
+      "gap_limit": 25,
+      "items": [
+        {
+          "key": "gabriel-headphones",
+          "title": "Over-ear study headphones",
+          "description": "Wired over-ear headphones with a zip case.",
+          "category": "Electronics",
+          "condition": "Good — ear cushions reviewed",
+          "value_minor": 4000,
+          "status": "available",
+          "color": "#334155"
+        }
+      ]
+    },
+    {
+      "username": "demo-hana",
+      "name": "Hana Kim",
+      "interests": ["Study supplies"],
+      "exclusions": [],
+      "gap_limit": 25,
+      "items": [
+        {
+          "key": "hana-art-kit",
+          "title": "Drawing and art supply kit",
+          "description": "Sketch pencils, markers, rulers, and a clean zip organizer.",
+          "category": "Study supplies",
+          "condition": "Very good — lightly used",
+          "value_minor": 3000,
+          "status": "available",
+          "color": "#c75b7a"
+        }
+      ]
+    },
+    {
+      "username": "demo-isaac",
+      "name": "Isaac Nguyen",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": [],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "isaac-bookshelf",
+          "title": "Three-shelf bookcase",
+          "description": "Compact bookcase for textbooks, supplies, and small plants.",
+          "category": "Furniture",
+          "condition": "Good — stable with light wear",
+          "value_minor": 4500,
+          "status": "available",
+          "color": "#7a5b44"
+        }
+      ]
+    }
+  ],
+  "outside_community_member": {
+    "username": "demo-jordan",
+    "name": "Jordan Lee",
+    "community": "Downtown Phoenix",
+    "interests": ["Furniture"],
+    "exclusions": [],
+    "gap_limit": 20,
+    "items": [
+      {
+        "key": "jordan-mouse",
+        "title": "Wireless computer mouse",
+        "description": "A working wireless mouse that must stay outside ASU Tempe discovery.",
+        "category": "Electronics",
+        "condition": "Good — receiver included",
+        "value_minor": 1800,
+        "status": "available",
+        "color": "#2f3740"
+      }
+    ]
+  }
+}

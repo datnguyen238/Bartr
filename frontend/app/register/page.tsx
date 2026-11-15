@@ -1,5 +1,11 @@
-import { redirect } from "next/navigation";
+import { AuthForm } from "@/components/auth-form";
+import { safeNext } from "@/lib/navigation";
 
-export default function RegisterPage() {
-  redirect("/inventory");
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const params = await searchParams;
+  return <AuthForm mode="register" next={safeNext(params.next)} />;
 }

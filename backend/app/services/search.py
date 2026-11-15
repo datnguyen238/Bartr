@@ -59,9 +59,13 @@ class SemanticSearch:
         return record
 
     def candidates(self,state,actor):
+<<<<<<< HEAD
         if getattr(self.repo,'backend',None)=='dynamodb':
             raise AppError('Semantic search still requires Atlas and is not included in this DynamoDB login/photo-valuation increment.', 'SEMANTIC_STORAGE_UNSUPPORTED', 503)
         if self.repo.memory:
+=======
+        if not self.repo.supports_atlas:
+>>>>>>> ed5b776 (Implement Landing Page)
             raise AppError('Semantic discovery needs MongoDB Atlas. Select exact-text discovery for temporary local testing.','ATLAS_REQUIRED',503)
         model=os.getenv('GEMINI_MODEL') or os.getenv('GEMINI_VALUATION_MODEL','')
         if not model or not os.getenv('GEMINI_API_KEY'):

@@ -94,11 +94,16 @@ export interface Recommendations {
   reason: string | null;
   retrieval: string;
 }
+export interface FieldIssue {
+  field: string;
+  message: string;
+}
 export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
     public code?: string,
+    public fields: FieldIssue[] = [],
   ) {
     super(message);
   }
@@ -125,22 +130,55 @@ export async function api<T>(
   }
   const value = await response.json();
   if (!response.ok) {
-    const fields = Array.isArray(value.fields)
-      ? value.fields
-          .map(
-            (x: { field: string; message: string }) =>
-              `${x.field}: ${x.message}`,
-          )
-          .join("; ")
-      : "";
+    const issues: FieldIssue[] = Array.isArray(value.fields)
+      ? value.fields.filter(
+          (x: unknown): x is FieldIssue =>
+            typeof x === "object" &&
+            x !== null &&
+            typeof (x as FieldIssue).field === "string" &&
+            typeof (x as FieldIssue).message === "string",
+        )
+      : [];
+    const fields = issues
+      .map((x) => `${x.field}: ${x.message}`)
+      .join("; ");
     throw new ApiError(
       fields || value.detail || "Request failed.",
       response.status,
       value.code,
+      issues,
     );
   }
   return value as T;
 }
+export const initials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "B";
+const itemStatusLabels: Record<Item["status"], string> = {
+  draft: "Draft",
+  available: "Available",
+  reserved: "Reserved",
+  exchanged: "Exchanged",
+  removed: "Removed",
+};
+export const itemStatusLabel = (status: Item["status"]) =>
+  itemStatusLabels[status] ?? status;
+const tradeStatusLabels: Record<string, string> = {
+  open: "Open offer",
+  agreed: "Agreed",
+  awaiting_handoff: "Awaiting handoff",
+  completed: "Completed",
+  declined: "Declined",
+  withdrawn: "Withdrawn",
+  invalidated: "Needs review",
+  cancelled: "Cancelled",
+};
+export const tradeStatusLabel = (status: string) =>
+  tradeStatusLabels[status] ?? status.replaceAll("_", " ");
 export async function upload(item: Item, file: File): Promise<Item> {
   const data = new FormData();
   data.append("file", file);

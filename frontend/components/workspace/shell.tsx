@@ -1,16 +1,63 @@
 "use client";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/marketplace";
 import { useWorkspace } from "./provider";
 
+const publicPaths = ["/", "/sign-in", "/register", "/login"];
+
 export function WorkspaceShell({ children }: { children: ReactNode }) {
-  const { view, hasSession, seeded, tab, busy, message, error, loading, run, load, setView, setResults, setMessage } = useWorkspace();
+  const { view, hasSession, anonymous, seeded, tab, busy, message, error, loading, run, load, setView, setResults, setMessage } = useWorkspace();
+  const pathname = usePathname();
+  if (publicPaths.includes(pathname)) return <>{children}</>;
   if (loading)
     return (
       <main className="p-10" role="status">
         Loading Bartr…
+      </main>
+    );
+  if (!hasSession && !seeded)
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl items-center px-5 py-16">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>{anonymous ? "Sign in to continue" : "Bartr could not load your data"}</CardTitle>
+            <CardDescription>
+              {anonymous
+                ? "Your profile, inventory, preferences and private trade history are available after sign-in."
+                : "Check that the backend is running, then try again. No saved data has been changed."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {anonymous ? (
+              <>
+                <Button asChild>
+                  <Link href={`/sign-in?next=${encodeURIComponent(pathname)}`}>Sign in</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/register">Create an account</Link>
+                </Button>
+              </>
+            ) : (
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  run(async () => {
+                    await load();
+                  });
+                }}
+              >
+                Try again
+              </Button>
+            )}
+            <Button variant="ghost" asChild>
+              <Link href="/">Back to home</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     );
   return (
@@ -34,6 +81,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
                     setView(null);
                     setResults(null);
                     setMessage("Signed out.");
+                    window.location.assign("/");
                   })
                 }
               >
@@ -84,6 +132,14 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             Temporary memory storage is explicitly enabled. Accounts and
             listings are real within this local session, but disappear when the
             backend restarts. Configure MongoDB Atlas for saved data.
+          </p>
+        )}
+        {!seeded && view?.storage === "temporary-json" && (
+          <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">
+            Temporary JSON storage is explicitly enabled for local testing.
+            Records survive a backend restart, but this single-process file is
+            not production storage or DynamoDB. Configure a reviewed database
+            adapter before deployment.
           </p>
         )}
         <>

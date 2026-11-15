@@ -119,7 +119,7 @@ def logout(request:Request,response:Response,who=Depends(actor)):
 @router.get('/me')
 def me(request:Request,who=Depends(actor)):
     service=market(request)
-    return {**service.view(who), 'storage':'temporary-memory' if service.repo.memory else getattr(service.repo,'backend','mongodb'),
+    return {**service.view(who), 'storage':service.repo.storage_label,
             'integrations':{'gemini_configured':bool(os.getenv('GEMINI_API_KEY') and (os.getenv('GEMINI_MODEL') or os.getenv('GEMINI_VALUATION_MODEL'))),
                             'bedrock_configured':bool(os.getenv('AWS_REGION') and os.getenv('BEDROCK_EMBEDDING_MODEL'))}}
 
