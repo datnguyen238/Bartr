@@ -4,7 +4,7 @@ import Link from "next/link";
 import localFont from "next/font/local";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ListingItemRow, MemberListing } from "./discover/_components/member-listing";
-import { Brand } from "@/components/brand";
+import { Discovery } from "./discover/_components/discovery";
 import {
   Alert,
   AlertDescription,
@@ -97,6 +97,7 @@ export default function LandingPage() {
     run,
     load,
   } = useWorkspace();
+  const [browseView, setBrowseView] = useState<"all" | "matches">("all");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [condition, setCondition] = useState("Any condition");
@@ -104,6 +105,10 @@ export default function LandingPage() {
   const [selected, setSelected] = useState<Item | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocus = useRef(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("view") === "matches") setBrowseView("matches");
+  }, []);
 
   useEffect(() => {
     if (!selected && restoreFocus.current) {
@@ -212,12 +217,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
-        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Brand href="/" />
+      {!hasSession && <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
+        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-end gap-3 px-4 py-3 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]">
           <nav
             aria-label="Primary"
-            className="hidden items-center gap-6 text-sm text-muted-foreground md:flex"
+            className="hidden items-center gap-6 text-sm text-muted-foreground md:col-start-2 md:flex"
           >
             <a className="transition-colors hover:text-foreground" href="#browse">
               Browse items
@@ -229,7 +233,7 @@ export default function LandingPage() {
               Why Bartr
             </a>
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 md:col-start-3 md:justify-self-end">
             {browsing ? (
               <>
                 <span className="hidden max-w-40 truncate text-sm text-muted-foreground sm:inline">
@@ -244,9 +248,6 @@ export default function LandingPage() {
               </>
             ) : (
               <>
-                <Button variant="ghost" asChild>
-                  <Link href="/sign-in">Sign in</Link>
-                </Button>
                 <Button asChild>
                   <Link href="/register">Join Bartr</Link>
                 </Button>
@@ -254,10 +255,10 @@ export default function LandingPage() {
             )}
           </div>
         </div>
-      </header>
+      </header>}
 
       <main>
-        <section className="mx-auto max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16">
+        <section className="mx-auto max-w-6xl px-4 py-6 text-center sm:px-6 sm:py-8">
           <h1 className={`${handshakeFont.className} text-[clamp(3.5rem,8vw,7rem)] font-normal leading-[1.2] tracking-normal text-balance`}>
             Bart<span className="opacity-25">e</span>r.
           </h1>
@@ -280,11 +281,11 @@ export default function LandingPage() {
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                   {browsing
-                    ? `Meet members in ${view.profile.community || "your community"} and browse the items they are ready to trade. Open an item to see its details.`
+                    ? "Browse items available to trade. Open an item to see its details."
                     : "Sign in to inspect published listings and open the preference-based member list for your campus or city community."}
                 </p>
               </div>
-              {browsing && !loading && (
+              {browsing && browseView === "all" && !loading && (
                 <p role="status" className="text-sm text-muted-foreground">
                   {filteredItems.length}{" "}
                   {filteredItems.length === 1 ? "item" : "items"} from{" "}
@@ -293,6 +294,13 @@ export default function LandingPage() {
                 </p>
               )}
             </div>
+
+            {browsing && (
+              <div className="mt-7 flex flex-wrap gap-2" role="group" aria-label="Browse view">
+                <Button size="sm" variant={browseView === "all" ? "default" : "outline"} aria-pressed={browseView === "all"} onClick={() => setBrowseView("all")}>All items</Button>
+                <Button size="sm" variant={browseView === "matches" ? "default" : "outline"} aria-pressed={browseView === "matches"} onClick={() => setBrowseView("matches")}>Your matches</Button>
+              </div>
+            )}
 
             {seeded && (
               <div className="mt-6 flex flex-wrap items-center gap-2 rounded-lg border bg-secondary/60 p-3 text-sm">
@@ -325,7 +333,9 @@ export default function LandingPage() {
               </Alert>
             )}
 
-            {loading ? (
+            {browsing && browseView === "matches" ? (
+              <div className="mt-8"><Discovery /></div>
+            ) : loading ? (
               <div className="mt-8">
                 <BrowseSkeleton />
               </div>
@@ -487,11 +497,10 @@ export default function LandingPage() {
               id="how-heading"
               className="font-display text-4xl tracking-[-0.03em] sm:text-5xl"
             >
-              A better fit than a single swap
+              How trading works
             </h2>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              Bartr considers combinations across both inventories, so a useful
-              trade does not have to be one perfect item for one perfect item.
+              Trade one or more items with another member.
             </p>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -512,7 +521,7 @@ export default function LandingPage() {
                 icon: Compass,
                 step: "03",
                 title: "Find a bundle",
-                copy: "Browse items or open Discover to see combinations that fit both people. Then review and propose.",
+                copy: "Browse items and matches, then review and propose an offer.",
               },
             ].map(({ icon: Icon, step, title, copy }) => (
               <Card key={step} className="shadow-none">
@@ -601,11 +610,8 @@ export default function LandingPage() {
           <Card className="overflow-hidden border-foreground/10 bg-primary text-primary-foreground">
             <CardContent className="flex flex-col items-start justify-between gap-6 p-7 sm:flex-row sm:items-center sm:p-10">
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary-foreground/60">
-                  Ready when you are
-                </p>
                 <h2 className="font-display mt-2 text-3xl tracking-[-0.03em] sm:text-4xl">
-                  What could your unused things become?
+                  Get started
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/70">
                   Join your community, list a few items, and see what fits.
@@ -637,20 +643,6 @@ export default function LandingPage() {
           </Card>
         </section>
       </main>
-
-      <footer className="border-t">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex items-center gap-2">
-            <Brand href="/" compact />
-            <span>Trade more. Buy less.</span>
-          </div>
-          <p className="max-w-xl leading-5">
-            Bartr records participant reports. It does not verify physical
-            handoff or adjudicate disputes. Values are estimates only; no cash
-            or payment is exchanged.
-          </p>
-        </div>
-      </footer>
 
       <Dialog
         open={Boolean(selected)}
@@ -702,9 +694,6 @@ export default function LandingPage() {
                   <dt className="text-xs text-muted-foreground">Listed by</dt>
                   <dd className="mt-1 font-medium">
                     {selectedOwner?.name ?? "Member"}
-                    {selectedOwner?.community
-                      ? ` · ${selectedOwner.community}`
-                      : ""}
                   </dd>
                 </div>
               </dl>

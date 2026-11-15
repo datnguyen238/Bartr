@@ -60,9 +60,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden text-right sm:block">
                 <p className="text-sm leading-5 font-medium">{view.profile.name}</p>
-                <p className="text-xs leading-4 text-muted-foreground">
-                  {view.profile.community}
-                </p>
               </div>
               <Avatar name={view.profile.name} className="size-9 text-xs" />
               <Button

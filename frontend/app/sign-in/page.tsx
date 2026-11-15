@@ -1,11 +1,6 @@
-import { AuthForm } from "@/components/auth-form";
-import { safeNext } from "@/lib/navigation";
+import { Suspense } from "react";
+import { HomeScreen } from "@/components/home/home-screen";
 
-export default async function SignInPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string }>;
-}) {
-  const params = await searchParams;
-  return <AuthForm mode="sign-in" next={safeNext(params.next)} />;
+export default function SignInPage() {
+  return <Suspense fallback={<p role="status">Loading sign in…</p>}><HomeScreen /></Suspense>;
 }

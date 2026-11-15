@@ -42,9 +42,6 @@ export function MemberListing({
                 </h3>
                 {own && <Badge variant="outline">Your listings</Badge>}
               </div>
-              <p className="mt-1 break-words text-sm text-muted-foreground">
-                {member.community}
-              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">

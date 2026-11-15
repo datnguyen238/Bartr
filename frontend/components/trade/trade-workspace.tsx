@@ -274,7 +274,7 @@ export default function TradesPage() {
                     .filter((x) => x.id !== who)
                     .map((x) => (
                       <option key={x.id} value={x.id}>
-                        {x.name} · {x.community}
+                        {x.name}
                       </option>
                     ))}
                 </select>

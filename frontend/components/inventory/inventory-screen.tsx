@@ -103,7 +103,6 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
     <div className="screen-heading flex flex-wrap items-start justify-between gap-4">
       <div>
         {embedded ? <h2 className="text-xl font-semibold">Your items</h2> : <h1 className="screen-title">Your inventory</h1>}
-        <p className="screen-description">Give the things you no longer need a next chapter.</p>
       </div>
       <Button ref={addItemButton} disabled={busy || seeded} onClick={event => openEditor(null, event.currentTarget)}>Add item</Button>
     </div>

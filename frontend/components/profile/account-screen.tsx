@@ -40,7 +40,6 @@ export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps 
     <div className="max-w-3xl space-y-7">
       {!embedded && <header className="screen-heading">
         <h1 className="screen-title">Your profile</h1>
-        <p className="screen-description">A familiar name. A local community. Start here.</p>
       </header>}
       <section className="surface-panel" aria-labelledby="account-details-heading">
         <div className="mb-7 flex flex-wrap items-start justify-between gap-3">

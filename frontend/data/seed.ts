@@ -3,9 +3,9 @@ import type { Item, Terms, Trade, View, Recommendations } from '@/lib/marketplac
 
 export const seedEnabled = process.env.NEXT_PUBLIC_USE_SEED_DATA === 'true';
 const date = '2026-11-14T18:00:00Z';
-const alice = { id: 'seed-alice', name: 'Alice Chen', community: 'ASU Tempe' };
-const brian = { id: 'seed-brian', name: 'Brian Patel', community: 'ASU Tempe' };
-const carol = { id: 'seed-carol', name: 'Carol Rivera', community: 'ASU Tempe' };
+const alice = { id: 'seed-alice', name: 'Alice Chen', community: 'Example Community' };
+const brian = { id: 'seed-brian', name: 'Brian Patel', community: 'Example Community' };
+const carol = { id: 'seed-carol', name: 'Carol Rivera', community: 'Example Community' };
 
 function item(id: string, owner: string, title: string, category: string, value: number | null,
   condition: string, description: string, status: Item['status'] = 'available'): Item {

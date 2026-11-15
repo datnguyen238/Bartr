@@ -537,7 +537,7 @@ for (const [legacy, canonical] of [
 test("discovery retains the signed-in marketplace and profile sidebar", async ({ page }) => {
   await installApi(page);
   await page.goto("/discover");
-  await expect(page).toHaveURL(/\/discover$/);
+  await expect(page).toHaveURL(/\/\?view=matches#browse$/);
   await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
   await expect(page.getByText("Test monitor").first()).toBeVisible();
   await page.getByRole("button", { name: "Build an offer" }).first().click();
@@ -545,12 +545,36 @@ test("discovery retains the signed-in marketplace and profile sidebar", async ({
   await expect(page.getByLabel("Trade with")).toHaveValue("test-bob");
 });
 
-test("the landing page retains the shared navigation sidebar", async ({ page }) => {
+test("the signed-out landing page offers account access without a sidebar", async ({ page }) => {
   await installApi(page, false);
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
-  await expect(page.locator(".app-rail")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Join Bartr" })).toBeVisible();
+  await expect(page.locator("header").first().getByRole("link", { name: "Sign in", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("sidebar collapses to accessible navigation and expands again", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await installApi(page);
+  await page.goto("/profile");
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await page.getByRole("button", { name: "Collapse sidebar" }).click();
+  await expect(page.getByRole("button", { name: "Expand sidebar" })).toHaveAttribute("aria-pressed", "true");
+  await expect(nav.getByRole("link", { name: "Home" })).toBeVisible();
+  await nav.getByRole("link", { name: "Trade" }).click();
+  await expect(page).toHaveURL(/\/trades$/);
+  await page.getByRole("button", { name: "Expand sidebar" }).click();
+  await expect(page.getByRole("button", { name: "Collapse sidebar" })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("Home opens the landing page and account access remains available", async ({ page }) => {
+  await installApi(page);
+  await page.goto("/profile");
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Home", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: /Bart.*r/i, level: 1 })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
 });
 
 test("keyboard sign-in and profile saving work in the mobile layout", async ({ page }, testInfo) => {

@@ -95,7 +95,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="auth-page min-h-screen">
       <header className="border-b">
         <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Brand href="/" />

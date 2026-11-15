@@ -2,9 +2,26 @@ import { test, expect } from "@playwright/test";
 
 test("real local cookies, profile revisions, inventory and expired-session protection", async ({ page, context }) => {
   const username = `profile.${Date.now()}`;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Join Bartr" })).toBeVisible();
+  await expect(page.locator("header").first().getByRole("link", { name: "Sign in", exact: true })).toHaveCount(0);
+  const navigation = await page.getByRole("navigation", { name: "Primary" }).boundingBox();
+  expect(navigation).not.toBeNull();
+  expect(Math.abs(navigation!.x + navigation!.width / 2 - 720)).toBeLessThan(2);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => page.locator(".app-body").evaluate((body) => Math.round(body.getBoundingClientRect().width))).toBeGreaterThanOrEqual(width - 2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/profile/preferences");
   await expect(page).toHaveURL(/\/home\?next=/);
-  await page.getByRole("link", { name: "Create an account", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Trade what you have/ })).toBeVisible();
+  await expect(page.getByText("A DIFFERENT KIND OF EXCHANGE")).toHaveCount(0);
+  await page.locator("form").getByRole("link", { name: "Create account", exact: true }).click();
+  await expect(page.getByText("A DIFFERENT KIND OF EXCHANGE")).toHaveCount(0);
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill("synthetic-password-only");
   await page.getByLabel("Display name", { exact: true }).fill("Local synthetic member");
@@ -14,6 +31,30 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   const cookie = (await context.cookies()).find(c => c.name === "bartr_session");
   expect(cookie?.httpOnly).toBe(true);
   expect(cookie?.sameSite).toBe("Lax");
+
+  // Exercise the same sign-in entry point used for authenticated frontend testing.
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/home(?:\?.*)?$/);
+  await page.goto("/sign-in?next=%2Ftrades");
+  await page.getByLabel("Username", { exact: true }).fill(username);
+  await page.getByLabel("Password", { exact: true }).fill("synthetic-password-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/trades$/);
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  await expect(page.getByText("Synthetic Campus", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Discover", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Your matches", exact: true }).click();
+  await expect(page.getByText("Synthetic Campus", { exact: false })).toHaveCount(0);
+  await expect(page.getByLabel("Search people or matching items")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find bundle matches" })).toBeVisible();
+  await page.getByRole("button", { name: "All items", exact: true }).click();
+  await expect(page.getByLabel("Search available items")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toHaveCount(0);
+  await expect(page.locator(".workspace-content")).toHaveCSS("background-color", "rgb(246, 242, 232)");
+  await expect(page.locator(".workspace-content")).toHaveCSS("color", "rgb(23, 58, 43)");
+  await expect(page.locator(".app-rail")).toHaveCSS("background-color", "rgb(23, 58, 43)");
+  await page.goto("/profile/preferences");
 
   for (const interest of ["Monitor", "Study supplies"]) {
     await page.getByLabel("Interests", { exact: true }).fill(interest);

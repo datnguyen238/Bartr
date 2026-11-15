@@ -9,8 +9,10 @@ from uuid import uuid4
 import boto3
 from botocore.config import Config
 import pytest
+from fastapi.testclient import TestClient
 
 from backend.app.domain import Marketplace
+from backend.app.main import create_app
 from backend.app.errors import AppError
 from backend.app.storage.dynamodb import DynamoRepository
 from backend.tests.test_dynamodb import overlapping, propose, setup_market
@@ -27,6 +29,17 @@ def test_real_existing_table_writes_contention_restart_and_cleanup(monkeypatch):
     scope = f'TEST#{uuid4().hex}#'
     repo = DynamoRepository(client=client, scope=scope)
     try:
+        http = TestClient(create_app(repo), headers={'X-Bartr-Request': '1'})
+        credentials = {'username': 'http-test', 'password': 'synthetic-password'}
+        created = http.post('/api/auth/register', json={**credentials, 'name': 'Synthetic User', 'community': 'Test campus'})
+        assert created.status_code == 200 and 'httponly' in created.headers['set-cookie'].lower()
+        assert http.get('/api/me').status_code == 200
+        assert http.post('/api/auth/logout', json={}).status_code == 200
+        assert http.get('/api/me').status_code == 401
+        assert http.post('/api/auth/login', json={**credentials, 'password': 'incorrect-password'}).status_code == 401
+        assert http.post('/api/auth/login', json=credentials).status_code == 200
+        assert http.get('/api/me').json()['profile']['username'] == credentials['username']
+        assert http.post('/api/auth/logout', json={}).status_code == 200
         # Force both acceptors to decide from the same snapshot in separate instances.
         overlapping(repo, simultaneous=True)
         restarted = DynamoRepository(client=client, scope=scope)

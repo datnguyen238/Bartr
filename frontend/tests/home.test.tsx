@@ -30,12 +30,10 @@ function credentials() {
 }
 
 describe("Home authentication", () => {
-  it("explains money-free local bundle trading without presenting example values as market evidence", () => {
+  it("keeps the account introduction concise", () => {
     render(<HomeScreen />);
-    expect(screen.getByRole("heading", { name: "Trade what you have.Find what you need." })).toBeVisible();
-    expect(screen.getByText(/campus or city community/)).toBeVisible();
-    expect(screen.getByText(/one to three items on each side/)).toBeVisible();
-    expect(screen.getByText(/Illustrative values, not market prices/)).toBeVisible();
+    expect(screen.getByRole("heading", { name: /Trade what you have.*Find what you need/ })).toBeVisible();
+    expect(screen.queryByText(/Trade what you have for what you need/)).not.toBeInTheDocument();
   });
   it("waits for the saved session before displaying credentials", () => {
     mock.status = "checking";
@@ -112,17 +110,17 @@ describe("Home authentication", () => {
   it("offers the alternate form while retaining the safe return path", () => {
     mock.params.set("next", "/profile/inventory");
     const { rerender } = render(<HomeScreen />);
-    expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/home?mode=register&next=%2Fprofile%2Finventory");
+    expect(screen.getAllByRole("link", { name: "Create account" }).at(-1)).toHaveAttribute("href", "/home?mode=register&next=%2Fprofile%2Finventory");
     mock.params.set("mode", "register"); rerender(<HomeScreen />);
-    expect(screen.getByRole("link", { name: "Sign in instead" })).toHaveAttribute("href", "/home?next=%2Fprofile%2Finventory");
+    expect(screen.getAllByRole("link", { name: "Sign in" }).at(-1)).toHaveAttribute("href", "/home?next=%2Fprofile%2Finventory");
   });
 });
 
 describe("Profile return destinations", () => {
-  it.each(["/profile", "/profile/inventory", "/profile/preferences"])("accepts %s", (path) => {
+  it.each(["/", "/discover", "/trades", "/profile", "/profile/inventory", "/profile/preferences"])("accepts %s", (path) => {
     expect(profileDestination(path)).toBe(path);
   });
-  it.each([null, "", "https://example.invalid", "//example.invalid", "/profile/../trade", "/profile?next=evil", "javascript:alert(1)", "/trades"])("defaults safely for %s", (path) => {
+  it.each([null, "", "https://example.invalid", "//example.invalid", "/profile/../trade", "/profile?next=evil", "javascript:alert(1)"])("defaults safely for %s", (path) => {
     expect(profileDestination(path)).toBe("/profile");
   });
 });

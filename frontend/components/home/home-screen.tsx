@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/marketplace";
 import { useWorkspace } from "@/components/workspace/provider";
 
 export function profileDestination(value: string | null) {
-  return ["/profile", "/profile/inventory", "/profile/preferences"].includes(value ?? "")
+  return ["/", "/discover", "/trades", "/profile", "/profile/inventory", "/profile/preferences"].includes(value ?? "")
     ? value!
     : "/profile";
 }
@@ -66,11 +66,10 @@ export function HomeScreen() {
   if (hasSession) return <section className="max-w-3xl space-y-8">
     <header className="screen-heading">
       <h1 className="screen-title">Welcome back, {view.profile.name}.</h1>
-      <p className="screen-description">A little less unused. A little more possibility.</p>
     </header>
     <div className="surface-panel space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Make room for what’s next</h2>
+        <h2 className="text-xl font-semibold">Inventory and interests</h2>
         <p className="max-w-xl text-base leading-7 text-muted-foreground">Add the things you’re ready to exchange, then tell Bartr what would be useful to you.</p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -83,40 +82,41 @@ export function HomeScreen() {
 
   return (
     <div className="home-layout">
-      <section className="home-introduction" aria-labelledby="home-purpose">
-        <header className="screen-heading max-w-xl">
-          <h1 id="home-purpose" className="screen-title">Trade what you have.<br />Find what you need.</h1>
-          <p className="screen-description">Exchange belongings in your campus or city community. No buying. No selling.</p>
-        </header>
-      </section>
+      <div className="home-story">
+        <section className="home-introduction" aria-labelledby="home-purpose">
+          <p className="home-eyebrow">Welcome to Bartr</p>
+          <h1 id="home-purpose">Trade what you have.<br />Find what you need.</h1>
+        </section>
+      </div>
       <section className="home-auth surface-panel" aria-labelledby="home-form-title">
+        <div className="mx-auto w-full max-w-md">
         <nav className="mb-7 grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1" aria-label="Account access">
           <Link className={`flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-medium ${!register ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground"}`} href={`/home?${returnQuery}`} aria-current={!register ? "page" : undefined} onClick={() => { setPassword(""); clearFailure(); }}>Sign in</Link>
           <Link className={`flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-medium ${register ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground"}`} href={`/home?mode=register&${returnQuery}`} aria-current={register ? "page" : undefined} onClick={() => { setPassword(""); clearFailure(); }}>Create account</Link>
         </nav>
         <div className="mb-6 space-y-2">
           <h2 id="home-form-title" className="text-2xl font-semibold">{register ? "Create your Bartr account" : "Welcome to Bartr"}</h2>
-          <p className="text-base leading-7 text-muted-foreground">{register ? "Your next useful exchange starts with what you already have." : "Sign in to keep your inventory and interests up to date."}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{register ? "Enter your details to get started." : "Sign in to access your account."}</p>
         </div>
-        <form className="space-y-5" onSubmit={submit}>
-          <div className="field-group space-y-2">
+        <form className="grid gap-5" onSubmit={submit}>
+          <div className="field-group">
             <label className="text-sm font-medium" htmlFor="home-username">Username</label>
-            <Input id="home-username" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={40} value={username} aria-invalid={Boolean(fieldError("username"))} aria-describedby={fieldError("username") ? "home-username-error" : undefined} onChange={event => { clearFailure(); setUsername(event.target.value); }} />
+            <Input id="home-username" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={40} placeholder="Your username" value={username} aria-invalid={Boolean(fieldError("username"))} aria-describedby={fieldError("username") ? "home-username-error" : undefined} onChange={event => { clearFailure(); setUsername(event.target.value); }} />
             {fieldError("username") && <p id="home-username-error" className="text-sm text-destructive">{fieldError("username")}</p>}
           </div>
-          <div className="field-group space-y-2">
+          <div className="field-group">
             <label className="text-sm font-medium" htmlFor="home-password">Password</label>
-            <Input id="home-password" type="password" autoComplete={register ? "new-password" : "current-password"} required minLength={register ? 10 : 1} maxLength={200} value={password} aria-invalid={Boolean(fieldError("password"))} aria-describedby={[register ? "home-password-help" : "", fieldError("password") ? "home-password-error" : ""].filter(Boolean).join(" ") || undefined} onChange={event => { clearFailure(); setPassword(event.target.value); }} />
+            <Input id="home-password" type="password" autoComplete={register ? "new-password" : "current-password"} required minLength={register ? 10 : 1} maxLength={200} placeholder="Your password" value={password} aria-invalid={Boolean(fieldError("password"))} aria-describedby={[register ? "home-password-help" : "", fieldError("password") ? "home-password-error" : ""].filter(Boolean).join(" ") || undefined} onChange={event => { clearFailure(); setPassword(event.target.value); }} />
             {register && <p id="home-password-help" className="text-sm text-muted-foreground">Use 10–200 characters.</p>}
             {fieldError("password") && <p id="home-password-error" className="text-sm text-destructive">{fieldError("password")}</p>}
           </div>
           {register && <>
-            <div className="field-group space-y-2">
+            <div className="field-group">
               <label className="text-sm font-medium" htmlFor="home-name">Display name</label>
               <Input id="home-name" autoComplete="nickname" required maxLength={200} value={name} aria-invalid={Boolean(fieldError("name"))} aria-describedby={fieldError("name") ? "home-name-error" : undefined} onChange={event => { clearFailure(); setName(event.target.value); }} />
               {fieldError("name") && <p id="home-name-error" className="text-sm text-destructive">{fieldError("name")}</p>}
             </div>
-            <div className="field-group space-y-2">
+            <div className="field-group">
               <label className="text-sm font-medium" htmlFor="home-community">Community</label>
               <Input id="home-community" required maxLength={200} placeholder="Campus or city" value={community} aria-invalid={Boolean(fieldError("community"))} aria-describedby={`home-community-help${fieldError("community") ? " home-community-error" : ""}`} onChange={event => { clearFailure(); setCommunity(event.target.value); }} />
               <p id="home-community-help" className="text-sm text-muted-foreground">Your display name and community are public. Leave out precise addresses.</p>
@@ -125,30 +125,12 @@ export function HomeScreen() {
           </>}
           {errorMessage && <p className="inline-feedback text-sm leading-6" data-tone="error" role="alert">{errorMessage}</p>}
           <Button className="w-full" disabled={busy || seeded} type="submit">{busy ? register ? "Creating account…" : "Signing in…" : register ? "Create account" : "Sign in"}</Button>
-          <p className="text-sm text-muted-foreground">
-            {register ? "Already have an account? " : "New here? "}
-            <Link className="font-medium text-foreground underline underline-offset-4" href={register ? `/home?${returnQuery}` : `/home?mode=register&${returnQuery}`} onClick={() => { setPassword(""); clearFailure(); }}>{register ? "Sign in instead" : "Create an account"}</Link>
+          <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-sm text-muted-foreground">
+            <span>{register ? "Already have an account?" : "New here?"}</span>
+            <Link className="font-medium text-foreground underline underline-offset-4" href={register ? `/home?${returnQuery}` : `/home?mode=register&${returnQuery}`} onClick={() => { setPassword(""); clearFailure(); }}>{register ? "Sign in" : "Create account"}</Link>
           </p>
         </form>
-      </section>
-      <section className="home-example space-y-5" aria-labelledby="home-example-heading">
-        <div className="max-w-xl space-y-4 border-y py-6">
-          <h2 id="home-example-heading" className="text-xl font-semibold">One thing for a few things</h2>
-          <p className="text-base leading-7 text-muted-foreground">Bartr considers one to three items on each side, so useful exchanges can go beyond a simple one-for-one swap.</p>
-          <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]" aria-label="Illustrative bundle exchange">
-            <div className="space-y-1">
-              <p className="font-medium">Chair + calculator</p>
-              <p className="text-sm text-muted-foreground">Example total: $60</p>
-            </div>
-            <svg className="size-6 rotate-90 text-muted-foreground sm:rotate-0" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <div className="space-y-1">
-              <p className="font-medium">A monitor</p>
-              <p className="text-sm text-muted-foreground">Example total: $65</p>
-            </div>
-          </div>
-          <p className="text-sm leading-6 text-muted-foreground">Illustrative values, not market prices. Estimates help compare bundles; they never require a payment or decide for you.</p>
         </div>
-        <p className="max-w-xl text-sm leading-6 text-muted-foreground">Start with your inventory and interests. Discovery and offer controls are coming next.</p>
       </section>
     </div>
   );

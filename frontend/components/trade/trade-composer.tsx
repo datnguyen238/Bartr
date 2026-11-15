@@ -71,7 +71,7 @@ export function TradeComposer({ withUserId, preselectItemId }: { withUserId?: st
           <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.name}</span>
         </h2>
         <p className="mt-2 text-muted-foreground">
-          {them.community} · Pick up to three items on each side. Values are estimates from each listing.
+          Pick up to three items on each side. Values are estimates from each listing.
         </p>
       </div>
       <TradeBuilder

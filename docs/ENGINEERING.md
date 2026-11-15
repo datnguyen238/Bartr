@@ -65,6 +65,8 @@ These are engineering criteria, not a new permission dialog for each edit. Requi
 
 The supported repository-wide commands today are:
 
+For interactive frontend verification, use an actual sign-in through the application with seed mode disabled. Use a synthetic test account and explicitly record the storage mode; never treat frontend-only fixtures as an authenticated session or commit credentials. Automated component fixtures can still cover isolated behavior, but they do not replace the signed-in browser journey.
+
 ```sh
 # Repository root, Python environment active
 python -m pytest backend/tests -q
