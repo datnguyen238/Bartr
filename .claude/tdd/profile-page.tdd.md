@@ -35,7 +35,7 @@ The plan was read as data and normalized into session/access, profile/inventory 
 
 ## GREEN implementation and verification
 
-Environment: macOS arm64; Node 25.6.0, npm 11.17.0, Next.js 16.4.6, React 19.3.1, Vitest 4.1.12, Playwright 1.65.1 with installed Chrome; Python 3.14.2. Change identity for these runs: `6038f54` plus the approved profile implementation working tree. Task code and tests are captured by the GREEN checkpoint described below.
+Environment: macOS arm64; Node 25.6.0, npm 11.17.0, Next.js 16.4.6, React 19.3.1, Vitest 4.1.12, Playwright 1.65.1 with installed Chrome; Python 3.14.2. The checks ran against `6038f54` plus the approved implementation working tree; that code and its tests are now captured by GREEN checkpoint `8956627`.
 
 | Guarantee / target | Command actually run | Mode | Result |
 |---|---|---|---|
@@ -72,4 +72,4 @@ No API/persisted schema changes or migration are required. Rollback is reverting
 
 ## Checkpoints
 
-RED: `c9bf387` (nine executed failing session tests) and `6038f54` (narrowed no-offers plan and browser reproduction). GREEN: the implementation checkpoint will be recorded after the final build and staging review. No optional refactor stage was performed.
+RED: `c9bf387` (nine executed failing session tests) and `6038f54` (narrowed no-offers plan and browser reproduction). GREEN: `8956627`, `feat: implement profile workspace (58 unit, 19 browser, 21 backend checks GREEN)`. All three are reachable from current HEAD on `main` and belong to this task sequence. The 19 browser checks comprise 18 intercepted API scenarios and one real local backend journey. No optional refactor stage was performed. Preserve this RED/GREEN summary if the checkpoints are later squashed.
