@@ -1,47 +1,49 @@
-import type { ItemCondition, TradeItem } from './types';
+import { money, type Item } from '@/lib/marketplace';
 
-const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-
-export function formatValue(value: number): string {
-  return currency.format(value);
+/** Total in cents, or null when any value is unknown (unknown is never treated as zero). */
+export function totalValue(items: readonly Pick<Item, 'value_minor'>[]): number | null {
+  if (items.some((item) => item.value_minor === null)) return null;
+  return items.reduce((sum, item) => sum + (item.value_minor ?? 0), 0);
 }
 
-export function totalValue(items: readonly TradeItem[]): number {
-  return items.reduce((sum, item) => sum + item.estimatedValue, 0);
+export function formatValue(minor: number | null): string {
+  return minor === null ? 'Unknown' : money(minor);
 }
-
-export const CONDITION_LABELS: Record<ItemCondition, string> = {
-  new: 'New',
-  'like-new': 'Like new',
-  good: 'Good',
-  fair: 'Fair',
-  worn: 'Well used',
-};
 
 export function formatTime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-export interface Balance {
-  give: number;
-  get: number;
-  /** Positive when the viewer receives more estimated value. */
-  difference: number;
-  summary: string;
-}
-
-/** Neutral comparison of estimated value; never judges whether a trade is fair. */
-export function compareValue(give: number, get: number, theirName: string): Balance {
-  const difference = get - give;
-  const larger = Math.max(give, get);
-  let summary: string;
-  if (give === 0 && get === 0) summary = 'Select items to compare estimated value.';
-  else if (Math.abs(difference) <= Math.max(5, larger * 0.15)) summary = 'Roughly even by estimated value.';
-  else if (difference > 0) summary = `You'd receive about ${formatValue(difference)} more in estimated value.`;
-  else summary = `${theirName} would receive about ${formatValue(-difference)} more in estimated value.`;
-  return { give, get, difference, summary };
-}
-
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+export interface Balance {
+  give: number | null;
+  get: number | null;
+  /** Percentage gap, as the backend defines it: |give − get| / max(give, get). */
+  gapPercent: number | null;
+  summary: string;
+  /** True when values are unknown or the gap exceeds the viewer's own limit. */
+  warning: boolean;
+}
+
+/** Neutral estimated-value comparison. It informs; the backend decides whether a warning applies. */
+export function compareValue(give: number | null, get: number | null, theirName: string, gapLimit: number): Balance {
+  if (give === null || get === null) {
+    return { give, get, gapPercent: null, warning: true, summary: 'Some values are unknown, so the sides can’t be compared.' };
+  }
+  if (give === 0 && get === 0) return { give, get, gapPercent: null, warning: false, summary: 'Select items to compare estimated value.' };
+  const larger = Math.max(give, get);
+  const gapPercent = larger === 0 ? 0 : (Math.abs(give - get) / larger) * 100;
+  const difference = get - give;
+  let summary: string;
+  if (gapPercent <= 5) summary = 'Roughly even by estimated value.';
+  else if (difference > 0) summary = `You’d receive about ${money(difference)} more in estimated value (${gapPercent.toFixed(1)}% gap).`;
+  else summary = `${theirName} would receive about ${money(-difference)} more in estimated value (${gapPercent.toFixed(1)}% gap).`;
+  return { give, get, gapPercent, summary, warning: gapPercent > gapLimit };
+}
+
+export function firstName(name: string) {
+  return name.split(' ')[0] || name;
 }

@@ -1,40 +1,45 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { CONDITION_LABELS, formatValue } from '@/lib/trade/format';
-import type { TradeItem } from '@/lib/trade/types';
+import type { Item } from '@/lib/marketplace';
+import { formatValue } from '@/lib/trade/format';
 import { cn } from '@/lib/utils';
 import { CheckIcon } from './icons';
 
-export function ItemThumb({ item, className }: { item: TradeItem; className?: string }) {
-  if (item.imageUrl) {
-    return <img src={item.imageUrl} alt="" className={cn('size-14 shrink-0 rounded-lg object-cover', className)} />;
+export function ItemThumb({ item, className }: { item: Item; className?: string }) {
+  if (item.image_id) {
+    return <img src={`/api/images/${encodeURIComponent(item.image_id)}`} alt="" className={cn('size-14 shrink-0 rounded-lg bg-secondary object-cover', className)} />;
   }
   return (
     <span aria-hidden="true" className={cn('grid size-14 shrink-0 place-items-center rounded-lg bg-secondary text-xl font-semibold text-secondary-foreground', className)}>
-      {item.title.charAt(0)}
+      {(item.title || '?').charAt(0)}
     </span>
   );
 }
 
-function statusLabel(item: TradeItem): string | null {
-  if (item.status === 'traded') return 'Already traded';
-  if (item.status === 'removed') return 'No longer listed';
-  return null;
+const STATUS_LABELS: Partial<Record<Item['status'], string>> = {
+  reserved: 'Reserved in another trade',
+  exchanged: 'Already traded',
+  removed: 'No longer listed',
+  draft: 'Not published',
+};
+
+function details(item: Item) {
+  return [item.category, item.condition, `est. ${formatValue(item.value_minor)}`].filter(Boolean).join(' · ');
 }
 
 interface SelectableItemCardProps {
-  item: TradeItem;
+  item: Item;
   selected: boolean;
   onToggle: (id: string) => void;
-  /** Number of other open offers that include this item. */
-  otherOffers?: number;
+  /** True when the side already has the maximum number of items. */
+  atLimit: boolean;
 }
 
-export function SelectableItemCard({ item, selected, onToggle, otherOffers = 0 }: SelectableItemCardProps) {
-  const unavailable = statusLabel(item);
-  // A selected item that became unavailable stays deselectable so the user can fix the offer.
-  const disabled = Boolean(unavailable) && !selected;
+export function SelectableItemCard({ item, selected, onToggle, atLimit }: SelectableItemCardProps) {
+  const unavailable = item.status === 'available' ? null : STATUS_LABELS[item.status] ?? 'Unavailable';
+  // A selected item stays deselectable even if it became unavailable, so the user can fix the offer.
+  const disabled = !selected && (Boolean(unavailable) || atLimit);
   const inputId = `item-${item.id}`;
   return (
     <label
@@ -57,15 +62,15 @@ export function SelectableItemCard({ item, selected, onToggle, otherOffers = 0 }
       />
       <ItemThumb item={item} />
       <span className="min-w-0 flex-1">
-        <span className="block leading-snug font-medium">{item.title}</span>
+        <span className="block leading-snug font-medium">{item.title || 'Untitled item'}</span>
         <span id={`${inputId}-meta`} className="mt-1 block text-xs text-muted-foreground">
-          {item.category} · {CONDITION_LABELS[item.condition]} · est. {formatValue(item.estimatedValue)}
+          {details(item)}
           {unavailable && <span className="sr-only">. {unavailable}</span>}
-          {!unavailable && otherOffers > 0 && <span className="sr-only">. In {otherOffers} other open {otherOffers === 1 ? 'offer' : 'offers'}</span>}
+          {item.value_minor === null && <span className="sr-only">. Value unknown</span>}
         </span>
-        {(unavailable || otherOffers > 0) && (
+        {unavailable && (
           <span className="mt-2 flex flex-wrap gap-1" aria-hidden="true">
-            {unavailable ? <Badge variant="outline">{unavailable}</Badge> : <Badge variant="secondary">In {otherOffers} other {otherOffers === 1 ? 'offer' : 'offers'}</Badge>}
+            <Badge variant="outline">{unavailable}</Badge>
           </span>
         )}
       </span>
@@ -83,17 +88,13 @@ export function SelectableItemCard({ item, selected, onToggle, otherOffers = 0 }
 }
 
 /** Compact, read-only item line for reviews and trade summaries. */
-export function ItemRow({ item }: { item: TradeItem }) {
-  const unavailable = item.status === 'removed' ? 'No longer listed' : null;
+export function ItemRow({ item }: { item: Item }) {
   return (
     <li className="flex items-center gap-3">
       <ItemThumb item={item} className="size-10 text-base" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{item.title}</span>
-        <span className="block text-xs text-muted-foreground">
-          {CONDITION_LABELS[item.condition]} · est. {formatValue(item.estimatedValue)}
-          {unavailable && ` · ${unavailable}`}
-        </span>
+        <span className="block truncate text-sm font-medium">{item.title || 'Untitled item'}</span>
+        <span className="block text-xs text-muted-foreground">{details(item)}</span>
       </span>
     </li>
   );

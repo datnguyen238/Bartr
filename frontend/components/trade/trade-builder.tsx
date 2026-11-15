@@ -3,57 +3,66 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { Item, Member } from '@/lib/marketplace';
+import { MAX_ITEMS_PER_SIDE } from '@/lib/trade/api';
 import { describeFailure, type ActionFailure } from '@/lib/trade/errors';
-import { compareValue, formatValue, pluralize, totalValue } from '@/lib/trade/format';
-import { sameIds, type SideTerms } from '@/lib/trade/perspective';
-import type { TradeItem, TradeUser } from '@/lib/trade/types';
+import { compareValue, firstName, formatValue, pluralize, totalValue } from '@/lib/trade/format';
+import { sameIds } from '@/lib/trade/perspective';
 import { cn } from '@/lib/utils';
 import { BalanceMeter } from './balance-meter';
 import { SwapIcon } from './icons';
 import { ItemRow } from './item-card';
 import { ItemPicker } from './item-picker';
-import { NoteField } from './note-field';
+import { NoteField, ValueAcknowledgement } from './note-field';
+
+export interface BuilderSubmission {
+  mine: string[];
+  theirs: string[];
+  note: string;
+  acknowledged: boolean;
+}
 
 interface TradeBuilderProps {
   mode: 'propose' | 'counter';
-  me: TradeUser;
-  them: TradeUser;
-  myItems: TradeItem[];
-  theirItems: TradeItem[];
-  initial: SideTerms;
-  offerCounts: Record<string, number>;
-  onSubmit: (side: SideTerms, note: string) => Promise<void>;
+  them: Member;
+  myItems: Item[];
+  theirItems: Item[];
+  initial: { mine: string[]; theirs: string[] };
+  /** The viewer's own value-gap limit (percent). The other member's limit is checked by the server. */
+  gapLimit: number;
+  onSubmit: (submission: BuilderSubmission) => Promise<void>;
   onCancel?: () => void;
   myEmpty: ReactNode;
   theirEmpty: ReactNode;
+  /** Explains why sending is disabled, e.g. in seed-data mode. */
+  readOnlyReason?: string;
 }
 
 type Side = 'mine' | 'theirs';
 
-export function firstName(user: TradeUser) {
-  return user.displayName.split(' ')[0];
-}
-
-export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCounts, onSubmit, onCancel, myEmpty, theirEmpty }: TradeBuilderProps) {
+export function TradeBuilder({ mode, them, myItems, theirItems, initial, gapLimit, onSubmit, onCancel, myEmpty, theirEmpty, readOnlyReason }: TradeBuilderProps) {
   const [mine, setMine] = useState<Set<string>>(() => new Set(initial.mine));
   const [theirs, setTheirs] = useState<Set<string>>(() => new Set(initial.theirs));
   const [activeSide, setActiveSide] = useState<Side>('theirs');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [note, setNote] = useState('');
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [serverWantsAck, setServerWantsAck] = useState(false);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<ActionFailure | null>(null);
   const [announcement, setAnnouncement] = useState('');
-  const theirName = firstName(them);
+  const theirName = firstName(them.name);
 
   const myItemsById = useMemo(() => new Map(myItems.map((i) => [i.id, i])), [myItems]);
   const theirItemsById = useMemo(() => new Map(theirItems.map((i) => [i.id, i])), [theirItems]);
   const give = [...mine].flatMap((id) => myItemsById.get(id) ?? []);
   const get = [...theirs].flatMap((id) => theirItemsById.get(id) ?? []);
-  const balance = compareValue(totalValue(give), totalValue(get), theirName);
+  const balance = compareValue(totalValue(give), totalValue(get), theirName, gapLimit);
   const hasUnavailable = [...give, ...get].some((item) => item.status !== 'available');
+  const showAck = (balance.warning && give.length > 0 && get.length > 0) || serverWantsAck;
 
   let blockedReason: string | null = null;
-  if (myItems.length === 0) blockedReason = 'Add items to your Profile to make an offer.';
+  if (myItems.length === 0) blockedReason = 'Publish an item in your inventory to make an offer.';
   else if (get.length === 0) blockedReason = `Select at least one of ${theirName}’s items.`;
   else if (give.length === 0) blockedReason = 'Select at least one of your items.';
   else if (hasUnavailable) blockedReason = 'Remove items that are no longer available.';
@@ -66,8 +75,10 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
     const next = new Set(current);
     const removing = next.has(id);
     if (removing) next.delete(id);
+    else if (next.size >= MAX_ITEMS_PER_SIDE) return;
     else next.add(id);
     (side === 'mine' ? setMine : setTheirs)(next);
+    setAcknowledged(false);
     const title = (side === 'mine' ? myItemsById : theirItemsById).get(id)?.title ?? 'Item';
     const owner = side === 'mine' ? 'your side' : `${theirName}’s side`;
     setAnnouncement(`${title} ${removing ? 'removed from' : 'added to'} ${owner}. ${pluralize(next.size, 'item')} selected there.`);
@@ -77,9 +88,11 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
     setSending(true);
     setFailure(null);
     try {
-      await onSubmit({ mine: [...mine], theirs: [...theirs] }, note);
+      await onSubmit({ mine: [...mine], theirs: [...theirs], note, acknowledged: showAck && acknowledged });
     } catch (error) {
-      setFailure(describeFailure(error, 'We couldn’t confirm your offer was sent. Check your trades before sending it again.'));
+      const result = describeFailure(error, 'We couldn’t confirm your offer was sent. Reload and check your trades before sending it again.');
+      if (result.needsAcknowledgement) setServerWantsAck(true);
+      setFailure(result);
       setSending(false);
     }
   }
@@ -115,7 +128,6 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
           items={myItems}
           selectedIds={mine}
           onToggle={(id) => toggle('mine', id)}
-          offerCounts={offerCounts}
           empty={myEmpty}
           hiddenOnMobile={activeSide !== 'mine'}
         />
@@ -126,7 +138,6 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
           items={theirItems}
           selectedIds={theirs}
           onToggle={(id) => toggle('theirs', id)}
-          offerCounts={offerCounts}
           empty={theirEmpty}
           hiddenOnMobile={activeSide !== 'theirs'}
         />
@@ -134,7 +145,7 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
 
       {/* Reserved for a future assistant that suggests a counter-offer the user can apply and edit. */}
 
-      <div className="sticky bottom-0 z-10 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 z-10 -mx-5 border-t bg-background/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <dl className="flex items-center gap-4 text-sm">
             <div>
@@ -166,7 +177,7 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
       <Dialog open={reviewOpen} onOpenChange={(open) => { if (!sending) setReviewOpen(open); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{mode === 'propose' ? `Review your offer to ${theirName}` : `Review your counter-offer`}</DialogTitle>
+            <DialogTitle>{mode === 'propose' ? `Review your offer to ${theirName}` : 'Review your counter-offer'}</DialogTitle>
             <DialogDescription>Check both sides before you send.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -180,23 +191,31 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
             </div>
           </div>
           <BalanceMeter balance={balance} />
+          {showAck && (
+            <ValueAcknowledgement id="offer-ack" checked={acknowledged} onChange={setAcknowledged} disabled={sending}>
+              {balance.give === null || balance.get === null
+                ? 'I understand some values are unknown and want to send this offer anyway.'
+                : 'I understand the estimated values differ by more than a member’s limit and want to send this offer anyway.'}
+            </ValueAcknowledgement>
+          )}
           <NoteField
             id="offer-note"
             label={`Note to ${theirName} (optional)`}
             value={note}
             onChange={setNote}
-            placeholder="Add context, like condition details or when you’re free to meet."
+            placeholder={mode === 'counter' ? 'Explain what you changed and why.' : 'Add context, like condition details or when you’re free to meet.'}
             disabled={sending}
           />
           <p className="rounded-lg bg-secondary p-3 text-sm leading-6">
             {mode === 'propose'
-              ? `${theirName} can accept, counter, or decline. Nothing is final until one of you accepts. You can withdraw this offer while you wait.`
-              : `This replaces the current offer. ${theirName} can accept it, counter again, or decline.`}{' '}
-            If it’s accepted, these items are marked as traded and other open offers that include them close.
+              ? `Sending records your agreement to these exact items. ${theirName} can accept, counter, or decline, and you can withdraw while you wait.`
+              : `This replaces the current offer and records only your agreement. ${theirName} can accept it, counter again, or decline.`}{' '}
+            Nothing is reserved until the other member accepts; then every item on both sides is reserved together.
           </p>
           <div role="status" aria-live="polite" className="text-sm">
             {sending && 'Sending…'}
             {failure && <span className="text-destructive">{failure.message}</span>}
+            {readOnlyReason && !failure && <span className="text-muted-foreground">{readOnlyReason}</span>}
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -205,7 +224,9 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, offerCo
             {failure?.needsReload ? (
               <Button onClick={() => window.location.reload()}>Reload</Button>
             ) : (
-              <Button onClick={send} disabled={sending}>{sending ? 'Sending…' : sendLabel}</Button>
+              <Button onClick={send} disabled={sending || Boolean(readOnlyReason) || (showAck && !acknowledged)}>
+                {sending ? 'Sending…' : sendLabel}
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>

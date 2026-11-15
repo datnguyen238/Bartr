@@ -4,21 +4,20 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { getOpenOfferCounts, getSession, getUser, listItems, proposeTrade, TradeApiError } from '@/lib/trade/api';
-import type { TradeItem, TradeUser } from '@/lib/trade/types';
-import { ArrowLeftIcon } from './icons';
-import { firstName, TradeBuilder } from './trade-builder';
-import { EmptyList, Loading, PageMessage, TradeShell } from './trade-shell';
+import type { Item, Member, View } from '@/lib/marketplace';
+import { attachNote, loadView, proposeTrade, seedEnabled } from '@/lib/trade/api';
+import { isSignedOut } from '@/lib/trade/errors';
+import { firstName } from '@/lib/trade/format';
+import { TradeBuilder } from './trade-builder';
+import { BackLink, EmptyList, Loading, PageMessage, SignedOutMessage } from './trade-shell';
 
-interface Loaded {
-  me: TradeUser;
-  them: TradeUser;
-  myItems: TradeItem[];
-  theirItems: TradeItem[];
-  offerCounts: Record<string, number>;
-}
+type State =
+  | { kind: 'loading' }
+  | { kind: 'ready'; view: View; them: Member; myItems: Item[]; theirItems: Item[] }
+  | { kind: 'signed-out' }
+  | { kind: 'problem'; title: string; message: string };
 
-type State = { kind: 'loading' } | { kind: 'ready'; data: Loaded } | { kind: 'self' } | { kind: 'missing'; message: string };
+const SEED_NOTICE = 'Seed data mode: sending is disabled and nothing is saved.';
 
 export function TradeComposer({ withUserId, preselectItemId }: { withUserId?: string; preselectItemId?: string }) {
   const router = useRouter();
@@ -28,73 +27,73 @@ export function TradeComposer({ withUserId, preselectItemId }: { withUserId?: st
     let cancelled = false;
     (async () => {
       try {
-        if (!withUserId) throw new TradeApiError('not-found', 'Choose someone to trade with from the Landing page.');
-        const me = await getSession();
-        if (me.id === withUserId) {
-          if (!cancelled) setState({ kind: 'self' });
-          return;
+        const view = await loadView();
+        const me = view.profile.id;
+        let next: State;
+        if (!withUserId) next = { kind: 'problem', title: 'Choose someone to trade with', message: 'Open a trade from an item or a member’s profile.' };
+        else if (withUserId === me) next = { kind: 'problem', title: 'That’s you', message: 'You can’t trade with yourself. Pick someone else’s item to start a trade.' };
+        else {
+          const them = view.members.find((m) => m.id === withUserId);
+          next = them
+            ? {
+                kind: 'ready',
+                view,
+                them,
+                myItems: view.items.filter((i) => i.owner === me && i.status === 'available'),
+                theirItems: view.items.filter((i) => i.owner === them.id && i.status === 'available'),
+              }
+            : { kind: 'problem', title: 'Member not found', message: 'You can only trade with members of your community.' };
         }
-        const [them, myItems, theirItems, offerCounts] = await Promise.all([
-          getUser(withUserId), listItems(me.id), listItems(withUserId), getOpenOfferCounts(),
-        ]);
-        if (!cancelled) setState({ kind: 'ready', data: { me, them, myItems, theirItems, offerCounts } });
+        if (!cancelled) setState(next);
       } catch (error) {
-        const message = error instanceof TradeApiError ? error.message : 'We couldn’t load this page. Check your connection and try again.';
-        if (!cancelled) setState({ kind: 'missing', message });
+        if (cancelled) return;
+        setState(isSignedOut(error) ? { kind: 'signed-out' } : { kind: 'problem', title: 'Couldn’t load this page', message: 'Check your connection and reload.' });
       }
     })();
     return () => { cancelled = true; };
   }, [withUserId]);
 
-  const browse = <Button asChild variant="outline"><Link href="/">Back to browsing</Link></Button>;
+  const discover = <Button asChild variant="outline"><Link href="/discover">Discover items</Link></Button>;
 
-  if (state.kind === 'loading') return <TradeShell><Loading label="Loading items…" /></TradeShell>;
-  if (state.kind === 'self') {
-    return <TradeShell><PageMessage title="That’s your own profile" action={browse}>You can’t trade with yourself. Pick someone else’s item to start a trade.</PageMessage></TradeShell>;
-  }
-  if (state.kind === 'missing') {
-    return <TradeShell><PageMessage title="Can’t start this trade" action={browse}>{state.message}</PageMessage></TradeShell>;
-  }
+  if (state.kind === 'loading') return <Loading label="Loading items…" />;
+  if (state.kind === 'signed-out') return <SignedOutMessage />;
+  if (state.kind === 'problem') return <PageMessage title={state.title} action={discover}>{state.message}</PageMessage>;
 
-  const { me, them, myItems, theirItems, offerCounts } = state.data;
-  const preselected = theirItems.find((item) => item.id === preselectItemId && item.status === 'available');
+  const { view, them, myItems, theirItems } = state;
+  const preselected = theirItems.find((item) => item.id === preselectItemId);
+  const name = firstName(them.name);
 
   return (
-    <TradeShell>
+    <div>
       <div className="mb-8">
-        <Link href="/" className="inline-flex items-center gap-1.5 rounded-md text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
-          <ArrowLeftIcon className="size-4" /> Back to browsing
-        </Link>
-        <h1 className="mt-4 text-4xl leading-tight tracking-tight sm:text-5xl">
-          <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.displayName}</span>
-        </h1>
+        <BackLink href="/trades">All trades</BackLink>
+        <h2 className="mt-4 text-3xl leading-tight tracking-tight sm:text-4xl">
+          <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.name}</span>
+        </h2>
         <p className="mt-2 text-muted-foreground">
-          {them.location && <>{them.location} · </>}Pick what you’ll give and what you’d like. Values are estimates from each listing.
+          {them.community} · Pick up to three items on each side. Values are estimates from each listing.
         </p>
       </div>
       <TradeBuilder
         mode="propose"
-        me={me}
         them={them}
         myItems={myItems}
         theirItems={theirItems}
         initial={{ mine: [], theirs: preselected ? [preselected.id] : [] }}
-        offerCounts={offerCounts}
-        onSubmit={async (side, note) => {
-          const trade = await proposeTrade({ recipientId: them.id, terms: { initiatorItemIds: side.mine, recipientItemIds: side.theirs }, note });
-          router.push(`/trade/${trade.id}`);
+        gapLimit={view.profile.gap_limit}
+        readOnlyReason={seedEnabled ? SEED_NOTICE : undefined}
+        onSubmit={async ({ mine, theirs, note, acknowledged }) => {
+          const trade = await proposeTrade({ other: them.id, left: mine, right: theirs, acknowledged });
+          const { noteSaved } = await attachNote(trade, note);
+          router.push(`/trades/${trade.id}${noteSaved ? '' : '?note=failed'}`);
         }}
         myEmpty={
-          <EmptyList action={<Button asChild size="sm" variant="outline"><Link href="/profile">Add items on your Profile</Link></Button>}>
-            You haven’t listed anything yet. You can look through {firstName(them)}’s items, but you need at least one of your own to make an offer.
+          <EmptyList action={<Button asChild size="sm" variant="outline"><Link href="/inventory">Go to your inventory</Link></Button>}>
+            You don’t have any published items. You can look through {name}’s items, but you need at least one of your own to make an offer.
           </EmptyList>
         }
-        theirEmpty={
-          <EmptyList action={<Button asChild size="sm" variant="outline"><Link href="/">Browse other items</Link></Button>}>
-            {firstName(them)} hasn’t listed any items yet.
-          </EmptyList>
-        }
+        theirEmpty={<EmptyList action={discover}>{name} doesn’t have any available items right now.</EmptyList>}
       />
-    </TradeShell>
+    </div>
   );
 }

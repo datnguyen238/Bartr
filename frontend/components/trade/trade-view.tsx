@@ -6,170 +6,165 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  acceptTrade, addNote, confirmReceipt, counterTrade, declineTrade, getItems, getOpenOfferCounts, getSession,
-  getTrade, getUser, listItems, setHandoffMethod, TradeApiError, withdrawTrade,
-} from '@/lib/trade/api';
-import { describeFailure, type ActionFailure } from '@/lib/trade/errors';
-import { compareValue, totalValue } from '@/lib/trade/format';
-import { otherParticipant, termsFor, toTerms } from '@/lib/trade/perspective';
-import { OPEN_STATUSES, type HandoffMethod, type Trade, type TradeItem, type TradeUser } from '@/lib/trade/types';
-import { cn } from '@/lib/utils';
+import type { Item, Member, Trade, View } from '@/lib/marketplace';
+import { attachNote, getTrade, loadView, seedEnabled, tradeAction, type TradeActionKind } from '@/lib/trade/api';
+import { describeFailure, isSignedOut, type ActionFailure } from '@/lib/trade/errors';
+import { compareValue, firstName, totalValue } from '@/lib/trade/format';
+import { currentOffer, otherParticipant, sideIds, sideItems, termsFingerprint } from '@/lib/trade/perspective';
 import { BalanceMeter } from './balance-meter';
-import { ArrowLeftIcon } from './icons';
 import { ItemRow } from './item-card';
-import { NoteField } from './note-field';
-import { firstName, TradeBuilder } from './trade-builder';
-import { EmptyList, Loading, PageMessage, TradeShell } from './trade-shell';
+import { NoteField, ValueAcknowledgement } from './note-field';
+import { TradeBuilder } from './trade-builder';
+import { BackLink, EmptyList, Loading, PageMessage, SignedOutMessage } from './trade-shell';
 import { TradeTimeline } from './trade-timeline';
 
-interface Loaded {
-  me: TradeUser;
-  them: TradeUser;
-  trade: Trade;
-  items: Map<string, TradeItem>;
-  myItems: TradeItem[];
-  theirItems: TradeItem[];
-  offerCounts: Record<string, number>;
-}
-
-type State = { kind: 'loading' } | { kind: 'ready'; data: Loaded } | { kind: 'missing'; message: string };
-
+const CLOSED = new Set(['completed', 'declined', 'withdrawn', 'invalidated', 'cancelled']);
 const UNKNOWN_OUTCOME = 'We couldn’t confirm that action. Reload to check the trade’s current status before trying again.';
+const SEED_NOTICE = 'Seed data mode: actions are disabled and nothing is saved.';
 
-async function loadTrade(tradeId: string): Promise<Loaded> {
-  const me = await getSession();
-  const trade = await getTrade(tradeId);
-  const themId = otherParticipant(trade, me.id);
-  const referenced = new Set(trade.events.flatMap((e) => ('terms' in e ? [...e.terms.initiatorItemIds, ...e.terms.recipientItemIds] : [])));
-  const [them, referencedItems, myItems, theirItems, offerCounts] = await Promise.all([
-    getUser(themId), getItems([...referenced]), listItems(me.id), listItems(themId), getOpenOfferCounts(trade.id),
-  ]);
-  const items = new Map([...referencedItems, ...myItems, ...theirItems].map((item) => [item.id, item]));
-  return { me, them, trade, items, myItems, theirItems, offerCounts };
-}
+type State =
+  | { kind: 'loading' }
+  | { kind: 'ready'; view: View; trade: Trade }
+  | { kind: 'signed-out' }
+  | { kind: 'missing'; message: string };
 
-function describeStatus(trade: Trade, me: TradeUser, them: TradeUser): { label: string; detail: string; tone: 'action' | 'neutral' | 'closed' } {
-  const name = firstName(them);
-  const last = [...trade.events].reverse().find((e) => e.type === trade.status);
-  const byMe = last && 'authorId' in last && last.authorId === me.id;
+type Tone = 'action' | 'neutral' | 'closed';
+
+function describeStatus(trade: Trade, me: string, them: Member): { label: string; detail: string; tone: Tone } {
+  const name = firstName(them.name);
+  const offer = currentOffer(trade);
+  const myTurn = offer.sender !== me;
+  const iHandedOff = trade.handoffs.includes(me);
   switch (trade.status) {
-    case 'proposed':
-    case 'countered':
-      return trade.turnUserId === me.id
-        ? { label: 'Your turn', tone: 'action', detail: `${name} sent ${trade.status === 'countered' ? 'a counter-offer' : 'an offer'}. Accept it, counter, or decline.` }
+    case 'open':
+      return myTurn
+        ? { label: 'Your turn', tone: 'action', detail: `${name} sent ${offer.version > 1 ? 'a counter-offer' : 'an offer'}. Accept it, counter, or decline.` }
         : { label: `Waiting for ${name}`, tone: 'neutral', detail: `${name} can accept, counter, or decline. You can withdraw your offer while you wait.` };
-    case 'accepted':
-      return { label: 'Accepted', tone: 'action', detail: 'Agree on how to hand off the items, then confirm when you’ve received yours.' };
+    case 'agreed':
+      return { label: 'Agreed', tone: 'action', detail: 'Every item is reserved. Arrange to meet up or ship, then report the hand-off.' };
+    case 'awaiting_handoff':
+      return iHandedOff
+        ? { label: `Waiting for ${name}`, tone: 'neutral', detail: `You reported the hand-off. The trade completes when ${name} reports it too.` }
+        : { label: 'Your turn', tone: 'action', detail: `${name} reported the hand-off. Report yours once you’ve exchanged items.` };
     case 'completed':
-      return { label: 'Completed', tone: 'closed', detail: 'You both confirmed you received your items.' };
+      return { label: 'Completed', tone: 'closed', detail: 'Both of you reported the hand-off.' };
     case 'declined':
-      return { label: 'Declined', tone: 'closed', detail: byMe ? 'You declined this trade.' : `${name} declined this trade.` };
+      return { label: 'Declined', tone: 'closed', detail: offer.sender === me ? `${name} declined your offer.` : 'You declined this offer.' };
     case 'withdrawn':
-      return { label: 'Withdrawn', tone: 'closed', detail: byMe ? 'You withdrew your offer.' : `${name} withdrew their offer.` };
-    case 'unavailable':
-      return { label: 'Unavailable', tone: 'closed', detail: 'An item in this offer was traded elsewhere or is no longer listed.' };
+      return { label: 'Withdrawn', tone: 'closed', detail: offer.sender === me ? 'You withdrew your offer.' : `${name} withdrew their offer.` };
+    case 'cancelled':
+      return { label: 'Cancelled', tone: 'closed', detail: 'The agreement was cancelled and all items were released.' };
+    case 'invalidated':
+      return { label: 'No longer valid', tone: 'closed', detail: trade.reason ?? 'An item or member setting changed, so this offer can’t go ahead.' };
+    default:
+      return { label: trade.status.replaceAll('_', ' '), tone: 'neutral', detail: '' };
   }
 }
 
-export function TradeView({ tradeId }: { tradeId: string }) {
+export function TradeView({ tradeId, noteFailed }: { tradeId: string; noteFailed?: boolean }) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [mode, setMode] = useState<'view' | 'counter'>('view');
-  const [announcement, setAnnouncement] = useState('');
+  const [announcement, setAnnouncement] = useState(noteFailed ? 'Your offer was sent, but the note couldn’t be saved. Add it again below.' : '');
 
   const refresh = useCallback(async () => {
     try {
-      setState({ kind: 'ready', data: await loadTrade(tradeId) });
+      const [view, trade] = await Promise.all([loadView(), getTrade(tradeId)]);
+      setState({ kind: 'ready', view, trade });
     } catch (error) {
-      setState({ kind: 'missing', message: error instanceof TradeApiError ? error.message : 'We couldn’t load this trade. Check your connection and try again.' });
+      if (isSignedOut(error)) setState({ kind: 'signed-out' });
+      else setState({ kind: 'missing', message: error instanceof Error ? error.message : 'We couldn’t load this trade.' });
     }
   }, [tradeId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  if (state.kind === 'loading') return <TradeShell><Loading label="Loading trade…" /></TradeShell>;
+  if (state.kind === 'loading') return <Loading label="Loading trade…" />;
+  if (state.kind === 'signed-out') return <SignedOutMessage />;
   if (state.kind === 'missing') {
-    return (
-      <TradeShell>
-        <PageMessage title="Trade not found" action={<Button asChild variant="outline"><Link href="/trade">Go to my trades</Link></Button>}>{state.message}</PageMessage>
-      </TradeShell>
-    );
+    return <PageMessage title="Trade not found" action={<Button asChild variant="outline"><Link href="/trades">All trades</Link></Button>}>{state.message}</PageMessage>;
   }
 
-  const { me, them, trade, items, myItems, theirItems, offerCounts } = state.data;
+  const { view, trade } = state;
+  const me = view.profile.id;
+  const themId = otherParticipant(trade, me);
+  const them: Member = view.members.find((m) => m.id === themId) ?? { id: themId, name: 'Member', community: '' };
+  const name = firstName(them.name);
+  const offer = currentOffer(trade);
+  const side = sideItems(offer.terms, me);
   const status = describeStatus(trade, me, them);
-  const side = termsFor(trade, trade.terms, me.id);
-  const lookup = (ids: string[]) => ids.flatMap((id) => items.get(id) ?? []);
-  const give = lookup(side.mine);
-  const get = lookup(side.theirs);
-  const isOpen = OPEN_STATUSES.includes(trade.status);
-  const myTurn = isOpen && trade.turnUserId === me.id;
-  const name = firstName(them);
+  const balance = compareValue(totalValue(side.mine), totalValue(side.theirs), name, view.profile.gap_limit);
+  const isOpen = trade.status === 'open';
+  const myTurn = isOpen && offer.sender !== me;
+  const isAgreed = trade.status === 'agreed' || trade.status === 'awaiting_handoff';
+  const readOnly = seedEnabled ? SEED_NOTICE : undefined;
 
-  /** Runs a trade mutation, then reloads so the page reflects the authoritative state. */
-  async function act(run: () => Promise<unknown>, done: string) {
-    await run();
+  /** Runs a trade action, then reloads so the page shows the recorded outcome. */
+  async function act(kind: TradeActionKind, done: string, options: { note?: string; acknowledged?: boolean } = {}) {
+    await tradeAction(trade, kind, options);
     await refresh();
     setAnnouncement(done);
   }
 
-  const version = { expectedUpdatedAt: trade.updatedAt };
-
   return (
-    <TradeShell>
+    <div>
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
       <div className="mb-8">
-        <Link href="/trade" className="inline-flex items-center gap-1.5 rounded-md text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
-          <ArrowLeftIcon className="size-4" /> My trades
-        </Link>
+        <BackLink href="/trades">All trades</BackLink>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <h1 className="text-4xl leading-tight tracking-tight sm:text-5xl">
-            <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.displayName}</span>
-          </h1>
+          <h2 className="text-3xl leading-tight tracking-tight sm:text-4xl">
+            <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.name}</span>
+          </h2>
           <Badge variant={status.tone === 'action' ? 'default' : status.tone === 'closed' ? 'outline' : 'secondary'} className="text-sm">{status.label}</Badge>
         </div>
         <p className="mt-2 text-muted-foreground">{status.detail}</p>
+        {noteFailed && (
+          <p role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-card p-3 text-sm text-destructive">
+            Your offer was sent, but the note couldn’t be saved. Add it again from the message box.
+          </p>
+        )}
+        {isAgreed && trade.reason && <p className="mt-3 rounded-lg bg-secondary p-3 text-sm">{trade.reason}</p>}
       </div>
 
       {mode === 'counter' ? (
         <TradeBuilder
           mode="counter"
-          me={me}
           them={them}
-          myItems={mergeItems(myItems, give)}
-          theirItems={mergeItems(theirItems, get)}
-          initial={side}
-          offerCounts={offerCounts}
+          myItems={mergeItems(view.items.filter((i) => i.owner === me && i.status === 'available'), side.mine)}
+          theirItems={mergeItems(view.items.filter((i) => i.owner === themId && i.status === 'available'), side.theirs)}
+          initial={sideIds(offer.terms, me)}
+          gapLimit={view.profile.gap_limit}
+          readOnlyReason={readOnly}
           onCancel={() => setMode('view')}
-          onSubmit={async (next, note) => {
-            await counterTrade(trade.id, { terms: toTerms(trade, me.id, next), note, ...version });
+          onSubmit={async ({ mine, theirs, note, acknowledged }) => {
+            const countered = await tradeAction(trade, 'counter', { left: mine, right: theirs, acknowledged });
+            const { noteSaved } = await attachNote(countered, note);
             setMode('view');
             await refresh();
-            setAnnouncement(`Counter-offer sent. Waiting for ${name}.`);
+            setAnnouncement(noteSaved ? `Counter-offer sent. Waiting for ${name}.` : 'Counter-offer sent, but the note couldn’t be saved. Add it again below.');
           }}
-          myEmpty={<EmptyList>You don’t have any items listed.</EmptyList>}
-          theirEmpty={<EmptyList>{name} doesn’t have any items listed.</EmptyList>}
+          myEmpty={<EmptyList>You don’t have any available items.</EmptyList>}
+          theirEmpty={<EmptyList>{name} doesn’t have any available items.</EmptyList>}
         />
       ) : (
-        <div className="grid gap-8 pb-16 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="grid content-start gap-8">
             <section aria-labelledby="terms-heading" className="rounded-xl border bg-card p-5">
-              <h2 id="terms-heading" className="mb-4 text-lg font-semibold tracking-tight">
-                {trade.status === 'accepted' || trade.status === 'completed' ? 'Agreed items' : 'Current offer'}
-              </h2>
+              <h3 id="terms-heading" className="mb-4 text-lg font-semibold tracking-tight">
+                {isAgreed || trade.status === 'completed' ? 'Agreed items' : `Current offer · version ${offer.version}`}
+              </h3>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold">You give</h3>
-                  <ul className="grid gap-3">{give.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
+                  <h4 className="mb-2 text-sm font-semibold">You give</h4>
+                  <ul className="grid gap-3">{side.mine.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
                 </div>
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold">You get</h3>
-                  <ul className="grid gap-3">{get.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
+                  <h4 className="mb-2 text-sm font-semibold">You get</h4>
+                  <ul className="grid gap-3">{side.theirs.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
                 </div>
               </div>
-              <BalanceMeter balance={compareValue(totalValue(give), totalValue(get), name)} className="mt-5" />
+              <BalanceMeter balance={balance} className="mt-5" />
             </section>
-            <TradeTimeline trade={trade} viewer={me} other={them} items={items} />
+            <TradeTimeline trade={trade} viewerId={me} other={them} />
           </div>
 
           <aside className="grid content-start gap-4" aria-label="Trade actions">
@@ -181,20 +176,23 @@ export function TradeView({ tradeId }: { tradeId: string }) {
                     triggerLabel="Accept trade"
                     title="Accept this trade?"
                     confirmLabel="Accept trade"
-                    description={`You’ll give ${give.map((i) => i.title).join(', ')} and get ${get.map((i) => i.title).join(', ')}. All of these items will be marked as traded, and other open offers that include them will close. You can’t undo this in the app.`}
-                    noteLabel={`Note to ${name} (optional)`}
-                    onConfirm={(note) => act(() => acceptTrade(trade.id, { ...version, note }), 'Trade accepted.')}
+                    description={`You’ll give ${list(side.mine)} and get ${list(side.theirs)}. Accepting records both of your agreement and reserves every item on both sides together until you hand off or cancel.`}
+                    acknowledgement={offer.terms.value_warning ? (offer.terms.left_total_minor === null || offer.terms.right_total_minor === null
+                      ? 'I understand some values are unknown and want to accept anyway.'
+                      : 'I understand the estimated values differ by more than a member’s limit and want to accept anyway.') : undefined}
+                    readOnlyReason={readOnly}
+                    onConfirm={({ acknowledged }) => act('accept', 'Trade accepted. All items are reserved.', { acknowledged })}
                   />
                   <Button variant="outline" onClick={() => setMode('counter')}>Counter-offer</Button>
                   <ConfirmAction
                     triggerLabel="Decline"
                     triggerVariant="ghost"
-                    title="Decline this trade?"
-                    confirmLabel="Decline trade"
+                    title="Decline this offer?"
+                    confirmLabel="Decline offer"
                     destructive
                     description={`This closes the trade for both of you. ${name} can start a new one later.`}
-                    noteLabel="Reason (optional)"
-                    onConfirm={(note) => act(() => declineTrade(trade.id, { ...version, note }), 'Trade declined.')}
+                    readOnlyReason={readOnly}
+                    onConfirm={() => act('decline', 'Offer declined.')}
                   />
                 </CardContent>
               </Card>
@@ -211,34 +209,41 @@ export function TradeView({ tradeId }: { tradeId: string }) {
                     confirmLabel="Withdraw offer"
                     destructive
                     description={`This closes the trade. ${name} will no longer be able to accept it.`}
-                    onConfirm={() => act(() => withdrawTrade(trade.id, version), 'Offer withdrawn.')}
+                    readOnlyReason={readOnly}
+                    onConfirm={() => act('withdraw', 'Offer withdrawn.')}
                   />
                 </CardContent>
               </Card>
             )}
 
-            {(trade.status === 'accepted' || trade.status === 'completed') && (
-              <HandoffPanel trade={trade} me={me} them={them} onAct={act} />
+            {(isAgreed || trade.status === 'completed') && (
+              <HandoffPanel trade={trade} me={me} them={them} readOnly={readOnly} act={act} />
             )}
 
-            {(isOpen || trade.status === 'accepted') && (
+            {!CLOSED.has(trade.status) && (
               <NoteComposer
-                label={trade.status === 'accepted' ? `Coordinate with ${name}` : `Message ${name}`}
-                onSend={(note) => act(() => addNote(trade.id, { note }), 'Note sent.')}
+                label={isAgreed ? `Coordinate with ${name}` : `Message ${name}`}
+                placeholder={isAgreed ? 'Agree on a public place and time, or the carrier and who pays postage.' : 'Notes appear in the trade history for both of you.'}
+                readOnly={readOnly}
+                onSend={(note) => act('note', 'Note sent.', { note })}
               />
             )}
 
-            {!isOpen && trade.status !== 'accepted' && (
-              <Button asChild variant="outline"><Link href={`/trade/new?with=${them.id}`}>Start a new trade with {name}</Link></Button>
+            {CLOSED.has(trade.status) && trade.status !== 'completed' && (
+              <Button asChild variant="outline"><Link href={`/trades/new?with=${encodeURIComponent(themId)}`}>Start a new trade with {name}</Link></Button>
             )}
           </aside>
         </div>
       )}
-    </TradeShell>
+    </div>
   );
 }
 
-function mergeItems(listed: TradeItem[], inTrade: TradeItem[]) {
+function list(items: Item[]) {
+  return items.map((i) => i.title).join(', ');
+}
+
+function mergeItems(listed: Item[], inTrade: Item[]) {
   const ids = new Set(listed.map((i) => i.id));
   return [...listed, ...inTrade.filter((i) => !ids.has(i.id))];
 }
@@ -250,25 +255,31 @@ interface ConfirmActionProps {
   description: string;
   confirmLabel: string;
   destructive?: boolean;
-  noteLabel?: string;
-  onConfirm: (note?: string) => Promise<void>;
+  /** When set, the user must tick this acknowledgement before confirming. */
+  acknowledgement?: string;
+  readOnlyReason?: string;
+  onConfirm: (input: { acknowledged: boolean }) => Promise<void>;
 }
 
 /** Consequential actions explain their effect in a dialog before anything is sent. */
-function ConfirmAction({ triggerLabel, triggerVariant = 'default', title, description, confirmLabel, destructive, noteLabel, onConfirm }: ConfirmActionProps) {
+function ConfirmAction({ triggerLabel, triggerVariant = 'default', title, description, confirmLabel, destructive, acknowledgement, readOnlyReason, onConfirm }: ConfirmActionProps) {
   const [open, setOpen] = useState(false);
-  const [note, setNote] = useState('');
+  const [acknowledged, setAcknowledged] = useState(false);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<ActionFailure | null>(null);
+  const [forceAck, setForceAck] = useState(false);
+  const ackText = acknowledgement ?? (forceAck ? 'I understand the values are unknown or uneven and want to continue.' : undefined);
 
   async function confirm() {
     setSending(true);
     setFailure(null);
     try {
-      await onConfirm(note || undefined);
+      await onConfirm({ acknowledged: Boolean(ackText) && acknowledged });
       setOpen(false);
     } catch (error) {
-      setFailure(describeFailure(error, UNKNOWN_OUTCOME));
+      const result = describeFailure(error, UNKNOWN_OUTCOME);
+      if (result.needsAcknowledgement) setForceAck(true);
+      setFailure(result);
     } finally {
       setSending(false);
     }
@@ -276,24 +287,35 @@ function ConfirmAction({ triggerLabel, triggerVariant = 'default', title, descri
 
   return (
     <>
-      <Button variant={triggerVariant} onClick={() => { setFailure(null); setOpen(true); }}>{triggerLabel}</Button>
+      <Button variant={triggerVariant} onClick={() => { setFailure(null); setAcknowledged(false); setOpen(true); }}>{triggerLabel}</Button>
       <Dialog open={open} onOpenChange={(next) => { if (!sending) setOpen(next); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription className="leading-6">{description}</DialogDescription>
           </DialogHeader>
-          {noteLabel && <NoteField id={`note-${confirmLabel.replace(/\s+/g, '-').toLowerCase()}`} label={noteLabel} value={note} onChange={setNote} disabled={sending} />}
+          {ackText && (
+            <ValueAcknowledgement id={`ack-${confirmLabel.replace(/\s+/g, '-').toLowerCase()}`} checked={acknowledged} onChange={setAcknowledged} disabled={sending}>
+              {ackText}
+            </ValueAcknowledgement>
+          )}
           <div role="status" aria-live="polite" className="text-sm">
             {sending && 'Sending…'}
             {failure && <span className="text-destructive">{failure.message}</span>}
+            {readOnlyReason && !failure && <span className="text-muted-foreground">{readOnlyReason}</span>}
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline" disabled={sending}>Cancel</Button></DialogClose>
             {failure?.needsReload ? (
               <Button onClick={() => window.location.reload()}>Reload</Button>
             ) : (
-              <Button variant={destructive ? 'destructive' : 'default'} onClick={confirm} disabled={sending}>{sending ? 'Sending…' : confirmLabel}</Button>
+              <Button
+                variant={destructive ? 'destructive' : 'default'}
+                onClick={confirm}
+                disabled={sending || Boolean(readOnlyReason) || (Boolean(ackText) && !acknowledged)}
+              >
+                {sending ? 'Sending…' : confirmLabel}
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>
@@ -302,7 +324,7 @@ function ConfirmAction({ triggerLabel, triggerVariant = 'default', title, descri
   );
 }
 
-function NoteComposer({ label, onSend }: { label: string; onSend: (note: string) => Promise<void> }) {
+function NoteComposer({ label, placeholder, readOnly, onSend }: { label: string; placeholder: string; readOnly?: string; onSend: (note: string) => Promise<void> }) {
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<ActionFailure | null>(null);
@@ -324,97 +346,87 @@ function NoteComposer({ label, onSend }: { label: string; onSend: (note: string)
 
   return (
     <form onSubmit={send} className="grid gap-2 rounded-xl border bg-card p-4">
-      <NoteField id="trade-note" label={label} value={note} onChange={setNote} disabled={sending} placeholder="Notes appear in the trade history for both of you." />
+      <NoteField id="trade-note" label={label} value={note} onChange={setNote} disabled={sending || Boolean(readOnly)} placeholder={placeholder} />
       {failure && <p role="alert" className="text-sm text-destructive">{failure.message}</p>}
-      <Button type="submit" variant="secondary" disabled={sending || !note.trim()}>{sending ? 'Sending…' : 'Send note'}</Button>
+      {readOnly && <p className="text-xs text-muted-foreground">{readOnly}</p>}
+      <Button type="submit" variant="secondary" disabled={sending || !note.trim() || Boolean(readOnly)}>{sending ? 'Sending…' : 'Send note'}</Button>
     </form>
   );
 }
 
-const HANDOFF_OPTIONS: { value: HandoffMethod; label: string; hint: string }[] = [
-  { value: 'meetup', label: 'Meet up', hint: 'Agree on a public place and time in the notes.' },
-  { value: 'ship', label: 'Ship', hint: 'Agree on the carrier and who pays postage in the notes.' },
-];
-
-function HandoffPanel({ trade, me, them, onAct }: {
-  trade: Trade; me: TradeUser; them: TradeUser; onAct: (run: () => Promise<unknown>, done: string) => Promise<void>;
+function HandoffPanel({ trade, me, them, readOnly, act }: {
+  trade: Trade;
+  me: string;
+  them: Member;
+  readOnly?: string;
+  act: (kind: TradeActionKind, done: string) => Promise<void>;
 }) {
-  const name = firstName(them);
-  const [failure, setFailure] = useState<string | null>(null);
+  const name = firstName(them.name);
   const completed = trade.status === 'completed';
-  const iConfirmed = trade.confirmedBy.includes(me.id);
-  const theyConfirmed = trade.confirmedBy.includes(them.id);
+  const iHandedOff = trade.handoffs.includes(me);
+  const theyHandedOff = trade.handoffs.includes(them.id);
+  const iCancelled = trade.cancellations.includes(me);
+  const theyCancelled = trade.cancellations.includes(them.id);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
 
-  async function choose(method: HandoffMethod) {
-    setFailure(null);
-    try {
-      await onAct(() => setHandoffMethod(trade.id, { method }), `Hand-off method set to ${method === 'meetup' ? 'meet up' : 'ship'}.`);
-    } catch (error) {
-      setFailure(describeFailure(error, UNKNOWN_OUTCOME).message);
-    }
-  }
+  useEffect(() => {
+    let cancelled = false;
+    termsFingerprint(trade).then((value) => { if (!cancelled) setFingerprint(value); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [trade]);
 
   return (
     <Card className="gap-4 shadow-none">
       <CardHeader><CardTitle>{completed ? 'Trade complete' : 'Hand off the items'}</CardTitle></CardHeader>
       <CardContent className="grid gap-5">
         {!completed && (
-          <fieldset className="grid gap-2">
-            <legend className="mb-2 text-sm font-medium">How will you exchange?</legend>
-            <div className="grid grid-cols-2 gap-2">
-              {HANDOFF_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className={cn(
-                    'cursor-pointer rounded-lg border p-3 text-sm font-medium has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
-                    trade.handoffMethod === option.value && 'border-primary bg-secondary/60',
-                  )}
-                >
-                  <input type="radio" name="handoff" className="sr-only" value={option.value} checked={trade.handoffMethod === option.value} onChange={() => choose(option.value)} />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-            <p className="text-xs leading-5 text-muted-foreground">
-              {HANDOFF_OPTIONS.find((o) => o.value === trade.handoffMethod)?.hint ?? 'Either of you can choose. Use notes to work out the details.'}
-            </p>
-            {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
-          </fieldset>
-        )}
-
-        {!completed && (
-          <div className="grid gap-2 text-sm">
-            <ul className="grid gap-1 text-muted-foreground">
-              <li>You: {iConfirmed ? 'received items ✓' : 'not confirmed yet'}</li>
-              <li>{name}: {theyConfirmed ? 'received items ✓' : 'not confirmed yet'}</li>
+          <div className="grid gap-3 text-sm">
+            <p className="text-muted-foreground">Meet somewhere public, or agree on shipping in the notes. Report the hand-off once you’ve exchanged items.</p>
+            <ul className="grid gap-1">
+              <li>You: {iHandedOff ? 'reported the hand-off ✓' : 'not reported yet'}</li>
+              <li>{name}: {theyHandedOff ? 'reported the hand-off ✓' : 'not reported yet'}</li>
             </ul>
-            {iConfirmed ? (
-              <p className="text-sm">You confirmed. Waiting for {name} to confirm.</p>
+            {iHandedOff ? (
+              <p>You reported the hand-off. Waiting for {name}.</p>
             ) : (
               <ConfirmAction
-                triggerLabel="I received my items"
-                title={`Confirm you received ${name}’s items?`}
-                confirmLabel="Confirm receipt"
-                description={`Only confirm once you have ${name}’s items in hand. When you both confirm, the trade is marked complete.`}
-                onConfirm={() => onAct(() => confirmReceipt(trade.id), theyConfirmed ? 'Trade completed.' : `Receipt confirmed. Waiting for ${name}.`)}
+                triggerLabel="Report hand-off"
+                title="Report that the hand-off happened?"
+                confirmLabel="Report hand-off"
+                description={`Only report this once you’ve exchanged items with ${name}. The trade completes when you both report it.`}
+                readOnlyReason={readOnly}
+                onConfirm={() => act('handoff', theyHandedOff ? 'Trade completed.' : `Hand-off reported. Waiting for ${name}.`)}
+              />
+            )}
+            {iCancelled ? (
+              <p className="text-muted-foreground">You asked to cancel. {name} needs to approve because a hand-off was reported.</p>
+            ) : (
+              <ConfirmAction
+                triggerLabel={theyCancelled ? 'Approve cancellation' : 'Cancel agreement'}
+                triggerVariant="ghost"
+                title={theyCancelled ? 'Approve cancelling this trade?' : 'Cancel this agreement?'}
+                confirmLabel={theyCancelled ? 'Approve cancellation' : 'Cancel agreement'}
+                destructive
+                description={trade.handoffs.length
+                  ? `A hand-off was already reported, so both of you must approve. Items stay reserved until ${theyCancelled ? 'you approve' : `${name} approves too`}.`
+                  : 'This cancels the agreement for both of you and releases every reserved item.'}
+                readOnlyReason={readOnly}
+                onConfirm={() => act('cancel', 'Cancellation recorded.')}
               />
             )}
           </div>
         )}
 
-        {trade.receipt && (
-          <div className="grid gap-1.5 border-t pt-4">
-            <p className="text-sm font-medium">Trade receipt</p>
-            <p className="text-xs leading-5 text-muted-foreground">
-              A fingerprint of exactly what was agreed. If the items changed, it would change too, so it can be recorded later to prove the terms.
-            </p>
-            <code className="block rounded-md bg-secondary px-2 py-1.5 font-mono text-xs break-all" aria-label="Receipt fingerprint">
-              {trade.receipt.fingerprint}
-            </code>
-          </div>
-        )}
+        <div className="grid gap-1.5 border-t pt-4">
+          <p className="text-sm font-medium">Trade receipt</p>
+          <p className="text-xs leading-5 text-muted-foreground">
+            A fingerprint of exactly which items were agreed. If the items changed, it would change too, so it can be recorded later to prove the terms.
+          </p>
+          <code className="block rounded-md bg-secondary px-2 py-1.5 font-mono text-xs break-all" aria-label="Receipt fingerprint">
+            {fingerprint ?? 'Calculating…'}
+          </code>
+        </div>
       </CardContent>
     </Card>
   );
 }
-
