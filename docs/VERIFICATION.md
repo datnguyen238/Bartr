@@ -6,9 +6,7 @@ Record future evidence using the [engineering workflow](ENGINEERING.md#evidence-
 
 ## Implemented paths
 
-Backend capabilities include account registration/sign-in/out with hashed passwords and opaque sessions; public profiles and private preferences; draft/photo/publication/edit/removal; reviewed Gemini suggestions; revision-bound valuation evidence; Bedrock embedding and Atlas retrieval adapters; deterministic one-to-three item matching with both gap limits; dismissals; manual proposals, notes/counteroffers and exact-version consent; atomic reservations/overlap invalidation; cancellation and two-party handoff.
-
-The approved frontend increment exposes Home authentication and protected Profile account/inventory/preferences. Trade is a public placeholder; discovery and offers controls are deferred. See the [profile guide](PROFILE.md), [approved plan](../.claude/plans/profile-page.plan.md) and [TDD evidence](../.claude/tdd/profile-page.tdd.md). The backend trading rules remain implemented.
+Account registration/sign-in/out with hashed passwords and opaque sessions; public profiles and private preferences; draft/photo/publication/edit/removal; reviewed Gemini suggestions; revision-bound valuation evidence; Bedrock embedding and Atlas retrieval adapters; deterministic one-to-three item matching with both gap limits; dismissals; manual proposals, notes/counteroffers and exact-version consent; atomic reservations/overlap invalidation; cancellation and two-party handoff.
 
 ## Verification in progress
 
@@ -21,20 +19,3 @@ Backend domain, account/API, photo-upload, Gemini adapter/evidence and Bedrock f
 - Exact-text local mode does not meet the semantic-equivalence criteria; the configured semantic adapters need their labeled retrieval evaluation.
 - The spec's 20-person pilot, 40-case recommendation quality set, 20 paraphrase cases, screen-reader audit, 1,000-listing/20-request load test and associated numerical targets have not been run and are not claimed achieved.
 - An individual document aggregate bounds this prototype's scale. Request contention or capacity failure is reported explicitly instead of falling back to unsaved data.
-
-## Profile frontend increment — 2026-11-14
-
-Requirements: Story 1, FR-001–003, FR-006, FR-028 and FR-030. Evidence identity: `6038f54` plus the approved profile working tree; final checkpoint references are indexed in the [TDD report](../.claude/tdd/profile-page.tdd.md). Environment: macOS arm64, Node 25.6.0/npm 11.17.0, Next 16.4.6/React 19.3.1, Vitest 4.1.12, Playwright 1.65.1 with installed Chrome, Python 3.14.2.
-
-| Evaluation | Result | Storage/provider boundary |
-|---|---|---|
-| `npm run test:coverage` | **Passed: 58 unit/component tests**; six new session/guard/profile/home modules: 98.52% lines, 97.76% statements, 95.65% branches, 98.18% functions | Synthetic transport/provider fixtures; excludes legacy provider/trade/inventory code from percentage |
-| `npm run test:e2e` | **Passed: 18 Chrome scenarios**, including keyboard and 390px Profile subpages | Real Next.js, intercepted synthetic API; frontend evidence |
-| `npm run test:backend` | **Passed: 1 complete browser journey** with real HTTP-only cookie, revision conflict, saved profile/inventory, logout and expiry | Real local FastAPI/Next.js, synthetic accounts, temporary memory; providers disabled |
-| `.venv/bin/python -m pytest backend/tests/test_marketplace.py backend/tests/test_marketplace_api.py -q` | **Passed: 21 existing domain/API tests** | Isolated in-memory repository and synthetic image/provider fixtures |
-| `npm run typecheck`; `npm run build` | **Passed** | Local TypeScript and production webpack build |
-| Changed local Markdown links; `git diff --check` | **Passed** | Eight changed documents; repository whitespace |
-
-Independent read-only review found same-session response ordering, authentication busy ownership and stale-item recovery gaps. Regression tests reproduced each gap before fixes; re-review closed all findings. The new inventory recovery compares saved facts without silently replacing a draft, and requires explicit replacement before adopting the newer revision.
-
-Actual Atlas persistence/contention, live provider quality, hosted configuration, full screen-reader audit, performance and pilot evaluations remain **not run** for this increment. No deployment occurred; no persistence migration is needed. The frontend rollback path preserves existing saved account/item formats.

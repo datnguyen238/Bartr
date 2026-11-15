@@ -50,17 +50,17 @@ BARTR_STORAGE=memory python -m uvicorn backend.app.main:app --reload --host 127.
 
 This explicitly selects temporary, in-process storage. Accounts, items and trades disappear on restart or reload. There is no silent fallback after a MongoDB failure. Use one worker in this mode. Do not use it for saved user data.
 
-Open `/home` to register or sign in. Profile contains Account, Inventory and Preferences: edit your display name/community, save a draft, attach a photo and review publication details. Saved cookies restore the account on direct visits and refreshes. Anonymous Profile visits return to Home; connection failures offer Retry. See the [profile guide](docs/PROFILE.md) for routes and session behavior.
+Create two accounts in separate browser profiles or an incognito window, with the same community. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Under Discover, uncheck **Semantic discovery** to test exact-text matching without providers. You should see the 7.7% gap combination when their interests match.
 
-The current frontend phase defers offers and discovery controls. `/trade` is a placeholder; old `/discover` and `/trades` links lead there. Existing backend matching and trading endpoints remain available and retain their consent, reservation, cancellation and handoff rules.
+Review the included items before submitting an offer. Submission consents only for its sender. The other member must accept the exact current terms to reserve items. Counteroffers replace consent. Both members must confirm reported handoff before completion. Cancellation after one reported handoff needs both members' approval. The app records participants' reports, not verified physical delivery.
 
 ## Live assistance and semantic search
 
 - Set `GEMINI_API_KEY` and a suitable image/search/structured-output `GEMINI_MODEL`. Optional `GEMINI_VALUATION_MODEL` and `GEMINI_EXTRACTION_MODEL` select those stages. Analysis is advisory and saved per item revision; it does not automatically publish or overwrite reviewed facts.
 - Configure the AWS credential chain, `AWS_REGION`, and a Titan Text Embeddings V2-compatible `BEDROCK_EMBEDDING_MODEL`. Example model ID to verify in your account: `amazon.titan-embed-text-v2:0`. Dimensions default to 1024; the Atlas index must match.
 - Use MongoDB Atlas storage. Create a Vector Search index named `item_embeddings` on collection `search_items` with [the index definition](specs/001-smart-barter-marketplace/contracts/atlas-vector-index.json). Match `BEDROCK_EMBEDDING_DIMENSIONS` if changed.
-- Owners select **Index for semantic search** for each current published item. Edits make older projections stale; index the new revision. Backend semantic discovery checks current projections and reports missing/index failures explicitly; its frontend controls are deferred.
-- Semantic candidates are assessed against interests and exclusions with Gemini before deterministic bundle validation. Provider/index failures are API errors, distinct from an empty set of compatible trades.
+- Owners select **Index for semantic search** for each current published item. Edits make older projections stale; index the new revision. Semantic discovery checks current projections and reports missing/index failures explicitly.
+- Semantic candidates are assessed against interests and exclusions with Gemini before deterministic bundle validation. If providers/indexes fail, the UI reports failure; it does not claim there are no compatible trades.
 
 Use server-only environment files. Never commit credentials or put them in `NEXT_PUBLIC_*` settings. Sessions use HTTP-only cookies. Production HTTPS deployments must set `COOKIE_SECURE=true` and exact `WEB_ORIGINS`. Browser mutations use an application header and origin checks. API clients must send `X-Bartr-Request: 1` and a valid session cookie.
 
@@ -72,10 +72,6 @@ python -m pytest backend/tests -q
 cd frontend
 npm run typecheck
 npm run build
-npm test
-npm run test:coverage
-npm run test:e2e
-npm run test:backend
 ```
 
 Domain/API/adapter fixtures verify permissions, item publication, all nine bundle shapes, percentage limits, exact revisions, duplicate command handling, overlapping acceptance, cancellations and handoff. See [the implementation plan](specs/001-smart-barter-marketplace/plan.md), [tasks](specs/001-smart-barter-marketplace/tasks.md), and [verification status](docs/VERIFICATION.md).

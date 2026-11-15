@@ -60,7 +60,7 @@ These are engineering criteria, not a new permission dialog for each edit. Requi
 | Persistence | Existing compare-and-swap regression plus real database concurrent-write, interruption, capacity and restart/recovery evidence for the changed guarantee. | The current repository regression uses a fake collection; it is not an actual MongoDB contention or durability evaluation. |
 | Valuation and provider interpretation | Source/citation, schema, provenance, revision, deadline, quota and malformed-output fixtures; manual fallback and rejected evidence. | Adapter fixtures and any SDK-dependent skips do not prove live grounding, model access or estimate quality. |
 | Embeddings and semantic discovery | Request/response shape, configured model/dimensions, stale/index/unavailable cases and semantic-to-domain boundary assertions; configured live retrieval and labeled quality evaluation before claiming that readiness. | Mocked embedding calls, stale-index fixtures, exact-text mode and supplied semantic IDs are not live semantic-equivalence evidence. |
-| Presentation and typed contracts | Frontend typecheck/build and browser evidence for changed success/failure/permission states; keyboard, responsive and assistive-technology observations for the affected journey. Keep changed server/client shapes aligned. | A production build does not establish browser behavior or screen-reader acceptance; intercepted Playwright API fixtures establish frontend behavior, not real cookies or persistence. |
+| Presentation and typed contracts | Frontend typecheck/build and browser evidence for changed success/failure/permission states; keyboard, responsive and assistive-technology observations for the affected journey. Keep changed server/client shapes aligned. | A production build does not establish browser behavior or screen-reader acceptance; planned browser automation commands are not currently installed scripts. |
 | Documentation only | Relative-link, command-reference, authority/claim consistency and whitespace checks. | Documentation checks establish artifact consistency, not application readiness. |
 
 The supported repository-wide commands today are:
@@ -72,13 +72,9 @@ python -m pytest backend/tests -q
 # frontend/
 npm run typecheck
 npm run build
-npm test
-npm run test:coverage
-npm run test:e2e
-npm run test:backend
 ```
 
-For a bounded backend change, select the affected files from `backend/tests/test_marketplace.py`, `test_marketplace_api.py`, `test_state_repository.py`, `test_valuation.py`, `test_embeddings.py`, `test_semantic_search.py` and `test_api.py`. Expand verification when a shared boundary changes, a failure reveals broader impact, or a required repository check applies. Report skipped cases and their causes explicitly. Vitest/Testing Library/V8 coverage and Playwright were introduced for the [approved profile increment](../.claude/plans/profile-page.plan.md); browser tests use installed Chrome. Do not assume other planned management commands or generators exist.
+For a bounded backend change, select the affected files from `backend/tests/test_marketplace.py`, `test_marketplace_api.py`, `test_state_repository.py`, `test_valuation.py`, `test_embeddings.py`, `test_semantic_search.py` and `test_api.py`. Expand verification when a shared boundary changes, a failure reveals broader impact, or a required repository check applies. Report skipped cases and their causes explicitly. Do not invent an `npm run test:e2e`, management command or contract generator because an older plan describes one; introduce and document such tooling in its own justified change.
 
 Every touched generated-code domain receives relevant regression coverage, including explicit edges and interface checks where applicable. The matrix states the standard for new changes; it does not retroactively certify existing coverage or call every planned target achieved.
 

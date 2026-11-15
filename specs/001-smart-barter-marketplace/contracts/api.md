@@ -4,8 +4,6 @@ All marketplace routes are under `/api`. Authentication uses an HTTP-only opaque
 
 - `POST /auth/register`, `/auth/login`, `/auth/logout`; `GET /me`.
 - `GET/PATCH /profile`: own profile and private preferences only; writes require expected revision.
-
-  The current frontend separates Account and Preferences screens but uses this same full-profile write: `expected_revision`, `name`, `community`, `interests`, `exclusions`, and `gap_limit` are all required. A section save supplies the other section's **saved** values, never its unsaved draft. Username is read-only. `/me` restores the authoritative member after authentication; no browser route or fixture grants permission. The profile frontend increment adds no endpoint or persisted-schema changes.
 - `GET/POST /items`, `PATCH /items/{id}`: owner-only draft/update, public available-listing discovery, publication requires reviewed fields and image.
 - `POST /items/{id}/image`, `GET /images/{id}`: normalized owner upload and audience-checked image read.
 - `POST /items/{id}/analysis`: Gemini suggestions for owner review; no silent publication or overwrite.

@@ -1,6 +1,6 @@
 # Profile, Inventory and Preferences
 
-**Status**: Approved for implementation · **Date**: 2026-11-14
+**Status**: Revised for user feedback: no offers in this phase · **Date**: 2026-11-14
 
 ## Outcome
 
@@ -79,4 +79,4 @@ Run frontend typecheck/build and the relevant backend domain/API regressions. Ad
 
 ## Review decision
 
-User feedback: “no offers yet,” received after the original review. This revision excludes the Offers route and all trading UI work. The user subsequently approved: “Approve this narrowed plan and implement.” The local plan review session has ended. RED tests preceded application changes; implementation and verification are recorded in the TDD report.
+User feedback: “no offers yet,” received after the original review. This revision excludes the Offers route and all trading UI work. Approve this narrowed scope or annotate remaining changes. No application code has changed yet; failing test preparation is recorded in the TDD report.

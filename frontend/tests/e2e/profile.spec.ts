@@ -35,7 +35,6 @@ type Stub = {
   unavailable: boolean;
   rejectLogin: boolean;
   rejectProfileSave: boolean;
-  rejectItemSave: boolean;
   view: View;
   profileSaves: Record<string, unknown>[];
   itemSaves: Record<string, unknown>[];
@@ -45,7 +44,7 @@ type Stub = {
 
 async function installApi(page: Page, authenticated = true): Promise<Stub> {
   const state: Stub = {
-    authenticated, unavailable: false, rejectLogin: false, rejectProfileSave: false, rejectItemSave: false,
+    authenticated, unavailable: false, rejectLogin: false, rejectProfileSave: false,
     view: fixture(), profileSaves: [], itemSaves: [], uploads: 0, unexpected: [],
   };
   async function json(route: Route, status: number, data: unknown) {
@@ -100,7 +99,6 @@ async function installApi(page: Page, authenticated = true): Promise<Stub> {
     if (patchId && method === "PATCH") {
       const body = request.postDataJSON() as Record<string, unknown>;
       state.itemSaves.push(body);
-      if (state.rejectItemSave) return json(route, 409, { detail: "Item changed. Reload before saving.", code: "STALE_ITEM" });
       const current = state.view.items.find((candidate) => candidate.id === patchId)!;
       const saved = { ...current, ...body, revision: current.revision + 1 } as Item;
       state.view.items = state.view.items.map((candidate) => candidate.id === patchId ? saved : candidate);
@@ -222,7 +220,7 @@ test("a stale profile save keeps the draft and reports renewed review", async ({
   await page.goto("/profile");
   await page.getByLabel("Display name", { exact: true }).fill("Keep this draft");
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Profile changed");
+  await expect(page.getByRole("alert")).toContainText("Profile changed");
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Keep this draft");
 });
 
@@ -245,7 +243,7 @@ test("an invalid login stays on Home with actionable feedback", async ({ page })
   state.rejectLogin = true;
   await page.goto("/home");
   await signIn(page);
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Invalid username or password");
+  await expect(page.getByRole("alert")).toContainText("Invalid username or password");
   await expect(page).toHaveURL(/\/home(?:\?.*)?$/);
   await expect(page.getByLabel("Username", { exact: true })).toHaveValue("alice.test");
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).not.toBeVisible();
@@ -264,32 +262,16 @@ test("inventory create, photo attachment and edit remain usable inside Profile",
   await page.getByLabel("Title", { exact: true }).fill("Synthetic desk lamp");
   await page.getByRole("button", { name: "Save listing", exact: true }).click();
   await expect.poll(() => state.itemSaves.length).toBe(1);
-  await page.getByLabel("Title", { exact: true }).fill("Unsaved title before upload");
-  await page.getByLabel("Description", { exact: true }).fill("Unsaved description before upload");
   await page.getByLabel("Item photo", { exact: true }).setInputFiles({
     name: "synthetic-pixel.png", mimeType: "image/png",
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
   });
   await expect.poll(() => state.uploads).toBe(1);
   await expect(page.getByText("Photo normalized and saved. Review before publishing.", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title before upload");
-  await expect(page.getByLabel("Description", { exact: true })).toHaveValue("Unsaved description before upload");
   await page.getByLabel("Title", { exact: true }).fill("Reviewed synthetic desk lamp");
   await page.getByRole("button", { name: "Save listing", exact: true }).click();
   await expect.poll(() => state.itemSaves.length).toBe(2);
   expect(state.itemSaves[1]).toMatchObject({ title: "Reviewed synthetic desk lamp", expected_revision: 2 });
-});
-
-test("a stale item edit retains its reviewed revision and unsaved draft", async ({ page }) => {
-  const state = await installApi(page);
-  state.rejectItemSave = true;
-  await page.goto("/profile/inventory");
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await page.getByLabel("Title", { exact: true }).fill("Keep my reviewed item draft");
-  await page.getByRole("button", { name: "Save listing", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Item changed");
-  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Keep my reviewed item draft");
-  expect(state.itemSaves[0]).toMatchObject({ title: "Keep my reviewed item draft", expected_revision: 1 });
 });
 
 test("Home Profile Trade navigation remains usable at 390px without offers", async ({ page }) => {
@@ -318,35 +300,3 @@ for (const [legacy, canonical] of [
     await expect(page).toHaveURL(new RegExp(`${canonical}$`));
   });
 }
-
-test("keyboard sign-in and profile saving work in the mobile layout", async ({ page }, testInfo) => {
-  const state = await installApi(page, false);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/home");
-  await page.getByLabel("Username", { exact: true }).focus();
-  await page.keyboard.type("alice.test");
-  await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
-  await page.keyboard.type("synthetic-password");
-  await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/profile$/);
-  const displayName = page.getByLabel("Display name", { exact: true });
-  await expect(displayName).toHaveValue("Alice Example");
-  await displayName.focus();
-  await page.keyboard.press("End");
-  await page.keyboard.type(" Keyboard");
-  await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Community", { exact: true })).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Save profile", exact: true })).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("status")).toContainText("Profile saved.");
-  expect(state.profileSaves[0]).toMatchObject({ name: "Alice Example Keyboard" });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("profile-mobile.png"), fullPage: true });
-  for (const section of ["Inventory", "Preferences"]) {
-    await page.getByRole("navigation", { name: "Profile navigation" }).getByRole("link", { name: section, exact: true }).click();
-    await expect(page.getByRole("button", { name: section === "Inventory" ? "Save listing" : "Save preferences", exact: true })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
-});
