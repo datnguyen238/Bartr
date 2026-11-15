@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import localFont from "next/font/local";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ListingItemRow, MemberListing } from "./discover/_components/member-listing";
 import { Brand } from "@/components/brand";
@@ -15,7 +16,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -38,10 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace/provider";
 import {
   ArrowRight,
-  Check,
   Compass,
   Handshake,
-  Leaf,
   Lock,
   Package,
   Search,
@@ -49,36 +47,15 @@ import {
 } from "@/components/icons";
 import { money, type Item } from "@/lib/marketplace";
 
+const handshakeFont = localFont({
+  src: "./fonts/handlee.ttf",
+  weight: "400",
+  display: "swap",
+  fallback: ["Segoe Print", "Comic Sans MS", "cursive"],
+});
+
 const fieldClass =
   "h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-shadow focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25";
-
-function BundleSide({
-  label,
-  items,
-  total,
-}: {
-  label: string;
-  items: { title: string; value: string }[];
-  total: string;
-}) {
-  return (
-    <div className="rounded-xl border bg-background/70 p-4">
-      <p className="caption mb-3">{label}</p>
-      <ul className="space-y-2">
-        {items.map((item) => (
-          <li key={item.title} className="flex items-start justify-between gap-3 text-sm">
-            <span>{item.title}</span>
-            <span className="shrink-0 text-muted-foreground">{item.value}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 flex items-center justify-between border-t pt-3 text-sm font-medium">
-        <span>Estimated total</span>
-        <span>{total}</span>
-      </p>
-    </div>
-  );
-}
 
 function BrowseSkeleton() {
   return (
@@ -280,106 +257,10 @@ export default function LandingPage() {
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-14">
-          <div>
-            <Badge tone="neutral" className="mb-5">
-              <Leaf className="size-3.5" aria-hidden="true" />
-              A money-free marketplace for campus communities
-            </Badge>
-            <h1 className="font-display text-5xl leading-[0.98] tracking-[-0.04em] sm:text-6xl">
-              Trade what you have
-              <br className="hidden sm:block" />{" "}
-              for what you{" "}
-              <span className="italic text-accent-warm">actually need.</span>
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground">
-              Browse items your neighbors are ready to trade, combine one to
-              three things on each side, and agree only when the exchange is
-              right for you. No cash. No pressure. No strangers outside your
-              community.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" asChild>
-                <a href="#browse">
-                  Browse available items
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </a>
-              </Button>
-              {browsing ? (
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/discover">See bundle matches</Link>
-                </Button>
-              ) : (
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/register">Create an account</Link>
-                </Button>
-              )}
-            </div>
-            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
-              {[
-                "One to three items per side",
-                "Estimated values, not payments",
-                "You approve every trade",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2">
-                  <Check className="size-4 text-accent-warm" aria-hidden="true" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <Card className="overflow-hidden border-foreground/10 bg-card/90 shadow-xl shadow-foreground/5">
-            <CardHeader className="border-b bg-secondary/50">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Badge tone="info">Example bundle</Badge>
-                <span className="text-xs text-muted-foreground">
-                  Same campus · voluntary
-                </span>
-              </div>
-              <CardTitle className="font-display text-2xl">
-                A chair and a calculator for a monitor
-              </CardTitle>
-              <CardDescription>
-                Bartr looks across both inventories, not just one item for one
-                item.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
-                <BundleSide
-                  label="One member offers"
-                  items={[
-                    { title: "Wooden chair", value: "$40" },
-                    { title: "Scientific calculator", value: "$20" },
-                  ]}
-                  total="$60"
-                />
-                <div className="flex items-center justify-center">
-                  <span className="grid size-11 place-items-center rounded-full border bg-background text-accent-warm">
-                    <Handshake className="size-5" aria-hidden="true" />
-                  </span>
-                </div>
-                <BundleSide
-                  label="The other offers"
-                  items={[{ title: "24-inch monitor", value: "$65" }]}
-                  total="$65"
-                />
-              </div>
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <Badge tone="warning">7.7% estimated gap</Badge>
-                <span className="text-xs leading-5 text-muted-foreground">
-                  Values are estimates, not a required exchange rate or a cash
-                  obligation.
-                </span>
-              </div>
-            </CardContent>
-            <CardFooter className="border-t bg-secondary/30 py-3 text-xs text-muted-foreground">
-              <Shield className="mr-2 size-3.5 shrink-0" aria-hidden="true" />
-              Both members review the exact items and consent to the same
-              version.
-            </CardFooter>
-          </Card>
+        <section className="mx-auto max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16">
+          <h1 className={`${handshakeFont.className} text-[clamp(3.5rem,8vw,7rem)] font-normal leading-[1.2] tracking-normal text-balance`}>
+            Bart<span className="opacity-25">e</span>r.
+          </h1>
         </section>
 
         <section
