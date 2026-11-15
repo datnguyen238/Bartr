@@ -679,7 +679,7 @@ export default function LandingPage() {
                 <div>
                   <dt className="text-xs text-muted-foreground">Value source</dt>
                   <dd className="mt-1 font-medium capitalize">
-                    {selected.value_source}
+                    {selected.value_basis === "image_assisted_estimate" ? "AI estimate · no comparable listings" : selected.value_source}
                   </dd>
                 </div>
                 <div>

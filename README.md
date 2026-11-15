@@ -18,10 +18,9 @@ Requires Python 3.10+ and Node.js 20.19+. From the repository root:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-cp .env.example .env
 ```
 
-The example selects `BARTR_STORAGE=json` and creates `.bartr/bartr.local.json` for temporary local testing. Do not overwrite an existing `.env` when updating your checkout. Environment variables override the root `.env`. For DynamoDB, set `BARTR_STORAGE=dynamodb`, the existing table name and String `PK`/`SK` names, region, and your AWS credential profile as documented in [the setup guide](docs/DYNAMODB-LOGIN-VALUATION.md). Legacy MongoDB remains selectable with `BARTR_STORAGE=mongo` and `MONGODB_URI`.
+For shared accounts, configure the ignored root `.env` for DynamoDB using [the setup guide](docs/DYNAMODB-LOGIN-VALUATION.md). Each teammate needs AWS credentials with access to the same account, region and table. Do not commit or share credentials. Environment variables override the root `.env`. DynamoDB is the default; JSON and memory storage require an additional explicit opt-in for isolated testing.
 
 **Terminal 1 — backend:**
 
@@ -40,16 +39,16 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:3000**. API docs: **http://localhost:8000/docs**. Keep both terminals running. The frontend forwards `/api` requests to port 8000; change `frontend/.env.local` using its `.env.example` and restart/rebuild if the origin differs.
+Open **http://localhost:3000**. API docs: **http://localhost:8000/docs**. Keep both terminals running. The frontend forwards `/api` requests to port 8000; set `API_BASE_URL` in `frontend/.env.local` and restart if the backend origin differs.
 
 The public landing page is at `/`. After sign-in, the main sidebar provides Home, Profile and Trades; `/discover` contains marketplace discovery, and `/trades` opens the offer workspace. Profile and inventory retain account-scoped session and draft handling.
 
 ### Temporary JSON document mode without Atlas or AI credentials
 
-The root `.env.example` selects this mode. It can also be selected explicitly:
+For isolated local testing only, select this mode explicitly:
 
 ```sh
-BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 This explicitly selects a local, versioned JSON document. Accounts, sessions, listings, trades and test images survive a backend restart. The file may contain password hashes, sessions, private notes and images, is ignored by Git, and must not be shared or committed. Use exactly one worker/process. There is no silent fallback after a MongoDB or JSON-file failure, and this mode is not production storage.
@@ -68,13 +67,13 @@ The expanded fixture gives all ten demo users three available items each (plus t
 ```sh
 BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.multi-items.json \
   .venv/bin/python -m backend.scripts.seed_demo_json
-BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.multi-items.json \
+BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.multi-items.json \
   .venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Stop the previous API before starting the second command. Existing marked databases are not refreshed or reset by the seeder; each retains its accounts, sessions, listing edits and trades.
 
-For a fully ephemeral run, use `BARTR_STORAGE=memory` instead; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import the JSON fixture or its demo account.
+For a fully ephemeral run, set `BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=memory`; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import local accounts or other data.
 
 Create two accounts in separate browser profiles or an incognito window, with the same community. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Select **Find bundle matches** under Discover; DynamoDB and JSON automatically use exact-text matching. You should see the 7.7% gap combination when their interests match.
 

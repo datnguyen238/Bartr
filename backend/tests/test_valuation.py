@@ -85,13 +85,15 @@ def test_market_analysis_computes_median_and_requires_sufficient_comparables(mon
     assert result['range']['low_minor'] == 2000 and result['range']['high_minor'] == 4000
     assert result['comparison_basis'] == 'asking' and len(result['evidence']) == 3
     fixture['extraction'].comparables[0].price_minor = 9999
+    async def fallback(self, facts, image):
+        return {'status': 'unknown', 'estimate_minor': None, 'price_basis': 'image_assisted_estimate', 'evidence': []}
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiImageAnalysis.analyze', fallback)
     rejected = asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
-    assert rejected['status'] == 'insufficient_evidence' and rejected['estimate_minor'] is None
-    assert len(rejected['evidence']) == 2
-    assert all(entry['price_minor'] != 9999 for entry in rejected['evidence'])
+    assert rejected['status'] == 'unknown' and rejected['estimate_minor'] is None
+    assert rejected['evidence'] == [] and rejected['fallback_reason'] == 'comparables_unavailable'
 
 
-def test_market_analysis_clarification_prevents_numeric_estimate(monkeypatch):
+def test_market_analysis_clarification_tries_image_fallback(monkeypatch):
     import asyncio
     from backend.app.services.market_analysis import MarketAnalysis
     fixture = evidence_fixture()
@@ -104,8 +106,12 @@ def test_market_analysis_clarification_prevents_numeric_estimate(monkeypatch):
         def valuate(self, facts, image):
             return fixture
     monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    async def fallback(self, facts, image):
+        return {'status': 'estimated', 'estimate_minor': 2200, 'price_basis': 'image_assisted_estimate', 'evidence': [], 'attributes': {'clarification_questions': []}}
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiImageAnalysis.analyze', fallback)
     result = asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
-    assert result['status'] == 'clarification_required' and result['estimate_minor'] is None
+    assert result['status'] == 'estimated' and result['estimate_minor'] == 2200
+    assert result['price_basis'] == 'image_assisted_estimate'
 
 
 def test_market_analysis_surfaces_quota_failure_without_provider_details(monkeypatch):
@@ -118,10 +124,13 @@ def test_market_analysis_surfaces_quota_failure_without_provider_details(monkeyp
         def valuate(self, facts, image):
             raise ValuationProviderError('search', 429, 30)
     monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    async def fallback(self, facts, image):
+        raise AppError('Image evaluation is unavailable; try again later.', 'ANALYSIS_UNAVAILABLE', 503)
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiImageAnalysis.analyze', fallback)
     with pytest.raises(AppError) as caught:
         asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
-    assert caught.value.code == 'ANALYSIS_RATE_LIMITED'
-    assert 'quota' in str(caught.value).lower()
+    assert caught.value.code == 'ANALYSIS_UNAVAILABLE'
+    assert 'try again' in str(caught.value).lower()
 
 def test_real_adapter_uses_grounding_metadata_and_separate_extraction(monkeypatch):
     genai = pytest.importorskip("google.genai")
@@ -238,8 +247,11 @@ def test_market_analysis_timeout_is_actionable_and_does_not_expose_provider_erro
         def valuate(self, facts, image):
             raise TimeoutError('private provider details')
     monkeypatch.setattr('backend.app.services.market_analysis.GeminiValuationProvider', Provider)
+    async def fallback(self, facts, image):
+        raise AppError('Image evaluation is unavailable; try again later.', 'ANALYSIS_UNAVAILABLE', 503)
+    monkeypatch.setattr('backend.app.services.market_analysis.GeminiImageAnalysis.analyze', fallback)
     with pytest.raises(AppError) as caught:
         asyncio.run(MarketAnalysis().analyze({'title': 'Lamp'}, {'data': b'image', 'mime_type': 'image/jpeg'}))
-    assert caught.value.code == 'ANALYSIS_TIMEOUT' and caught.value.status == 503
+    assert caught.value.code == 'ANALYSIS_UNAVAILABLE' and caught.value.status == 503
     assert 'private' not in str(caught.value) and 'try again' in str(caught.value).lower()
 

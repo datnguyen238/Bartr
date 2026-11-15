@@ -4,6 +4,8 @@ The current implementation uses the approved [DynamoDB schema v1](../specs/001-s
 
 ## Configuration
 
+Account-storage safeguard (FR-001–002): DynamoDB is the default. Starting with `BARTR_STORAGE=json` or `memory` now also requires `BARTR_ALLOW_LOCAL_STORAGE=true`; otherwise the backend stops before creating or modifying a local database. This explicit opt-in preserves isolated test workflows and prevents an old JSON `.env` from silently storing team accounts locally. It does not migrate existing accounts. Keep any local JSON file intact until a separately reviewed migration or account recreation is complete.
+
 Use the owner's existing `bartr-dev` table in `us-east-1` with String partition key `PK` and String sort key `SK`. The application creates no tables or indexes. Configure the ignored root `.env` or process environment:
 
 ```dotenv
@@ -31,7 +33,7 @@ Run `npm run dev` from `frontend/` and use the existing localhost:3000 frontend.
 For temporary local JSON testing, override storage explicitly:
 
 ```sh
-BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json \
+BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json \
   .venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 

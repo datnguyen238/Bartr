@@ -336,3 +336,23 @@ Revision `d5ba28a` plus uncommitted changes. Backend in-memory account, image an
 ### Estimate selection and inventory removal — 2026-11-15
 
 Revision `d5ba28a` plus uncommitted changes; local Node 20.19.0. Inventory unit tests passed (31), backend domain/API fixture tests passed (40), frontend typecheck passed, and five Chromium scenarios passed using synthetic mocked API responses. A successful current estimate is automatically populated after explicit evaluation; insufficient and stale results are not applied. Item removal uses a confirmation and the saved item's revision; stale removal fails visibly. Live DynamoDB concurrency, real-user signed-in browser, accessibility, and independent review were not run.
+
+### Image estimate fallback — 2026-11-15
+
+Revision `5620328` plus uncommitted changes; local Python 3.12 with in-memory/JSON storage and synthetic provider fixtures. Backend valuation, image, domain and API tests passed (73); frontend Node 20.19.0 fixture tests passed (107) and typecheck passed. Tests cover search timeout/quota and insufficient evidence fallback, fallback failure, current-owner publication, value tampering and provenance display. Live Gemini, real DynamoDB, teammate configuration, estimate accuracy, browser accessibility and independent review were not run. A missing or invalid Gemini key or unavailable image model can still prevent evaluation; the fallback does not provide an independent provider.
+
+### Local account storage guard — 2026-11-15
+
+Revision `5620328` plus uncommitted changes; local Python 3.12, offline repository fixtures. `backend/.venv/bin/python -m pytest -q backend/tests/test_api.py backend/tests/test_marketplace_api.py backend/tests/test_market_fallback.py` passed (26). JSON and memory startup without explicit opt-in is rejected before creating a local file; default DynamoDB selection and deliberate local modes are tested. Existing local accounts are not migrated. Teammates' actual configuration, live AWS permissions and DynamoDB writes, browser integration, and independent review were not run.
+
+### Optional valuation details — 2026-11-15
+
+Revision `5620328` plus uncommitted changes; Python 3.12, in-memory/JSON repositories, synthetic provider fixtures. `backend/.venv/bin/python -m pytest -q backend/tests/test_market_fallback.py backend/tests/test_valuation.py backend/tests/test_image_assessment.py backend/tests/test_marketplace_api.py backend/tests/test_marketplace.py` passed (75); Node 20.19.0 frontend tests passed (107) and typecheck passed. Fixtures cover clarification-to-fallback, incomplete-analysis retries, no invented estimate for an unidentifiable item, provenance and publication. Live Gemini compliance with the prompt, estimate quality, real DynamoDB, accessibility and independent review were not run.
+
+### No-price image fallback — 2026-11-15
+
+Revision `5620328` plus uncommitted changes; Python 3.12, synthetic Gemini responses and in-memory API fixtures. `backend/.venv/bin/python -m pytest -q backend/tests/test_image_assessment.py backend/tests/test_market_fallback.py backend/tests/test_marketplace_api.py backend/tests/test_valuation.py` passed (44); Node 20.19.0 frontend tests passed (107) and typecheck passed. Tests cover retaining a valid estimate with optional questions, rejecting flagged material conflicts, a single retry on a missing estimate and preserving unknown on retry failure. Live Gemini behavior and this user's specific item were not verified. The retry can incur another provider request and its result remains an unverified AI estimate.
+
+### Short description valuation — 2026-11-15
+
+Revision `5620328` plus uncommitted changes; Python 3.12 with synthetic provider fixtures. Backend image, fallback, valuation and API tests passed (44), including an adapter with a short description and no wattage. A synthetic live Gemini image check failed with a network connection error; actual provider behavior and price quality remain unverified. Existing item descriptions and listings were not modified.

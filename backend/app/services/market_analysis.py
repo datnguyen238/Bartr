@@ -3,9 +3,15 @@ from starlette.concurrency import run_in_threadpool
 
 from ..errors import AppError
 from .valuation import GeminiValuationProvider, ValuationProviderError, calculate, now
+from .image_analysis import GeminiImageAnalysis
 
 
 class MarketAnalysis:
+    async def fallback(self, facts, image):
+        result = await GeminiImageAnalysis().analyze(facts, image)
+        result['fallback_reason'] = 'comparables_unavailable'
+        return result
+
     async def analyze(self, facts, image):
         provider = GeminiValuationProvider()
         if not provider.configured:
@@ -15,19 +21,17 @@ class MarketAnalysis:
         try:
             batch = await run_in_threadpool(provider.valuate, facts, image)
             result = calculate(batch['extraction'], batch['sources'], now().isoformat())
-        except ValuationProviderError as exc:
-            if exc.status_code == 429:
-                raise AppError('Google Search is rate-limited or unavailable for this Gemini project. Your draft is saved; check quota and billing, then try again.', 'ANALYSIS_RATE_LIMITED', 503) from exc
-            raise AppError('Comparable search is unavailable. Your draft is saved; try again later.', 'ANALYSIS_UNAVAILABLE', 503) from exc
-        except TimeoutError as exc:
-            raise AppError('Item evaluation took too long. Your draft is saved; please try again.', 'ANALYSIS_TIMEOUT', 503) from exc
+        except (ValuationProviderError, TimeoutError):
+            return await self.fallback(facts, image)
         except Exception as exc:
             import logging
             logging.getLogger('uvicorn.error').warning('Comparable search failed provider=gemini type=%s status=%s', type(exc).__name__, getattr(exc, 'status_code', None))
-            raise AppError('Comparable search is unavailable. Your draft is saved; try again later.', 'ANALYSIS_UNAVAILABLE', 503) from exc
+            return await self.fallback(facts, image)
 
         attributes = batch['attributes']
         needs_clarification = attributes.get('clarification_needed') or bool(attributes.get('clarification_questions'))
+        if result['status'] == 'insufficient_evidence' or needs_clarification:
+            return await self.fallback(facts, image)
         eligible = [entry for entry in result['evidence'] if entry['source_id'] in result['evidence_ids']]
         evidence = eligible if result['status'] == 'estimated' else result['evidence']
         prices = sorted(entry['price_minor'] for entry in eligible)

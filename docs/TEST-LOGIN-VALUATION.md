@@ -14,11 +14,15 @@ python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 
 If already in `backend/`, activate `../.venv/bin/activate` and use `python3 -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`.
 
-Root `.env` is loaded automatically. Explicit shell environment variables take precedence, so clear an old exported `BARTR_STORAGE=memory` or conflicting `AWS_PROFILE` before starting. Keep terminal 1 open. The frontend is not needed.
+Root `.env` is loaded automatically. Explicit shell environment variables take precedence, so clear an old exported `BARTR_STORAGE=json` or `memory` and any conflicting `AWS_PROFILE` before starting. Local-only modes also require `BARTR_ALLOW_LOCAL_STORAGE=true`; do not enable it for shared accounts. Keep terminal 1 open. The frontend is not needed.
 
 For frontend testing, start the frontend in another terminal with Node 20.19 or newer: `cd frontend && npm run dev`. Open `http://localhost:3000` and sign in with a test account before checking authenticated pages. Create the account first if necessary. Set `NEXT_PUBLIC_USE_SEED_DATA=false` in `frontend/.env.local` so actions reach the backend, then restart the frontend after changing it. For valuation, upload a photo, review the suggested details, choose the condition, and select **Estimate price**. Review the estimate, uncertainty, and sources before publishing; a successful current estimate is applied automatically. Live provider smoke tests do not establish price accuracy.
 
-The Add item dialog uses **Estimate price** to search for comparable listings. The market-search model uses `GEMINI_VALUATION_MODEL` or falls back to `GEMINI_MODEL`; `GEMINI_EXTRACTION_MODEL` optionally selects the extraction model. Restart the backend after changing settings. Review the sources before publication. If search is unavailable or there is insufficient evidence, keep the draft and retry later.
+The Add item dialog uses **Estimate price** to search for comparable listings. The market-search model uses `GEMINI_VALUATION_MODEL` or falls back to `GEMINI_MODEL`; `GEMINI_EXTRACTION_MODEL` optionally selects the extraction model. If search fails or has insufficient evidence, the app requests an image-based AI estimate and labels it as having no comparable listings. This fallback uses `GEMINI_IMAGE_MODEL`, `GEMINI_VALUATION_MODEL`, or `GEMINI_MODEL` in that order. Each developer needs their own configured `GEMINI_API_KEY` and model access; restart the backend after changing settings. If both searches and image evaluation fail, the draft is preserved and the user can retry. Do not commit credentials.
+
+The model is instructed to make a rough estimate without asking for optional details such as exact wattage or unconfirmed working order. If comparable search requests clarification, the image-based path tries an estimate; a genuinely unidentifiable item or a material conflict may still need clarification. Model behavior and estimate accuracy require live evaluation.
+
+When the image model provides both a positive estimate and optional questions, the estimate remains usable unless the model flags a material conflict. If it provides no estimate for an identifiable item, the backend makes one additional image-model request; this can add latency and provider usage. An unavailable or null retry does not create a price.
 
 For a faster local valuation, set both `GEMINI_VALUATION_MODEL` and `GEMINI_EXTRACTION_MODEL` to `gemini-3.5-flash-lite`. One synthetic-image smoke test was faster than `gemini-3.8-flash`, but it does not establish real-item accuracy or typical latency. The same source and evidence checks still apply. Model access and charges depend on the configured Google project.
 
@@ -83,7 +87,7 @@ curl -b /tmp/bartr-test-cookies.txt \
   http://127.0.0.1:8000/api/items/ITEM_ID/analysis
 ```
 
-Expected: saved `analysis_id`, `estimate_minor` in USD cents or null, comparable range and source links when sufficient evidence exists, uncertainty/reasons, and any clarification questions. The backend calculates the median of at least three eligible cited comparable prices. Provider-cited output is not independent verification that a source page currently lists that price. Failure or insufficient evidence must not silently publish or assign a price. Analysis is saved for the exact revision.
+Expected: saved `analysis_id`, `estimate_minor` in USD cents or null, comparable range and source links when sufficient evidence exists, uncertainty/reasons, and any clarification questions. The backend calculates the median of at least three eligible cited comparable prices or returns a labeled image-based fallback without sources. Provider-cited output is not independent verification that a source page currently lists that price. Analysis does not publish the listing and is saved for the exact revision.
 
 ## 6. Review the estimate and publish
 

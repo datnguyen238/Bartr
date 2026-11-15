@@ -159,7 +159,7 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
               <h3 className="break-words text-base font-medium">{item.title || "Untitled draft"}</h3>
               <p className="inventory-status mt-1 text-sm text-muted-foreground">{statusNames[item.status]}</p>
               <p className="mt-1 text-sm">{item.value_minor === null ? "Value not set" : money(item.value_minor)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{item.value_source === "owner" ? "Value entered by you" : item.value_minor === null ? "You can add a value later" : "AI-assisted estimate"}{item.value_set_at ? ` · ${new Date(item.value_set_at).toLocaleDateString()}` : ""}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{item.value_source === "owner" ? "Value entered by you" : item.value_minor === null ? "You can add a value later" : item.value_basis === "image_assisted_estimate" ? "AI estimate · no comparable listings" : "AI-assisted estimate"}{item.value_set_at ? ` · ${new Date(item.value_set_at).toLocaleDateString()}` : ""}</p>
             </div>
             {["draft", "available"].includes(item.status) && <Button variant="outline" aria-label={`Edit ${item.title || "untitled draft"}`} onClick={event => openEditor(item, event.currentTarget)} disabled={busy || seeded}>Edit</Button>}
             {["draft", "available"].includes(item.status) && <AlertDialog>
@@ -230,8 +230,9 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
             {!view.integrations?.gemini_configured && <p className="text-sm text-muted-foreground">Evaluation is unavailable. Save your draft and try again later.</p>}
             {editing?.status === "available" && listingDirty && <p className="text-sm text-muted-foreground">Save your changes before evaluating this item.</p>}
             {editing?.analysis && <div className="space-y-3 pt-4">
-              <h4 className="font-medium">Comparable listings</h4>
-              {editing.analysis.estimate_minor != null ? <p className="text-sm leading-6">Suggested value: {money(editing.analysis.estimate_minor)}{editing.analysis.comparison_basis ? ` · ${editing.analysis.comparison_basis} prices` : ""}.</p> : <p className="text-sm leading-6 text-muted-foreground">{editing.analysis.status === "clarification_required" ? "More item details are needed before an estimate can be given." : "No estimate yet. At least three comparable listings with supported prices are needed. Check the title and condition, then evaluate again."}</p>}
+              <h4 className="font-medium">{editing.analysis.price_basis === "image_assisted_estimate" ? "AI estimate" : "Comparable listings"}</h4>
+              {editing.analysis.price_basis === "image_assisted_estimate" && <p className="text-sm text-muted-foreground">This AI estimate uses the photo and item details, without comparable listings.</p>}
+              {editing.analysis.estimate_minor != null ? <p className="text-sm leading-6">Suggested value: {money(editing.analysis.estimate_minor)}{editing.analysis.comparison_basis ? ` · ${editing.analysis.comparison_basis} prices` : ""}.</p> : <p className="text-sm leading-6 text-muted-foreground">{editing.analysis.status === "clarification_required" ? "More item details are needed before an estimate can be given." : editing.analysis.price_basis === "image_assisted_estimate" ? "No estimate was found. Review the item details and try again." : "No estimate yet. At least three comparable listings with supported prices are needed. Check the title and condition, then evaluate again."}</p>}
               {editing.analysis.range && <p className="text-sm leading-6">Comparable range: {money(editing.analysis.range.low_minor)}–{money(editing.analysis.range.high_minor)}.</p>}
               {editing.analysis.estimate_minor != null && (["title", "description", "category", "condition"] as const).some(key => form[key] !== editing[key]) && <p className="text-sm text-muted-foreground">Item details changed. Evaluate again before selecting an estimate.</p>}
               {editing.analysis.estimate_minor != null && form.value && Number(form.value) * 100 === editing.analysis.estimate_minor && <p className="text-sm font-medium">Estimate selected</p>}
@@ -250,7 +251,7 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
                   setForm(current => (["title", "description", "category", "condition"] as const).every(key => current[key] === target[key]) ? { ...current, value: (analysis.estimate_minor! / 100).toFixed(2) } : current);
                 }
                 await guardSession(load());
-                announce(analysis.estimate_minor == null ? "No estimate was found. Review the item details and try again." : "Comparable listings are ready for review.");
+                announce(analysis.estimate_minor == null ? "No estimate was found. Review the item details and try again." : analysis.price_basis === "image_assisted_estimate" ? "AI estimate ready without comparable listings." : "Comparable listings are ready for review.");
               });
             }}>Estimate price</Button>
                 <Button type="submit" className={editing?.status === "available" ? "ml-auto" : undefined} variant={editing?.status === "available" ? "default" : "outline"}>{busy ? "Saving…" : editing?.status === "available" ? "Save changes" : "Save draft"}</Button>

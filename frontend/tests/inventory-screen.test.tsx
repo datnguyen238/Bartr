@@ -41,6 +41,16 @@ function renderEditor() {
   return result;
 }
 
+it("identifies a fallback estimate as having no comparable listings", () => {
+  const analysis = { analysis_id: "synthetic", status: "estimated" as const, estimate_minor: 1500, price_basis: "image_assisted_estimate" as const, attributes: { description: "A synthetic item description", brand: null, model: null, clarification_needed: false, clarification_questions: [] }, generated_at: "2026-01-01T00:00:00Z", item_revision: 2 };
+  const item = { ...savedItem, analysis };
+  mocks.workspace.editing = item; mocks.workspace.mine = [item];
+  renderEditor();
+  expect(screen.getByText(/without comparable listings/)).toBeInTheDocument();
+  expect(screen.getByText(/Suggested value: \$15\.00/)).toBeInTheDocument();
+  expect(screen.queryByText("A synthetic item description")).not.toBeInTheDocument();
+});
+
 describe("inventory photo attachment", () => {
   it("updates the saved editing revision without replacing unsaved listing fields", async () => {
     const attached = { ...savedItem, revision: 3, image_id: "synthetic-image" };

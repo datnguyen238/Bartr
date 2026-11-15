@@ -13,7 +13,7 @@ export default defineConfig({
       url: "http://127.0.0.1:8101/api/health",
       reuseExistingServer: false,
       env: {
-        BARTR_STORAGE: "memory", WEB_ORIGINS: "http://127.0.0.1:3101", COOKIE_SECURE: "false",
+        BARTR_STORAGE: "memory", BARTR_ALLOW_LOCAL_STORAGE: "true", WEB_ORIGINS: "http://127.0.0.1:3101", COOKIE_SECURE: "false",
         GEMINI_API_KEY: "", AWS_REGION: "", BEDROCK_EMBEDDING_MODEL: "",
       },
     },

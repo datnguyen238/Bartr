@@ -24,7 +24,7 @@ These constraints follow the AWS documentation for [optimistic locking and condi
 
 ## Acceptance and rejected cases
 
-- Starting with `BARTR_STORAGE=json` and no `MONGODB_URI` creates a schema-versioned local document and supports register, sign-in, listing, proposal, agreement, cancellation, and handoff paths.
+- Starting with `BARTR_STORAGE=json BARTR_ALLOW_LOCAL_STORAGE=true` and no `MONGODB_URI` creates a schema-versioned local document and supports register, sign-in, listing, proposal, agreement, cancellation, and handoff paths. Without the explicit opt-in, the API refuses to start in local-only mode.
 - Reopening the repository at the same path returns committed accounts, sessions, items, trades, command receipts, valuations, and images.
 - A domain exception, invalid JSON value, I/O failure, corrupt file, or unknown schema version never produces a partially committed or silently empty state.
 - Draft, reserved, exchanged, and removed listings retain their existing discovery and mutation rules.

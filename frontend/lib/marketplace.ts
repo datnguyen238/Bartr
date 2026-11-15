@@ -31,6 +31,7 @@ export interface Analysis {
   range?: { low_minor: number; high_minor: number };
   reason?: string;
   comparison_basis?: "asking" | "sold" | null;
+  price_basis?: "market_comparables" | "image_assisted_estimate";
   evidence?: { uri: string; title: string; price_minor: number; price_type?: string; condition?: string; match_kind?: "exact" | "similar" | "unknown" }[];
   attribution?: { search_entry_point_html?: string | null };
   generated_at: string;
@@ -47,6 +48,7 @@ export interface Item {
   image_id: string | null;
   value_minor: number | null;
   value_source: string;
+  value_basis?: "market_comparables" | "image_assisted_estimate" | null;
   value_set_at: string | null;
   uncertainty: string | null;
   status: "draft" | "available" | "reserved" | "exchanged" | "removed";
@@ -133,7 +135,7 @@ export async function api<T>(
       cache: "no-store",
       headers: { "Content-Type": "application/json", "X-Bartr-Request": "1" },
       body: data === undefined ? undefined : JSON.stringify(data),
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(/^items\/[^/]+\/analysis$/.test(path) ? 200000 : 120000),
     });
   } catch {
     throw new ApiError(

@@ -21,6 +21,8 @@ def create_app(repository=None) -> FastAPI:
     mode=os.getenv('BARTR_STORAGE','dynamodb').lower()
     if mode not in {'mongo','memory','json','dynamodb'}:
         raise ValueError('BARTR_STORAGE must be dynamodb, mongo, json or memory.')
+    if repository is None and mode in {'json', 'memory'} and os.getenv('BARTR_ALLOW_LOCAL_STORAGE', '').lower() != 'true':
+        raise ValueError('Local-only account storage is disabled. Set BARTR_STORAGE=dynamodb for the shared database, or set BARTR_ALLOW_LOCAL_STORAGE=true for isolated local testing. Existing local data is not migrated.')
     if repository is not None:
         repo=repository
     elif mode=='dynamodb':

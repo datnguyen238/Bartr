@@ -224,7 +224,7 @@ async def analysis(item_id:str,body:Expected,request:Request,who=Depends(actor))
     if item['revision']!=body.expected_revision:
         raise AppError('Item changed. Reload first.','STALE_ITEM')
     prior=item.get('analysis')
-    if prior and prior['item_revision']==item['revision'] and prior.get('price_basis')=='market_comparables' and prior.get('status') in {'estimated', 'clarification_required'}:
+    if prior and prior['item_revision']==item['revision'] and prior.get('price_basis')=='market_comparables' and prior.get('status') == 'estimated':
         return prior
     image=await run_in_threadpool(service.repo.image,item['image_id']) if item.get('image_id') else None
     value=await MarketAnalysis().analyze(

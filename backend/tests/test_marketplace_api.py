@@ -2,6 +2,7 @@ import asyncio
 from io import BytesIO
 
 import httpx
+import pytest
 from PIL import Image
 
 from backend.app.main import create_app
@@ -77,12 +78,37 @@ def test_publication_requires_current_owned_ai_estimate(monkeypatch):
     asyncio.run(check())
 
 
-def test_insufficient_comparables_keep_draft_private_and_allow_retry(monkeypatch):
+def test_fallback_estimate_can_publish_without_losing_provenance(monkeypatch):
+    from backend.app.services.market_analysis import MarketAnalysis
+    async def assess(self, facts, image):
+        return {'status': 'estimated', 'price_basis': 'image_assisted_estimate', 'fallback_reason': 'comparables_unavailable', 'estimate_minor': 4200, 'uncertainty': 'high', 'attributes': {'description': 'Synthetic', 'clarification_questions': []}}
+    monkeypatch.setattr(MarketAnalysis, 'analyze', assess)
+    async def check():
+        app = create_app(StateRepository(memory=True))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test', headers={'X-Bartr-Request': '1'}) as client:
+            await client.post('/api/auth/register', json={'username': 'owner', 'password': 'synthetic-password', 'name': 'Owner', 'community': 'Test'})
+            facts = {'title': 'Chair', 'description': 'Wooden chair', 'category': 'Furniture', 'condition': 'Good', 'value_minor': None, 'status': 'draft'}
+            created = (await client.post('/api/items', json=facts)).json()
+            image = BytesIO(); Image.new('RGB', (80, 80), 'tan').save(image, 'JPEG')
+            item = (await client.post(f"/api/items/{created['id']}/image?expected_revision=1", files={'file': ('test.jpg', image.getvalue(), 'image/jpeg')})).json()
+            path = f"/api/items/{item['id']}"
+            analysis = (await client.post(path + '/analysis', json={'expected_revision': item['revision']})).json()
+            rejected = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4201, 'expected_revision': item['revision'], 'analysis_id': analysis['analysis_id']})
+            assert rejected.status_code == 422
+            published = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4200, 'expected_revision': item['revision'], 'analysis_id': analysis['analysis_id']})
+            assert published.status_code == 200
+            assert published.json()['value_basis'] == 'image_assisted_estimate'
+            assert (await client.get(path)).json()['value_basis'] == 'image_assisted_estimate'
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize('status', ['insufficient_evidence', 'clarification_required'])
+def test_incomplete_analysis_keeps_draft_private_and_allows_retry(monkeypatch, status):
     from backend.app.services.market_analysis import MarketAnalysis
     calls = []
     async def assess(self, facts, image):
         calls.append(1)
-        return {'status': 'insufficient_evidence', 'price_basis': 'market_comparables', 'estimate_minor': None,
+        return {'status': status, 'price_basis': 'market_comparables', 'estimate_minor': None,
                 'attributes': {'description': 'Synthetic', 'clarification_questions': []}, 'evidence': []}
     monkeypatch.setattr(MarketAnalysis, 'analyze', assess)
 
@@ -96,7 +122,7 @@ def test_insufficient_comparables_keep_draft_private_and_allow_retry(monkeypatch
             item = (await client.post(f"/api/items/{item['id']}/image?expected_revision=1", files={'file': ('test.jpg', image.getvalue(), 'image/jpeg')})).json()
             path = f"/api/items/{item['id']}"
             first = (await client.post(path + '/analysis', json={'expected_revision': item['revision']})).json()
-            assert first['status'] == 'insufficient_evidence' and first['estimate_minor'] is None
+            assert first['status'] == status and first['estimate_minor'] is None
             rejected = await client.patch(path, json={**facts, 'status': 'available', 'value_minor': 4000, 'expected_revision': item['revision'], 'analysis_id': first['analysis_id']})
             assert rejected.status_code == 422 and rejected.json()['code'] == 'EVALUATION_REQUIRED'
             assert (await client.get(path)).json()['status'] == 'draft'

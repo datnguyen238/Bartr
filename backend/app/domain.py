@@ -190,7 +190,7 @@ class Marketplace:
             changing_value = item['status'] == 'available' and 'value_minor' in changes and changes['value_minor'] != item.get('value_minor')
             if publishing or changing_value:
                 amount = changes.get('value_minor', item.get('value_minor'))
-                require(accepted is not None and accepted.get('price_basis') == 'market_comparables' and accepted.get('status') == 'estimated' and type(accepted.get('estimate_minor')) is int and accepted['estimate_minor'] > 0 and amount == accepted['estimate_minor'],
+                require(accepted is not None and (accepted.get('price_basis') == 'market_comparables' or (accepted.get('price_basis') == 'image_assisted_estimate' and accepted.get('fallback_reason') == 'comparables_unavailable')) and accepted.get('status') == 'estimated' and type(accepted.get('estimate_minor')) is int and accepted['estimate_minor'] > 0 and amount == accepted['estimate_minor'],
                         'Evaluate this item and use its current AI estimate before publishing or changing its value.', 'EVALUATION_REQUIRED', 422)
                 require(all(changes.get(k, item.get(k)) == item.get(k) for k in ('title', 'description', 'category', 'condition', 'image_id')),
                         'Item details changed after evaluation. Save and evaluate the current item again.', 'STALE_ANALYSIS', 409)
@@ -200,6 +200,7 @@ class Marketplace:
                 assisted=bool(accepted and amount is not None and amount==accepted.get('estimate_minor'))
                 if assisted or amount!=item.get('value_minor'):
                     item.update(value_source='assisted' if assisted else 'owner' if amount else 'unknown',
+                                value_basis=accepted.get('price_basis') if assisted else None,
                                 value_set_at=now() if amount else None,
                                 uncertainty=accepted.get('uncertainty') if assisted else None,
                                 valuation_analysis_id=analysis_id if assisted else None)
