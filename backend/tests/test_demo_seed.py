@@ -60,18 +60,17 @@ def test_seed_persists_public_demo_inventory_and_images(monkeypatch, tmp_path):
     )
 
     assert len(same_community - {actor}) >= 7
-    assert {member["id"] for member in view["members"]} == same_community
+    assert {member["id"] for member in view["members"]} == set(state["users"])
     assert all(set(member) == {"id", "name", "community"} for member in view["members"])
-    assert outside["id"] not in {member["id"] for member in view["members"]}
+    assert outside["id"] in {member["id"] for member in view["members"]}
 
     public_items = [item for item in view["items"] if item["owner"] != actor]
     assert public_items
-    assert len(public_items) == 24
+    assert len(public_items) == 27
     assert all(count == 3 for count in Counter(item["owner"] for item in public_items).values())
     assert any(item["value_minor"] is None for item in public_items)
     assert all(item["status"] == "available" for item in public_items)
-    assert all(item["owner"] in same_community for item in public_items)
-    assert outside["id"] not in {item["owner"] for item in public_items}
+    assert outside["id"] in {item["owner"] for item in public_items}
     assert all(
         any(
             interest.casefold()

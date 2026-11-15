@@ -21,7 +21,6 @@ export function HomeScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [community, setCommunity] = useState("");
   const [failure, setFailure] = useState<Error | null>(null);
   const register = params.get("mode") === "register";
   const destination = profileDestination(params.get("next"));
@@ -42,7 +41,7 @@ export function HomeScreen() {
     event.preventDefault();
     clearFailure();
     try {
-      if (register) await signUp({ username, password, name, community });
+      if (register) await signUp({ username, password, name });
       else await signIn({ username, password });
       router.replace(destination);
     } catch (error) {
@@ -76,7 +75,7 @@ export function HomeScreen() {
         <Button asChild><Link href="/profile/inventory">Open your inventory</Link></Button>
         <Button variant="outline" asChild><Link href="/profile/preferences">Update your interests</Link></Button>
       </div>
-      <p className="border-t pt-5 text-sm text-muted-foreground"><Link className="underline underline-offset-4" href="/profile">Go to your profile</Link> to update your public name and community.</p>
+      <p className="border-t pt-5 text-sm text-muted-foreground"><Link className="underline underline-offset-4" href="/profile">Go to your profile</Link> to update your public name.</p>
     </div>
   </section>;
 
@@ -115,12 +114,6 @@ export function HomeScreen() {
               <label className="text-sm font-medium" htmlFor="home-name">Display name</label>
               <Input id="home-name" autoComplete="nickname" required maxLength={200} value={name} aria-invalid={Boolean(fieldError("name"))} aria-describedby={fieldError("name") ? "home-name-error" : undefined} onChange={event => { clearFailure(); setName(event.target.value); }} />
               {fieldError("name") && <p id="home-name-error" className="text-sm text-destructive">{fieldError("name")}</p>}
-            </div>
-            <div className="field-group">
-              <label className="text-sm font-medium" htmlFor="home-community">Community</label>
-              <Input id="home-community" required maxLength={200} placeholder="Campus or city" value={community} aria-invalid={Boolean(fieldError("community"))} aria-describedby={`home-community-help${fieldError("community") ? " home-community-error" : ""}`} onChange={event => { clearFailure(); setCommunity(event.target.value); }} />
-              <p id="home-community-help" className="text-sm text-muted-foreground">Your display name and community are public. Leave out precise addresses.</p>
-              {fieldError("community") && <p id="home-community-error" className="text-sm text-destructive">{fieldError("community")}</p>}
             </div>
           </>}
           {errorMessage && <p className="inline-feedback text-sm leading-6" data-tone="error" role="alert">{errorMessage}</p>}

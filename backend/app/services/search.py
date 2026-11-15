@@ -67,15 +67,17 @@ class SemanticSearch:
         if not model or not os.getenv('GEMINI_API_KEY'):
             raise AppError('Configure Gemini to assess semantic preference and exclusion matches.','GEMINI_NOT_CONFIGURED',503)
         me=state['users'][actor]
-        current=[x for x in state['items'].values() if x['status']=='available' and state['users'][x['owner']]['community'].casefold()==me['community'].casefold()]
-        indexed={x['_id']:x for x in self.repo.database().search_items.find({'community':me['community'].casefold()}, {'revision':1,'model':1,'dimensions':1})}
-        if any(x['id'] not in indexed or indexed[x['id']]['revision']!=x['revision'] or indexed[x['id']].get('model')!=self.embeddings.model or indexed[x['id']].get('dimensions')!=self.embeddings.dimensions for x in current):
-            raise AppError('Some current listings are not indexed. Each owner should index their available items, then retry.','INDEX_PENDING',503)
+        current=[x for x in state['items'].values() if x['status']=='available']
+        indexed={x['_id']:x for x in self.repo.database().search_items.find({}, {'revision':1,'model':1,'dimensions':1})}
+        missing=[x for x in current if x['id'] not in indexed or indexed[x['id']]['revision']!=x['revision'] or indexed[x['id']].get('model')!=self.embeddings.model or indexed[x['id']].get('dimensions')!=self.embeddings.dimensions]
+        if missing:
+            for item in missing:
+                self.index_item(item,state['users'][item['owner']].get('community',''))
+            raise AppError('Listings are being prepared for matching. Please retry shortly.','INDEX_PENDING',503)
         embedding=self.preference_embedding(me)
         query=[{'$vectorSearch':{'index':os.getenv('MONGODB_VECTOR_INDEX','item_embeddings'),'path':'embedding',
             'queryVector':embedding['vector'],'numCandidates':1000,'limit':50,
-            'filter':{'owner':{'$ne':actor},'community':me['community'].casefold(),
-                      'model':embedding['model'],'dimensions':embedding['dimensions'],'status':'available'}}}]
+            'filter':{'owner':{'$ne':actor},'model':embedding['model'],'dimensions':embedding['dimensions'],'status':'available'}}}]
         raw=list(self.repo.database().search_items.aggregate(query))
         incoming=[state['items'][x['_id']] for x in raw if x['_id'] in state['items'] and
                   state['items'][x['_id']]['revision']==x['revision'] and state['items'][x['_id']]['status']=='available']

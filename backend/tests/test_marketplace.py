@@ -114,7 +114,7 @@ def test_exclusions_community_unknown_values_and_bundle_cap(market):
     assert app.recommend(a)['recommendations']==[]
     with pytest.raises(AppError): proposal(market)
     app.update_profile(b,3,{'exclusions':[],'community':'Phoenix'})
-    with pytest.raises(AppError): proposal(market)
+    assert proposal(market)['status'] == 'open'
     app.update_profile(b,4,{'community':'Tempe'})
     fourth=add(a,'calculator',100); third=add(a,'calculator',100)
     with pytest.raises(AppError): app.create_trade(a,b,[chair,calc,third,fourth],[monitor],True,uuid4().hex)

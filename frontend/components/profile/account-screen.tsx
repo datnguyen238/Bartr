@@ -12,7 +12,7 @@ export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps 
   const { view, busy, seeded, profileForm, setProfileForm, profileDraftRevision, resetProfileDraft, guardSession, load, run, setResults, setMessage } = useWorkspace();
   const [feedback, setFeedback] = useState<{ message: string; error?: ApiError | Error } | null>(null);
   const [confirmReload, setConfirmReload] = useState(false);
-  const dirty = profileForm.name !== view.profile.name || profileForm.community !== view.profile.community;
+  const dirty = profileForm.name !== view.profile.name;
   const fieldError = (field: string) => feedback?.error instanceof ApiError
     ? feedback.error.fields?.find(error => error.field.split(".").includes(field))?.message
     : undefined;
@@ -45,7 +45,7 @@ export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps 
         <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-xl space-y-2">
             <h2 id="account-details-heading" className="text-xl font-semibold">Public details</h2>
-            <p className="text-sm leading-6 text-muted-foreground">Your display name and community are visible to other members. Choose a campus or city, without an exact address.</p>
+            <p className="text-sm leading-6 text-muted-foreground">Your display name is visible to other members.</p>
           </div>
           <span className="text-sm text-muted-foreground">{dirty ? "Unsaved changes" : "Up to date"}</span>
         </div>
@@ -82,12 +82,6 @@ export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps 
               <label className="text-sm font-medium" htmlFor="profile-name">Display name</label>
               <Input id="profile-name" required maxLength={200} pattern=".*\S.*" autoComplete="nickname" value={profileForm.name} aria-invalid={Boolean(fieldError("name"))} aria-describedby={fieldError("name") ? "profile-name-error" : undefined} onChange={event => { setFeedback(null); setProfileForm({ ...profileForm, name: event.target.value }); }} />
               {fieldError("name") && <p id="profile-name-error" className="text-sm text-destructive">{fieldError("name")}</p>}
-            </div>
-            <div className="field-group space-y-2">
-              <label className="text-sm font-medium" htmlFor="profile-community">Community</label>
-              <Input id="profile-community" required maxLength={200} pattern=".*\S.*" placeholder="Campus or city" value={profileForm.community} aria-invalid={Boolean(fieldError("community"))} aria-describedby={fieldError("community") ? "profile-community-help profile-community-error" : "profile-community-help"} onChange={event => { setFeedback(null); setProfileForm({ ...profileForm, community: event.target.value }); }} />
-              <p id="profile-community-help" className="text-sm leading-6 text-muted-foreground">Trades stay within the same community. No phone number or precise location is needed.</p>
-              {fieldError("community") && <p id="profile-community-error" className="text-sm text-destructive">{fieldError("community")}</p>}
             </div>
             {feedback && <p className="inline-feedback text-sm leading-6" data-tone={feedback.error ? "error" : "success"} role={feedback.error ? "alert" : "status"}>{feedbackMessage}</p>}
             <div className="form-actions flex flex-wrap items-center gap-3 border-t pt-6">

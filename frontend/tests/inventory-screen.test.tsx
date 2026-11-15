@@ -41,6 +41,15 @@ function renderEditor() {
   return result;
 }
 
+it("does not require a separate discoverability action for published listings", () => {
+  const item = { ...savedItem, status: "available" as const };
+  mocks.workspace.editing = item;
+  mocks.workspace.mine = [item];
+  renderEditor();
+  expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Make discoverable" })).not.toBeInTheDocument();
+});
+
 it("identifies a fallback estimate as having no comparable listings", () => {
   const analysis = { analysis_id: "synthetic", status: "estimated" as const, estimate_minor: 1500, price_basis: "image_assisted_estimate" as const, attributes: { description: "A synthetic item description", brand: null, model: null, clarification_needed: false, clarification_questions: [] }, generated_at: "2026-01-01T00:00:00Z", item_revision: 2 };
   const item = { ...savedItem, analysis };

@@ -58,8 +58,7 @@ class DynamoSemanticSearch:
             raise AppError('Configure Bedrock embeddings before using semantic matching.', 'EMBEDDINGS_NOT_CONFIGURED', 503)
         users, items = state['users'], state['items']
         me = users[actor]
-        available = [item for item in items.values() if item['status'] == 'available' and
-                     users[item['owner']]['community'].casefold() == me['community'].casefold()]
+        available = [item for item in items.values() if item['status'] == 'available']
         owners = {item['owner'] for item in available} | {actor}
         participants = [users[owner] for owner in sorted(owners) if users[owner]['interests']]
         if len(available) > MAX_ITEMS or sum(len(u['interests']) + len(u['exclusions']) for u in participants) > MAX_TERMS:
@@ -73,7 +72,7 @@ class DynamoSemanticSearch:
         prefs = {user['id']: vector for user, vector in zip(participants, vectors[len(available):])}
 
         latest = self.repo.read()
-        current_items = {item['id']: item['revision'] for item in latest['items'].values() if item['status'] == 'available' and latest['users'][item['owner']]['community'].casefold() == me['community'].casefold()}
+        current_items = {item['id']: item['revision'] for item in latest['items'].values() if item['status'] == 'available'}
         if current_items != {item['id']: item['revision'] for item in available} or any(
             user['id'] not in latest['users'] or latest['users'][user['id']]['revision'] != user['revision'] for user in participants
         ):

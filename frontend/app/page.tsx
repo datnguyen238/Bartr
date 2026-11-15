@@ -282,7 +282,7 @@ export default function LandingPage() {
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                   {browsing
                     ? "Browse items available to trade. Open an item to see its details."
-                    : "Sign in to inspect published listings and open the preference-based member list for your campus or city community."}
+                    : "Sign in to browse published listings and members."}
                 </p>
               </div>
               {browsing && browseView === "all" && !loading && (
@@ -352,8 +352,7 @@ export default function LandingPage() {
                           Sign in to browse live items
                         </h3>
                         <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                          Published listings are visible to signed-in members
-                          in your community. Drafts, preferences and private
+                          Published listings are visible to signed-in members. Drafts, preferences and private
                           negotiations stay private to their owners and
                           participants. Sign in to see what people near you are
                           ready to trade.
@@ -467,7 +466,7 @@ export default function LandingPage() {
                       <EmptyDescription>
                         {availableItems.length
                           ? "Try a different search, category or condition."
-                          : "Be the first to list something your community might want."}
+                          : "Be the first to list an item."}
                       </EmptyDescription>
                       {availableItems.length ? (
                         <Button variant="outline" onClick={clearFilters}>
@@ -614,7 +613,7 @@ export default function LandingPage() {
                   Get started
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/70">
-                  Join your community, list a few items, and see what fits.
+                  List items and discover what others are offering.
                   Nothing is committed until you and the other member agree.
                 </p>
               </div>

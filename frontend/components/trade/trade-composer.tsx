@@ -42,7 +42,7 @@ export function TradeComposer({ withUserId, preselectItemId }: { withUserId?: st
                 myItems: view.items.filter((i) => i.owner === me && i.status === 'available'),
                 theirItems: view.items.filter((i) => i.owner === them.id && i.status === 'available'),
               }
-            : { kind: 'problem', title: 'Member not found', message: 'You can only trade with members of your community.' };
+            : { kind: 'problem', title: 'Member not found', message: 'This member is no longer available.' };
         }
         if (!cancelled) setState(next);
       } catch (error) {

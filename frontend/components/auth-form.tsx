@@ -32,10 +32,10 @@ const copy = {
     switchCta: "Create an account",
   },
   register: {
-    eyebrow: "Join your community",
+    eyebrow: "Join Bartr",
     title: "Start trading what you have",
     description:
-      "Create an account to publish items, save what you need and browse nearby listings.",
+      "Create an account to publish items, save what you need and browse listings.",
     submit: "Create account",
     submitting: "Creating account…",
     switchLabel: "Already have an account?",
@@ -51,7 +51,6 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [community, setCommunity] = useState("");
   const text = copy[mode];
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -65,7 +64,6 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
           username,
           password,
           name,
-          community,
         });
       } else {
         await api<Profile>("auth/login", "POST", { username, password });
@@ -122,7 +120,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
           </p>
           <ul className="mt-7 space-y-3 text-sm text-muted-foreground">
             {[
-              "Browse published items in your campus or city community.",
+              "Browse published items.",
               "Keep drafts, preferences and notes private.",
               "Nothing is reserved until both members agree.",
             ].map((item) => (
@@ -154,7 +152,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
             </CardTitle>
             <CardDescription>
               {mode === "register"
-                ? "Your display name and community appear with published listings. Your sign-in username stays private."
+                ? "Your display name appears with published listings. Your sign-in username stays private."
                 : "Use the username and password you saved when you joined."}
             </CardDescription>
           </CardHeader>
@@ -189,31 +187,6 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="auth-community">Campus or city community</Label>
-                    <Input
-                      id="auth-community"
-                      name="community"
-                      autoComplete="address-level2"
-                      required
-                      maxLength={200}
-                      value={community}
-                      onChange={(event) => setCommunity(event.target.value)}
-                      aria-invalid={Boolean(fieldErrors.community)}
-                      aria-describedby={
-                        fieldErrors.community ? "auth-community-error" : undefined
-                      }
-                    />
-                    {fieldErrors.community && (
-                      <p id="auth-community-error" className="text-xs text-destructive">
-                        {fieldErrors.community}
-                      </p>
-                    )}
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      Use the same community as the people you want to trade
-                      with. No exact address or phone number is required.
-                    </p>
-                  </div>
                 </>
               )}
 

@@ -245,11 +245,11 @@ test("account save preserves trading preferences and updates the profile header"
   await page.goto("/profile");
   const dialog = await profileEditor(page);
   await dialog.getByLabel("Display name", { exact: true }).fill("Alice Updated");
-  await dialog.getByLabel("Community", { exact: true }).fill("Updated Campus");
+  await expect(dialog.getByLabel("Community", { exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Save profile", exact: true }).click();
   await expect.poll(() => state.profileSaves.length).toBe(1);
   expect(state.profileSaves[0]).toMatchObject({
-    name: "Alice Updated", community: "Updated Campus", interests: ["Monitor", "Study supplies"],
+    name: "Alice Updated", community: "Test Campus", interests: ["Monitor", "Study supplies"],
     exclusions: ["Damaged items"], gap_limit: 20, expected_revision: 3,
   });
   await expect(dialog).not.toBeVisible();
@@ -306,16 +306,16 @@ test("a stale profile save keeps the draft and reports renewed review in its mod
 
 test("profile field errors identify the affected modal control and preserve its draft", async ({ page }) => {
   const state = await installApi(page);
-  state.profileFieldErrors = [{ field: "body.community", message: "Choose a campus or city community." }];
+  state.profileFieldErrors = [{ field: "body.name", message: "Choose a display name." }];
   await page.goto("/profile");
   const dialog = await profileEditor(page);
-  const community = dialog.getByLabel("Community", { exact: true });
-  await community.fill("Keep my community draft");
+  const name = dialog.getByLabel("Display name", { exact: true });
+  await name.fill("Keep my name draft");
   await dialog.getByRole("button", { name: "Save profile", exact: true }).click();
-  await expect(community).toHaveAttribute("aria-invalid", "true");
-  await expect(community).toHaveAttribute("aria-describedby", /profile-community-error/);
-  await expect(dialog.locator("#profile-community-error")).toHaveText("Choose a campus or city community.");
-  await expect(community).toHaveValue("Keep my community draft");
+  await expect(name).toHaveAttribute("aria-invalid", "true");
+  await expect(name).toHaveAttribute("aria-describedby", /profile-name-error/);
+  await expect(dialog.locator("#profile-name-error")).toHaveText("Choose a display name.");
+  await expect(name).toHaveValue("Keep my name draft");
   await expect(dialog.getByRole("alert")).toContainText("Review the highlighted fields");
 });
 
@@ -687,8 +687,6 @@ test("keyboard sign-in and profile saving work in the mobile layout", async ({ p
   await displayName.focus();
   await page.keyboard.press("End");
   await page.keyboard.type(" Keyboard");
-  await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Community", { exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Save profile", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");

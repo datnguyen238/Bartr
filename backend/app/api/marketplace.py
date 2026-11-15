@@ -32,7 +32,7 @@ class Login(Closed):
 
 class Register(Login):
     name:Text
-    community:Text
+    community:Text='Bartr'
 
 
 class ProfileUpdate(Closed):
@@ -202,9 +202,8 @@ async def upload_image(item_id:str,request:Request,expected_revision:int,file:Up
 @router.get('/images/{image_id}')
 def image(image_id:str,request:Request,who=Depends(actor)):
     service=market(request); state=service.repo.read()
-    community=state['users'][who]['community'].casefold()
     visible=any(x.get('image_id')==image_id and (x['owner']==who or
-                (x['status']=='available' and state['users'][x['owner']]['community'].casefold()==community))
+                x['status']=='available')
                 for x in state['items'].values())
     visible|=any(who in t['participants'] and any(x.get('image_id')==image_id for o in t['offers'] for x in o['terms']['left']+o['terms']['right']) for t in state['trades'].values())
     if not visible: raise AppError('Image not found.','NOT_FOUND',404)
@@ -282,7 +281,7 @@ def recommendations(request:Request,semantic:bool=True,who=Depends(actor)):
         except Exception as exc: raise AppError('Semantic discovery failed. Check the configured embedding service and retry; this does not mean no trades exist.','SEARCH_UNAVAILABLE',503) from exc
         result=service.recommend(who,relevant,excluded,state=state)
     else: result=service.recommend(who)
-    visible_items = [x for x in state['items'].values() if x['status'] == 'available' and x['owner'] != who and state['users'][x['owner']]['community'].casefold() == member['community'].casefold()]
+    visible_items = [x for x in state['items'].values() if x['status'] == 'available' and x['owner'] != who]
     matches = [x['id'] for x in visible_items if x['id'] not in excluded.get(who, set()) and not term_matches(x, member['exclusions']) and (x['id'] in relevant.get(who, set()) or term_matches(x, member['interests']))] if semantic else []
     return {**result,'retrieval':'semantic' if semantic else 'exact-text (local testing)',
             'matching_item_ids': sorted(matches),

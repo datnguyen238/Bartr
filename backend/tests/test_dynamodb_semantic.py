@@ -44,7 +44,7 @@ def test_dynamodb_semantic_matches_equivalent_words_and_caches_private_projectio
     search = DynamoSemanticSearch(app.repo)
     state, relevant, excluded = search.candidates(app.repo.read(), alice)
     assert monitor['id'] in relevant[alice] and chair['id'] in relevant[bob]
-    assert private['id'] not in relevant[alice] and not excluded[alice]
+    assert private['id'] in relevant[alice] and not excluded[alice]
     assert app.recommend(alice, relevant, excluded, state=state)['recommendations']
     count = len(calls)
     search.candidates(app.repo.read(), alice)
@@ -90,7 +90,7 @@ def test_semantic_api_preserves_private_preferences_and_checks_session(semantic_
         response = client.get('/api/recommendations?semantic=true')
         assert response.status_code == 200
         data = response.json()
-        assert monitor['id'] in data['matching_item_ids'] and private['id'] not in data['matching_item_ids']
+        assert monitor['id'] in data['matching_item_ids'] and private['id'] in data['matching_item_ids']
         assert data['matching_item_revisions'][monitor['id']] == monitor['revision']
         assert 'vectors' not in str(data) and 'exclusions' not in str(data)
         app.update_profile(alice, 2, {'interests': ['monitor'], 'exclusions': ['broken electronics']})

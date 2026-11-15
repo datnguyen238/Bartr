@@ -25,7 +25,7 @@ def digest(value):
 
 
 def public_user(user):
-    return {k: user[k] for k in ('id', 'name', 'community')}
+    return {'id': user['id'], 'name': user['name'], 'community': ''}
 
 
 def own_user(user):
@@ -59,7 +59,6 @@ def gap_percent(left, right):
 def snapshot(state, actor, other, left_ids, right_ids):
     require(actor != other, 'A trade needs two different members.', 'SELF_TRADE', 422)
     a, b = user(state, actor), user(state, other)
-    require(a['community'].strip().casefold() == b['community'].strip().casefold(), 'Both members must be in the same community.', 'COMMUNITY_MISMATCH')
     require(1 <= len(left_ids) <= 3 and 1 <= len(right_ids) <= 3, 'Select one to three items on each side.', 'BUNDLE_LIMIT', 422)
     require(len(set(left_ids + right_ids)) == len(left_ids + right_ids), 'Each item can appear only once.', 'DUPLICATE_ITEM', 422)
     sides = []
@@ -109,7 +108,7 @@ class Marketplace:
 
     def register(self, username, password, name, community):
         username = username.strip().casefold()
-        require(bool(name.strip()) and bool(community.strip()), 'Display name and community cannot be blank.', 'INVALID_PROFILE', 422)
+        require(bool(name.strip()), 'Display name cannot be blank.', 'INVALID_PROFILE', 422)
         require(bool(re.fullmatch(r'[a-z0-9_.-]{3,40}', username)), 'Username needs 3–40 letters, numbers, dots, underscores or hyphens.', 'INVALID_USERNAME', 422)
         require(10 <= len(password) <= 200, 'Use a password of 10–200 characters.', 'INVALID_PASSWORD', 422)
         salt = secrets.token_hex(16)
@@ -118,7 +117,7 @@ class Marketplace:
             require(not any(x['username'] == username for x in state['users'].values()), 'That username is unavailable.', 'USERNAME_TAKEN')
             actor = uuid4().hex
             record = {'id': actor, 'username': username, 'salt': salt, 'password_hash': password_hash,
-                      'name': name.strip(), 'community': community.strip(), 'interests': [], 'exclusions': [],
+                      'name': name.strip(), 'community': community.strip() or 'Bartr', 'interests': [], 'exclusions': [],
                       'gap_limit': 20, 'revision': 1}
             state['users'][actor] = record
             return own_user(record)
@@ -145,9 +144,9 @@ class Marketplace:
     def view(self, actor):
         state = self.repo.read()
         own = user(state, actor)
-        return {'profile': own_user(own), 'members': [public_user(x) for x in state['users'].values() if x['community'].casefold() == own['community'].casefold()],
+        return {'profile': own_user(own), 'members': [public_user(x) for x in state['users'].values()],
                 'items': [{**x, 'analysis': x.get('analysis') if x['owner']==actor else None} for x in state['items'].values() if x['owner'] == actor or
-                          (x['status'] == 'available' and state['users'][x['owner']]['community'].casefold() == own['community'].casefold())],
+                          x['status'] == 'available'],
                 'trades': [x for x in state['trades'].values() if actor in x['participants']]}
 
     def update_profile(self, actor, revision, changes):
@@ -234,7 +233,7 @@ class Marketplace:
         results, missing = [], False
         comparisons = 0
         for other in sorted(state['users'].values(), key=lambda x:x['id']):
-            if other['id'] == actor or other['community'].casefold() != me['community'].casefold() or not other['interests']:
+            if other['id'] == actor or not other['interests']:
                 continue
             theirs = [x for x in state['items'].values() if x['owner'] == other['id'] and x['status'] == 'available']
             def fits(item, recipient):

@@ -6,7 +6,7 @@ Bartr discovers item bundles across two inventories, with reviewed item values a
 
 ## Stack and implemented journeys
 
-Next.js, TypeScript, Tailwind and shadcn/ui provide the black-and-cream frontend. FastAPI enforces account identity, private profiles/preferences, listing revisions, one-to-three items per side, same-community/exclusion rules, both members' recommendation gap limits, versioned proposals, private notes, atomic reservations, cancellation and mutual handoff confirmation.
+Next.js, TypeScript, Tailwind and shadcn/ui provide the black-and-cream frontend. FastAPI enforces account identity, private profiles/preferences, listing revisions, one-to-three items per side, marketplace-wide visibility and exclusion rules, both members' recommendation gap limits, versioned proposals, private notes, atomic reservations, cancellation and mutual handoff confirmation.
 
 Gemini provides image estimates that owners must review and accept. DynamoDB stores profiles, listings, sessions and trade records through the approved [entity adapter](specs/001-smart-barter-marketplace/dynamodb-data-model.md). JSON mode supplies single-process local persistence. Discovery uses exact text with DynamoDB or JSON; semantic discovery currently requires the separately configured Bedrock/Gemini/Atlas path. Offline tests do not establish live provider quality or production load capacity.
 
@@ -60,7 +60,7 @@ BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json \
   .venv/bin/python -m backend.scripts.seed_demo_json
 ```
 
-Restart the API, then sign in with username `demo-alice` and password `bartr-demo-only`. The landing page and `/discover` will use the normal authenticated `GET /api/me` projection, so only available same-community fixtures appear. The command stages a complete database before installation, is a no-op when the same fixture is already present, and refuses to overwrite any other non-empty store. All records and images are synthetic; do not reuse the demo password for a real account.
+Restart the API, then sign in with username `demo-alice` and password `bartr-demo-only`. The landing page and `/discover` will use the normal authenticated `GET /api/me` projection, so available fixtures from all members appear. The command stages a complete database before installation, is a no-op when the same fixture is already present, and refuses to overwrite any other non-empty store. All records and images are synthetic; do not reuse the demo password for a real account.
 
 The expanded fixture gives all ten demo users three available items each (plus the private draft and removed-listing cases). Alice sees eight counterpart members with three matching items each. It includes an unknown-valued available item for manual-offer testing. To try it while preserving an earlier seeded database, use a separate file:
 
@@ -75,7 +75,7 @@ Stop the previous API before starting the second command. Existing marked databa
 
 For a fully ephemeral run, set `BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=memory`; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import local accounts or other data.
 
-Create two accounts in separate browser profiles or an incognito window, with the same community. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Select **Find bundle matches** under Discover; DynamoDB and JSON automatically use exact-text matching. You should see the 7.7% gap combination when their interests match.
+Create two accounts in separate browser profiles or an incognito window. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Select **Find bundle matches** under Discover; DynamoDB and JSON automatically use exact-text matching. You should see the 7.7% gap combination when their interests match.
 
 Review the included items before submitting an offer. Submission consents only for its sender. The other member must accept the exact current terms to reserve items. Counteroffers replace consent. Both members must confirm reported handoff before completion. Cancellation after one reported handoff needs both members' approval. The app records participants' reports, not verified physical delivery.
 

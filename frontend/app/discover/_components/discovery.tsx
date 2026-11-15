@@ -117,8 +117,7 @@ export function Discovery() {
     return view.members
       .filter(
         (member) =>
-          member.id !== who &&
-          normalize(member.community) === normalize(view.profile.community),
+          member.id !== who,
       )
       .map((member) => {
         const recommendedIds = recommendedItemsByMember.get(member.id) ?? new Set<string>();
@@ -160,7 +159,7 @@ export function Discovery() {
 
     return memberDiscoveries
       .map((entry) => {
-        const memberMatches = [entry.member.name, entry.member.community]
+        const memberMatches = [entry.member.name]
           .join(" ")
           .toLocaleLowerCase()
           .includes(normalizedQuery);

@@ -59,7 +59,7 @@ export function ProfileScreen({ initialSection = "items" }: { initialSection?: P
     <div id="profile-preferences-panel" role="tabpanel" aria-labelledby="profile-preferences-tab" className="profile-tab-panel" hidden={section !== "preferences"}>
       <PreferencesScreen embedded />
     </div>
-    <ModalSheet open={editingProfile} onOpenChange={setEditingProfile} title="Edit profile" description="Update the name and community other members see. Changes are saved only when you choose Save profile." returnFocusRef={editButton} className="profile-edit-sheet">
+    <ModalSheet open={editingProfile} onOpenChange={setEditingProfile} title="Edit profile" description="Update the name other members see. Changes are saved only when you choose Save profile." returnFocusRef={editButton} className="profile-edit-sheet">
       <AccountScreen embedded onSaved={() => setEditingProfile(false)} />
     </ModalSheet>
   </section>;

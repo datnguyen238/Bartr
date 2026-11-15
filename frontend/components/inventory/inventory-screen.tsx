@@ -259,16 +259,6 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
               </div>
             </fieldset>
           </form>
-          {editing?.status === "available" && <section className="space-y-3 border-t pt-5">
-            <h3 className="text-lg font-semibold">Help others find it</h3>
-            <p className="text-sm leading-6 text-muted-foreground">Prepare this saved version for matching with other members’ interests. Update this after changing the listing.</p>
-            <div className="flex justify-end"><Button variant="outline" disabled={disabled || listingDirty || !view.integrations?.bedrock_configured} onClick={() => void perform(async () => {
-              await guardSession(api(`items/${editing.id}/embedding`, "POST", { expected_revision: editing.revision }));
-              announce("Your current listing is ready for matching.");
-            })}>Make discoverable</Button></div>
-            {!view.integrations?.bedrock_configured && <p className="text-sm text-muted-foreground">Matching preparation is unavailable in this preview. Your saved listing is unchanged.</p>}
-            {listingDirty && <p className="text-sm text-muted-foreground">Save your changes before preparing this version for matching.</p>}
-          </section>}
         </div>
       </ModalSheet>
     </div>

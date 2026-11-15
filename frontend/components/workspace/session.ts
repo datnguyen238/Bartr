@@ -5,7 +5,7 @@ import { api, ApiError, type Profile, type View } from "@/lib/marketplace";
 
 export type SessionStatus = "checking" | "authenticated" | "anonymous" | "unavailable";
 export type Credentials = { username: string; password: string };
-export type Registration = Credentials & { name: string; community: string };
+export type Registration = Credentials & { name: string; community?: string };
 
 export class SupersededSession extends Error {
   constructor() { super("This action belongs to an earlier session. Its response was ignored."); }

@@ -144,11 +144,12 @@ def test_dynamodb_api_landing_inventory_session_restart_and_visibility(repositor
             assert public_view['items'][0]['analysis'] is None
             assert public_view['items'][0]['status'] == 'available'
             assert all(set(member) == {'id', 'name', 'community'} for member in public_view['members'])
-            assert len(public_view['members']) == 2
+            assert len(public_view['members']) == 3
             assert (await brian.get(f'/api/items/{item["id"]}')).json()['analysis'] is None
-            assert (await outsider.get('/api/me')).json()['items'] == []
-            assert (await outsider.get(f'/api/items/{item["id"]}')).status_code == 404
-            assert (await outsider.get(private_image)).status_code == 404
+            assert [entry['id'] for entry in (await outsider.get('/api/me')).json()['items']] == [item['id']]
+            assert (await outsider.get(f'/api/items/{item["id"]}')).status_code == 200
+            assert (await outsider.get(private_image)).status_code == 200
+            assert (await outsider.get(f'/api/images/{draft["image_id"]}')).status_code == 404
             photo = await brian.get(private_image)
             assert photo.status_code == 200 and photo.headers['content-type'] == 'image/jpeg'
             assert photo.content.startswith(b'\xff\xd8')

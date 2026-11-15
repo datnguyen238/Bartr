@@ -49,7 +49,7 @@ describe("section-scoped profile saves", () => {
     expect(screen.queryByRole("heading", { name: "Your profile" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Public details" })).toBeVisible();
     expect(screen.getByLabelText("Display name", { exact: true })).toHaveValue("Unsaved Alice");
-    expect(screen.getByText(/Your display name and community are visible to other members/)).toBeVisible();
+    expect(screen.getByText(/Your display name is visible to other members/)).toBeVisible();
     expect(mocks.api).not.toHaveBeenCalled();
   });
 
@@ -142,8 +142,7 @@ describe("section-scoped profile saves", () => {
     render(<AccountScreen />);
     fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Reviewed member" } });
     expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ name: "Reviewed member" }));
-    fireEvent.change(screen.getByLabelText("Community"), { target: { value: "New Campus" } });
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ community: "New Campus" }));
+    expect(screen.queryByLabelText("Community")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Username")).toHaveAttribute("readonly");
   });
 

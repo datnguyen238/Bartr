@@ -25,7 +25,7 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill("synthetic-password-only");
   await page.getByLabel("Display name", { exact: true }).fill("Local synthetic member");
-  await page.getByLabel("Community", { exact: true }).fill("Synthetic Campus");
+  await expect(page.getByLabel("Community", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\/profile\/preferences$/);
   const cookie = (await context.cookies()).find(c => c.name === "bartr_session");

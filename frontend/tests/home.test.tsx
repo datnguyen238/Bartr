@@ -81,7 +81,7 @@ describe("Home authentication", () => {
     mock.signUp.mockRejectedValue(new ApiError("Choose another username.", 422, "USERNAME_TAKEN", [{ field: "body.username", message: "That username is taken." }]));
     render(<HomeScreen />); credentials();
     fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Synthetic member" } });
-    fireEvent.change(screen.getByLabelText("Community"), { target: { value: "Test Campus" } });
+    expect(screen.queryByLabelText("Community")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(screen.getByLabelText("Username")).toHaveAttribute("aria-invalid", "true"));
     expect(screen.getByLabelText("Username")).toHaveAccessibleDescription("That username is taken.");
@@ -93,10 +93,10 @@ describe("Home authentication", () => {
     mock.params.set("mode", "register");
     render(<HomeScreen />); credentials();
     fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Synthetic member" } });
-    fireEvent.change(screen.getByLabelText("Community"), { target: { value: "Test Campus" } });
+    expect(screen.queryByLabelText("Community")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(mock.replace).toHaveBeenCalledWith("/profile"));
-    expect(mock.signUp).toHaveBeenCalledWith({ username: "synthetic.member", password: "synthetic-password", name: "Synthetic member", community: "Test Campus" });
+    expect(mock.signUp).toHaveBeenCalledWith({ username: "synthetic.member", password: "synthetic-password", name: "Synthetic member" });
   });
 
   it("blocks credential actions in seed mode and during another request", () => {

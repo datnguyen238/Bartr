@@ -9,6 +9,40 @@ from backend.app.main import create_app
 from backend.app.storage.state import StateRepository
 
 
+def test_marketplace_wide_listing_visibility_without_exposing_drafts_or_private_trades():
+    from backend.tests.legacy_fixtures import seed_legacy_available
+
+    async def check():
+        app = create_app(StateRepository(memory=True))
+        headers = {'X-Bartr-Request': '1'}
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://test', headers=headers) as first, httpx.AsyncClient(transport=transport, base_url='http://test', headers=headers) as second, httpx.AsyncClient(transport=transport, base_url='http://test', headers=headers) as observer:
+            for client, name, community in [(first, 'alpha', 'North'), (second, 'bravo', 'South'), (observer, 'charlie', None)]:
+                body = {'username': name, 'password': 'synthetic-password', 'name': name.title()}
+                if community is not None:
+                    body['community'] = community
+                assert (await client.post('/api/auth/register', json=body)).status_code == 200
+            service = app.state.marketplace
+            state = service.repo.read()
+            users = {user['username']: user['id'] for user in state['users'].values()}
+            service.repo.put_image('public-image', users['bravo'], {'data': b'public', 'mime_type': 'image/jpeg'})
+            public = seed_legacy_available(service, users['bravo'], {'title': 'Monitor', 'description': 'Display', 'category': 'Electronics', 'condition': 'Good', 'image_id': 'public-image', 'value_minor': 1000})
+            draft = (await second.post('/api/items', json={'title': 'Private draft'})).json()
+            view = (await first.get('/api/me')).json()
+            assert users['bravo'] in {member['id'] for member in view['members']}
+            assert all(member['community'] == '' for member in view['members'])
+            assert public['id'] in {item['id'] for item in view['items']}
+            assert draft['id'] not in {item['id'] for item in view['items']}
+            assert (await first.get(f"/api/images/{public['image_id']}")).status_code == 200
+            assert (await first.get(f"/api/items/{draft['id']}")).status_code == 404
+            own = seed_legacy_available(service, users['alpha'], {'title': 'Chair', 'description': 'Chair', 'category': 'Furniture', 'condition': 'Good', 'image_id': 'chair', 'value_minor': 1000})
+            proposal = await first.post('/api/trades', json={'other': users['bravo'], 'left': [own['id']], 'right': [public['id']], 'acknowledged': True, 'command_id': 'global-trade'})
+            assert proposal.status_code == 200
+            trade_id = proposal.json()['id']
+            assert (await observer.get(f'/api/trades/{trade_id}')).status_code == 404
+    asyncio.run(check())
+
+
 def test_photo_identification_is_owner_only_revision_bound_and_not_persisted(monkeypatch):
     from backend.app.services.image_analysis import GeminiImageAnalysis
     calls = []

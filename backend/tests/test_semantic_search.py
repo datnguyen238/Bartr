@@ -17,9 +17,13 @@ def test_semantic_search_does_not_report_no_match_when_index_is_stale(monkeypatc
     repo.db=SimpleNamespace(search_items=records)
     state={'users':{'alice':{'id':'alice','community':'Tempe','interests':['monitor']}},
            'items':{'one':{'id':'one','owner':'alice','revision':1,'status':'available'}}}
+    search=SemanticSearch(repo)
+    prepared=[]
+    monkeypatch.setattr(search,'index_item',lambda item,community: prepared.append((item['id'],community)))
     with pytest.raises(AppError) as exc:
-        SemanticSearch(repo).candidates(state,'alice')
+        search.candidates(state,'alice')
     assert exc.value.code=='INDEX_PENDING'
+    assert prepared==[('one','Tempe')]
 
 
 @pytest.mark.parametrize('repository_factory',[
