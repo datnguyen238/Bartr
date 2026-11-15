@@ -12,6 +12,7 @@ __pycache__/
 # Node and Next.js
 node_modules/
 .next/
+.next-*/
 out/
 *.tsbuildinfo
 # Local data and machine files
@@ -19,4 +20,7 @@ out/
 .swapify/
 .DS_Store
 *.log
+/frontend/coverage/
+/frontend/test-results/
+/frontend/playwright-report/
 /.vscode/

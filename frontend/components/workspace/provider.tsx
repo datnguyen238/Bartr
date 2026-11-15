@@ -1,10 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, type ReactNode, type SetStateAction } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { api, command, type View, type Item, type Trade, type Recommendations } from "@/lib/marketplace";
-import { seedEnabled, createSeedView, createSeedRecommendations } from "@/data/seed";
-import { blank } from "./constants";
+import { api, ApiError, command, type View, type Profile, type Item, type Trade, type Recommendations } from "@/lib/marketplace";
+import { seedEnabled } from "@/data/seed";
+import { SupersededSession, useWorkspaceSession } from "./session";
+import { profileDraft, reconcileProfileDraft, type ProfileDraft, type DraftRevisions } from "./session-profile";
+import { useListingDrafts } from "./listing-drafts";
 
 // Empty page state is not an authenticated identity or sample account.
 const emptyWorkspace: Omit<View, "storage"> & { storage: "unloaded" } = {
@@ -17,42 +19,104 @@ const emptyWorkspace: Omit<View, "storage"> & { storage: "unloaded" } = {
 function useWorkspaceState() {
   const router = useRouter();
   const pathname = usePathname();
-  const tab = pathname.split("/")[1] || "inventory";
-  const setTab = (value: string) => router.push(`/${value}`);
-  const [view, setView] = useState<View | null>(() => seedEnabled ? createSeedView() : null),
+  const tab = pathname.split("/")[1] || "home";
+  const setTab = (value: string) => router.push(({ inventory: "/profile/inventory", preferences: "/profile/preferences", discover: "/trade", trades: "/trade" } as Record<string, string>)[value] ?? `/${value}`);
+  const [view, setView] = useState<View | null>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
-    [error, setError] = useState("");
-  const loading = false;
-  const [editing, setEditing] = useState<Item | null>(null),
-    [form, setForm] = useState(blank),
-    [results, setResults] = useState<Recommendations | null>(() => seedEnabled ? createSeedRecommendations() : null),
+    [error, setErrorState] = useState("");
+  const [actionError, setActionError] = useState<ApiError | null>(null);
+  function setError(value: SetStateAction<string>) {
+    setErrorState(value);
+    setActionError(null);
+  }
+  const listingDrafts = useListingDrafts();
+  const { editing, setEditing, form, setForm, edit, replaceItemDraft, listingDirty, hasListingDrafts } = listingDrafts;
+  const [results, setResults] = useState<Recommendations | null>(null),
     [semantic, setSemantic] = useState(true);
-  const [tradeId, setTradeId] = useState(seedEnabled ? "seed-open-trade" : ""),
+  const [tradeId, setTradeId] = useState(""),
     [other, setOther] = useState(""),
     [left, setLeft] = useState<string[]>([]),
     [right, setRight] = useState<string[]>([]),
     [ack, setAck] = useState(false),
     [natural, setNatural] = useState(""),
     [interpreted, setInterpreted] = useState<string[] | null>(null);
-  const [profileForm, setProfileForm] = useState({
-    name: seedEnabled ? createSeedView().profile.name : "",
-    community: seedEnabled ? createSeedView().profile.community : "",
-    interests: seedEnabled ? createSeedView().profile.interests.join(", ") : "",
-    exclusions: seedEnabled ? createSeedView().profile.exclusions.join(", ") : "",
-    gap_limit: 20,
+  const [profileForm, setProfileFormState] = useState(profileDraft(emptyWorkspace.profile));
+  const profileFormRef = useRef(profileForm);
+  function setProfileForm(value: SetStateAction<ProfileDraft>) {
+    const next = typeof value === "function" ? value(profileFormRef.current) : value;
+    profileFormRef.current = next;
+    setProfileFormState(next);
+  }
+  const [profileDraftRevision, setProfileDraftRevisionState] = useState({ account: 0, preferences: 0 });
+  const draftRevisionsRef = useRef(profileDraftRevision);
+  function setProfileDraftRevision(value: DraftRevisions) {
+    draftRevisionsRef.current = value;
+    setProfileDraftRevisionState(value);
+  }
+  const savedProfile = useRef<Profile | null>(null);
+  function clearPrivateState() {
+    savedProfile.current = null;
+    setView(null);
+    listingDrafts.resetListingDrafts();
+    setResults(null);
+    setTradeId("");
+    setOther("");
+    setLeft([]);
+    setRight([]);
+    setAck(false);
+    setNatural("");
+    setInterpreted(null);
+    setProfileForm(profileDraft(emptyWorkspace.profile));
+    setProfileDraftRevision({ account: 0, preferences: 0 });
+    setMessage("");
+    setError("");
+    setBusy(false);
+  }
+  const session = useWorkspaceSession({
+    seeded: seedEnabled,
+    onClear: clearPrivateState,
+    onError: (message, error) => {
+      setErrorState(message);
+      setActionError(error instanceof ApiError ? error : null);
+    },
+    onView: (next, resetDrafts) => {
+      const previous = savedProfile.current;
+      const changedMember = previous?.id !== next.profile.id;
+      savedProfile.current = next.profile;
+      setView(next);
+      listingDrafts.reconcileListings(next.items.filter((item) => item.owner === next.profile.id));
+      if (resetDrafts || changedMember) {
+        setProfileForm(profileDraft(next.profile));
+        setProfileDraftRevision({ account: next.profile.revision, preferences: next.profile.revision });
+      } else if (previous) {
+        const merged = reconcileProfileDraft(profileFormRef.current, previous, next.profile, draftRevisionsRef.current);
+        setProfileForm(merged.draft);
+        setProfileDraftRevision(merged.revisions);
+      }
+    },
   });
-  async function load() {
-    const v = seedEnabled ? createSeedView() : await api<View>("me");
-    setView(v);
-    setProfileForm({
-      name: v.profile.name,
-      community: v.profile.community,
-      interests: v.profile.interests.join(", "),
-      exclusions: v.profile.exclusions.join(", "),
-      gap_limit: v.profile.gap_limit,
-    });
-    return v;
+  const { load, guardSession, retrySession, sessionStatus } = session;
+  const authenticationAttempt = useRef(0);
+  async function authenticationAction(action: () => Promise<void>) {
+    const attempt = ++authenticationAttempt.current;
+    const pending = action();
+    setBusy(true);
+    try { await pending; } finally {
+      if (attempt === authenticationAttempt.current) setBusy(false);
+    }
+  }
+  const signIn = (credentials: Parameters<typeof session.signIn>[0]) => authenticationAction(() => session.signIn(credentials));
+  const signUp = (credentials: Parameters<typeof session.signUp>[0]) => authenticationAction(() => session.signUp(credentials));
+  const signOut = () => authenticationAction(session.signOut);
+  const loading = sessionStatus === "checking";
+  function resetProfileDraft(section: "account" | "preferences", profile = savedProfile.current) {
+    if (!profile) return;
+    const saved = profileDraft(profile);
+    setProfileForm((current) => section === "account"
+      ? { ...current, name: saved.name, community: saved.community }
+      : { ...current, interests: saved.interests, exclusions: saved.exclusions, gap_limit: saved.gap_limit });
+    setProfileDraftRevision({ ...draftRevisionsRef.current, [section]: profile.revision });
   }
   async function run(action: () => Promise<void>) {
     if (seedEnabled) {
@@ -62,16 +126,13 @@ function useWorkspaceState() {
     setBusy(true);
     setError("");
     setMessage("");
+    const generation = session.generation;
     try {
       await action();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Action failed. Reload to check the saved outcome.",
-      );
+      if (!(e instanceof SupersededSession)) session.handleActionError(e, generation);
     } finally {
-      setBusy(false);
+      if (session.isCurrent(generation)) setBusy(false);
     }
   }
   const who = view?.profile.id;
@@ -80,22 +141,6 @@ function useWorkspaceState() {
   const offer = trade?.offers.at(-1);
   const name = (id: string) =>
     view?.members.find((x) => x.id === id)?.name || "Member";
-  function edit(item: Item | null) {
-    setEditing(item);
-    setForm(
-      item
-        ? {
-            title: item.title,
-            description: item.description,
-            category: item.category,
-            condition: item.condition,
-            value:
-              item.value_minor === null ? "" : String(item.value_minor / 100),
-            status: item.status,
-          }
-        : blank,
-    );
-  }
   const facts = () => ({
     title: form.title,
     description: form.description,
@@ -105,15 +150,20 @@ function useWorkspaceState() {
       form.value === "" ? null : Math.round(Number(form.value) * 100),
     status: form.status,
   });
-  async function saveItem(analysisId?: string) {
+  async function saveItem(options: { status?: Item["status"]; analysisId?: string } = {}) {
+    const generation = session.generation;
+    const submitted = { ...form };
+    const previousItem = editing;
+    const data = { ...facts(), ...(options.status ? { status: options.status } : {}) };
     const saved = editing
       ? await api<Item>(`items/${editing.id}`, "PATCH", {
-          ...facts(),
+          ...data,
           expected_revision: editing.revision,
-          ...(analysisId ? { analysis_id: analysisId } : {}),
+          ...(options.analysisId ? { analysis_id: options.analysisId } : {}),
         })
-      : await api<Item>("items", "POST", facts());
-    edit(saved);
+      : await api<Item>("items", "POST", data);
+    session.assertCurrent(generation);
+    listingDrafts.savedListing(saved, submitted, previousItem);
     await load();
     setResults(null);
     setMessage("Listing saved.");
@@ -197,7 +247,13 @@ function useWorkspaceState() {
 
   return {
     view: view ?? emptyWorkspace,
-    hasSession: view !== null && !seedEnabled,
+    hasSession: sessionStatus === "authenticated" && view !== null && !seedEnabled,
+    sessionStatus,
+    signIn,
+    signUp,
+    signOut,
+    retrySession,
+    guardSession,
     seeded: seedEnabled,
     setView,
     tab,
@@ -207,6 +263,7 @@ function useWorkspaceState() {
     message,
     setMessage,
     error,
+    actionError,
     setError,
     loading,
     editing,
@@ -232,6 +289,8 @@ function useWorkspaceState() {
     interpreted,
     setInterpreted,
     profileForm,
+    profileDraftRevision,
+    resetProfileDraft,
     setProfileForm,
     load,
     run,
@@ -241,6 +300,9 @@ function useWorkspaceState() {
     offer,
     name,
     edit,
+    replaceItemDraft,
+    listingDirty,
+    hasListingDrafts,
     facts,
     saveItem,
     submitOffer,
