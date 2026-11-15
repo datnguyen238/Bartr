@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 
 import pytest
 
@@ -40,6 +41,12 @@ def test_seed_persists_public_demo_inventory_and_images(monkeypatch, tmp_path):
 
     view = marketplace.view(actor)
     state = repository.read()
+    available_by_owner = Counter(
+        item["owner"] for item in state["items"].values()
+        if item["status"] == "available"
+    )
+    assert len(state["users"]) == 10
+    assert all(available_by_owner[owner] == 3 for owner in state["users"])
     viewer = state["users"][actor]
     same_community = {
         member["id"]
@@ -59,6 +66,9 @@ def test_seed_persists_public_demo_inventory_and_images(monkeypatch, tmp_path):
 
     public_items = [item for item in view["items"] if item["owner"] != actor]
     assert public_items
+    assert len(public_items) == 24
+    assert all(count == 3 for count in Counter(item["owner"] for item in public_items).values())
+    assert any(item["value_minor"] is None for item in public_items)
     assert all(item["status"] == "available" for item in public_items)
     assert all(item["owner"] in same_community for item in public_items)
     assert outside["id"] not in {item["owner"] for item in public_items}
@@ -141,3 +151,6 @@ def test_tracked_fixture_contains_definitions_not_credentials():
     assert "private notes" not in serialized
     assert fixture["viewer"]["username"] == DEMO_USERNAME
     assert len(fixture["members"]) >= 7
+    definitions = [fixture["viewer"], *fixture["members"], fixture["outside_community_member"]]
+    keys = [item["key"] for member in definitions for item in member["items"]]
+    assert len(keys) == len(set(keys))

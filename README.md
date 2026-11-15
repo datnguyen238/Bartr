@@ -61,6 +61,17 @@ BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json \
 
 Restart the API, then sign in with username `demo-alice` and password `bartr-demo-only`. The landing page and `/discover` will use the normal authenticated `GET /api/me` projection, so only available same-community fixtures appear. The command stages a complete database before installation, is a no-op when the same fixture is already present, and refuses to overwrite any other non-empty store. All records and images are synthetic; do not reuse the demo password for a real account.
 
+The expanded fixture gives all ten demo users three available items each (plus the private draft and removed-listing cases). Alice sees eight counterpart members with three matching items each. It includes an unknown-valued available item for manual-offer testing. To try it while preserving an earlier seeded database, use a separate file:
+
+```sh
+BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.multi-items.json \
+  .venv/bin/python -m backend.scripts.seed_demo_json
+BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.multi-items.json \
+  .venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Stop the previous API before starting the second command. Existing marked databases are not refreshed or reset by the seeder; each retains its accounts, sessions, listing edits and trades.
+
 For a fully ephemeral run, use `BARTR_STORAGE=memory` instead; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import the JSON fixture or its demo account.
 
 Create two accounts in separate browser profiles or an incognito window, with the same community. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Select **Find bundle matches** under Discover; DynamoDB and JSON automatically use exact-text matching. You should see the 7.7% gap combination when their interests match.

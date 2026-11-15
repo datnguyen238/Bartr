@@ -38,6 +38,8 @@ These constraints follow the AWS documentation for [optimistic locking and condi
 
 Run `python -m backend.scripts.seed_demo_json` only while the API is stopped, because JSON mode supports one writer process. The command uses `BARTR_JSON_PATH`, stages the complete synthetic document beside the target, and atomically installs it. The shared demo credential is for local inspection only and is documented in the README; it is not a deployment credential.
 
+The expanded fixture contains three available items per demo user, an unknown-valued available item, a private draft and a removed listing. Existing marked fixture databases remain unchanged on rerun. Use a fresh path such as `.bartr/bartr.multi-items.json` to test the expanded dataset while retaining older local test history, and start the API with that same path.
+
 For recovery, stop the single API process and copy the complete JSON file before inspection or replacement. Deleting it intentionally resets only this temporary mode; it is not recoverable unless the user made a copy. Switching back to `BARTR_STORAGE=mongo` leaves the JSON file unused and performs no automatic migration.
 
 ## Verification required
