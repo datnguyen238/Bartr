@@ -24,7 +24,7 @@ Backend domain, account/API, photo-upload, Gemini adapter/evidence and Bedrock f
 
 ## Profile frontend increment — 2026-11-14
 
-Requirements: Story 1, FR-001–003, FR-006, FR-028 and FR-030. Evidence identity: GREEN implementation checkpoint `8956627`, tested as the equivalent working tree before commit; RED/GREEN references are indexed in the [TDD report](../.claude/tdd/profile-page.tdd.md). Environment: macOS arm64, Node 25.6.0/npm 11.17.0, Next 16.4.6/React 19.3.1, Vitest 4.1.12, Playwright 1.65.1 with installed Chrome, Python 3.14.2.
+Requirements: Story 1, FR-001–003, FR-006, FR-028 and FR-030. Evidence identity: `6038f54` plus the approved profile working tree; final checkpoint references are indexed in the [TDD report](../.claude/tdd/profile-page.tdd.md). Environment: macOS arm64, Node 25.6.0/npm 11.17.0, Next 16.4.6/React 19.3.1, Vitest 4.1.12, Playwright 1.65.1 with installed Chrome, Python 3.14.2.
 
 | Evaluation | Result | Storage/provider boundary |
 |---|---|---|
