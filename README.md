@@ -1,6 +1,6 @@
 # Bartr — AI-Powered Smart Bartering Marketplace
 
-**Backend update:** the owner has switched the login/photo valuation increment to DynamoDB. Use [the DynamoDB setup and API flow](docs/DYNAMODB-LOGIN-VALUATION.md); older Atlas setup sections below describe the previous backend and semantic-search work, not the new DynamoDB configuration.
+The application supports DynamoDB persistence and temporary JSON storage for local testing. Use [the DynamoDB setup and API flow](docs/DYNAMODB-LOGIN-VALUATION.md) for the existing AWS table, or the JSON instructions below for local synthetic data.
 
 Bartr discovers item bundles across two inventories, with reviewed item values and voluntary agreement. The canonical requirements are in [`specs/001-smart-barter-marketplace/spec.md`](specs/001-smart-barter-marketplace/spec.md). The earlier `docs/specs/001-bundle-matching` draft is superseded.
 
@@ -8,7 +8,7 @@ Bartr discovers item bundles across two inventories, with reviewed item values a
 
 Next.js, TypeScript, Tailwind and shadcn/ui provide the black-and-cream frontend. FastAPI enforces account identity, private profiles/preferences, listing revisions, one-to-three items per side, same-community/exclusion rules, both members' recommendation gap limits, versioned proposals, private notes, atomic reservations, cancellation and mutual handoff confirmation.
 
-Gemini adapters provide owner-reviewed image/valuation and preference suggestions. Bedrock generates Titan-compatible text embeddings; MongoDB Atlas stores production-intended marketplace data and semantic-search projections. An explicit JSON document mode supplies single-process local persistence without pretending to be Atlas or DynamoDB. Live integrations require configuration and have not been authenticated or benchmarked by offline tests. Exact-text discovery is explicitly selectable for local testing and is not semantic search.
+Gemini provides image estimates that owners must review and accept. DynamoDB stores profiles, listings, sessions and trade records through the approved [entity adapter](specs/001-smart-barter-marketplace/dynamodb-data-model.md). JSON mode supplies single-process local persistence. Discovery uses exact text with DynamoDB or JSON; semantic discovery currently requires the separately configured Bedrock/Gemini/Atlas path. Offline tests do not establish live provider quality or production load capacity.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-The example selects `BARTR_STORAGE=json` and creates `.bartr/bartr.local.json` for temporary local testing. Do not overwrite an existing `.env` when updating your checkout. Environment variables override the root `.env`. For MongoDB Atlas persistence, set `BARTR_STORAGE=mongo` and `MONGODB_URI` instead.
+The example selects `BARTR_STORAGE=json` and creates `.bartr/bartr.local.json` for temporary local testing. Do not overwrite an existing `.env` when updating your checkout. Environment variables override the root `.env`. For DynamoDB, set `BARTR_STORAGE=dynamodb`, the existing table name and String `PK`/`SK` names, region, and your AWS credential profile as documented in [the setup guide](docs/DYNAMODB-LOGIN-VALUATION.md). Legacy MongoDB remains selectable with `BARTR_STORAGE=mongo` and `MONGODB_URI`.
 
 **Terminal 1 — backend:**
 
@@ -61,15 +61,16 @@ BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.local.json \
 
 Restart the API, then sign in with username `demo-alice` and password `bartr-demo-only`. The landing page and `/discover` will use the normal authenticated `GET /api/me` projection, so only available same-community fixtures appear. The command stages a complete database before installation, is a no-op when the same fixture is already present, and refuses to overwrite any other non-empty store. All records and images are synthetic; do not reuse the demo password for a real account.
 
-For a fully ephemeral run, use `BARTR_STORAGE=memory` instead; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits and the future DynamoDB adapter boundary.
+For a fully ephemeral run, use `BARTR_STORAGE=memory` instead; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import the JSON fixture or its demo account.
 
-Create two accounts in separate browser profiles or an incognito window, with the same community. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Under Discover, uncheck **Semantic discovery** to test exact-text matching without providers. You should see the 7.7% gap combination when their interests match.
+Create two accounts in separate browser profiles or an incognito window, with the same community. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Select **Find bundle matches** under Discover; DynamoDB and JSON automatically use exact-text matching. You should see the 7.7% gap combination when their interests match.
 
 Review the included items before submitting an offer. Submission consents only for its sender. The other member must accept the exact current terms to reserve items. Counteroffers replace consent. Both members must confirm reported handoff before completion. Cancellation after one reported handoff needs both members' approval. The app records participants' reports, not verified physical delivery.
 
 ## Live assistance and semantic search
 
-- Set `GEMINI_API_KEY` and a suitable image/search/structured-output `GEMINI_MODEL`. Optional `GEMINI_VALUATION_MODEL` and `GEMINI_EXTRACTION_MODEL` select those stages. Analysis is advisory and saved per item revision; it does not automatically publish or overwrite reviewed facts.
+- Set `GEMINI_API_KEY` and a suitable image/structured-output `GEMINI_MODEL` or `GEMINI_VALUATION_MODEL`. Analyze a saved photo, inspect its provisional estimate and uncertainty, select **Use this estimate**, then explicitly save the listing. The saved analysis ID binds assisted provenance to that item revision; a manually corrected amount is owner-entered. Analysis never automatically publishes or changes the listing value.
+- Semantic discovery and indexing currently require MongoDB Atlas. These controls are unavailable with DynamoDB or JSON; manual listing and exact-text matching continue to work.
 - Configure the AWS credential chain, `AWS_REGION`, and a Titan Text Embeddings V2-compatible `BEDROCK_EMBEDDING_MODEL`. Example model ID to verify in your account: `amazon.titan-embed-text-v2:0`. Dimensions default to 1024; the Atlas index must match.
 - Use MongoDB Atlas storage. Create a Vector Search index named `item_embeddings` on collection `search_items` with [the index definition](specs/001-smart-barter-marketplace/contracts/atlas-vector-index.json). Match `BEDROCK_EMBEDDING_DIMENSIONS` if changed.
 - Owners select **Index for semantic search** for each current published item. Edits make older projections stale; index the new revision. Semantic discovery checks current projections and reports missing/index failures explicitly.
@@ -97,9 +98,10 @@ Engineering changes follow the [AI engineering workflow](docs/ENGINEERING.md), i
 - `backend/app/api/`: closed schemas and authorized HTTP routes.
 - `backend/app/services/`: photo normalization, Gemini and Bedrock/Atlas adapters.
 - `backend/app/storage/state.py`: atomic MongoDB aggregate plus explicit memory/JSON test storage.
+- `backend/app/storage/dynamodb.py`, `dynamodb_records.py`, `dynamodb_images.py`: DynamoDB entity mapping, conditional transactions and authorized image chunks.
 - `frontend/app/`, `components/ui/`, `lib/`: app views, shadcn components and typed clients.
 - `requirements.txt`: one Python dependency file. `specs/`: canonical Spec Kit artifacts. `docs/`: guides and reference reviews.
 
-This MVP keeps private marketplace state in one bounded versioned aggregate. MongoDB uses compare-and-swap and separate image/search documents; temporary JSON mode uses a process lock and atomic file replacement. Neither shape is directly deployable as one DynamoDB item: a future adapter needs partitioned records, conditional writes and transactions. Search also has an explicit computation limit; it never claims exhaustive global optimality. Larger scale requires aggregate partitioning/transactions and measured search optimization.
+DynamoDB uses separate entity records and conditional transactions behind the existing domain boundary. Its compatibility snapshot scans the table with epoch checks and serializes writes; this is a bounded adapter, with explicit transaction/item limits. MongoDB retains its compare-and-swap aggregate, and JSON uses a process lock and atomic file replacement. There is no automatic migration between these stores. Search has an explicit computation limit; measured optimization and throughput evaluation remain required before scaling.
 
 No payment, cash supplement, shipping, Solana/NFT, multi-party trade, automated dispute resolution, email/university verification or physical-delivery proof is implemented. The specification's pilot, semantic-quality, screen-reader and concurrent-load targets require their own evaluation; a successful build does not establish them.

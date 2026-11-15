@@ -76,7 +76,7 @@ export interface Trade {
   reason: string | null;
 }
 export interface View {
-  storage: "temporary-memory" | "mongodb" | "dynamodb";
+  storage: "temporary-memory" | "temporary-json" | "mongodb" | "dynamodb";
   integrations: { gemini_configured: boolean; bedrock_configured: boolean };
   profile: Profile;
   members: Member[];

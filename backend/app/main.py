@@ -19,13 +19,18 @@ from .storage.state import StateRepository
 def create_app(repository=None) -> FastAPI:
     name=application_name()
     mode=os.getenv('BARTR_STORAGE','dynamodb').lower()
-    if mode not in {'mongo','memory','dynamodb'}:
-        raise ValueError('BARTR_STORAGE must be dynamodb, mongo or memory.')
+    if mode not in {'mongo','memory','json','dynamodb'}:
+        raise ValueError('BARTR_STORAGE must be dynamodb, mongo, json or memory.')
     if repository is not None:
         repo=repository
     elif mode=='dynamodb':
         from .storage.dynamodb import DynamoRepository
         repo=DynamoRepository()
+    elif mode=='json':
+        json_path=os.getenv('BARTR_JSON_PATH','.bartr/bartr.local.json')
+        if not os.path.isabs(json_path):
+            json_path=str(ROOT / json_path)
+        repo=StateRepository(json_path=json_path)
     else:
         repo=StateRepository(memory=mode=='memory')
 

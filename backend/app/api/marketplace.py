@@ -159,7 +159,10 @@ async def upload_image(item_id:str,request:Request,expected_revision:int,file:Up
 @router.get('/images/{image_id}')
 def image(image_id:str,request:Request,who=Depends(actor)):
     service=market(request); state=service.repo.read()
-    visible=any(x.get('image_id')==image_id and (x['owner']==who or x['status']=='available') for x in state['items'].values())
+    community=state['users'][who]['community'].casefold()
+    visible=any(x.get('image_id')==image_id and (x['owner']==who or
+                (x['status']=='available' and state['users'][x['owner']]['community'].casefold()==community))
+                for x in state['items'].values())
     visible|=any(who in t['participants'] and any(x.get('image_id')==image_id for o in t['offers'] for x in o['terms']['left']+o['terms']['right']) for t in state['trades'].values())
     if not visible: raise AppError('Image not found.','NOT_FOUND',404)
     record=service.repo.image(image_id)

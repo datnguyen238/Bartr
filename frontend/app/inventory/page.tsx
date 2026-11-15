@@ -19,7 +19,6 @@ export default function InventoryPage() {
     setEditing,
     form,
     setForm,
-    semantic,
     load,
     run,
     mine,
@@ -27,6 +26,10 @@ export default function InventoryPage() {
     facts,
     saveItem,
   } = useWorkspace();
+  const clearAnalysisSelection = () => {
+    setAcceptedAnalysis(null);
+    setMessage("");
+  };
   if (!view) return null;
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -41,7 +44,10 @@ export default function InventoryPage() {
         <CardContent>
           <Button
             variant="outline"
-            onClick={() => edit(null)}
+            onClick={() => {
+              clearAnalysisSelection();
+              edit(null);
+            }}
             disabled={busy}
           >
             + New item
@@ -77,7 +83,10 @@ export default function InventoryPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => edit(item)}
+                    onClick={() => {
+                      clearAnalysisSelection();
+                      edit(item);
+                    }}
                     disabled={busy}
                   >
                     Edit
@@ -130,9 +139,10 @@ export default function InventoryPage() {
                             ? 100
                             : 300
                       }
-                      onChange={(e) =>
-                        setForm({ ...form, [key]: e.target.value })
-                      }
+                      onChange={(e) => {
+                        clearAnalysisSelection();
+                        setForm({ ...form, [key]: e.target.value });
+                      }}
                     />
                   </label>
                 ),
@@ -143,9 +153,10 @@ export default function InventoryPage() {
                   className={control}
                   value={form.description}
                   maxLength={3000}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
+                  onChange={(e) => {
+                    clearAnalysisSelection();
+                    setForm({ ...form, description: e.target.value });
+                  }}
                 />
               </label>
               <label className="block text-sm">
@@ -157,9 +168,10 @@ export default function InventoryPage() {
                   step="0.01"
                   max="1000000"
                   value={form.value}
-                  onChange={(e) =>
-                    setForm({ ...form, value: e.target.value })
-                  }
+                  onChange={(e) => {
+                    clearAnalysisSelection();
+                    setForm({ ...form, value: e.target.value });
+                  }}
                 />
               </label>
               <label className="block text-sm">
@@ -191,6 +203,7 @@ export default function InventoryPage() {
                     if (!file || !editing) return;
                     run(async () => {
                       const item = await upload(editing, file);
+                      clearAnalysisSelection();
                       edit(item);
                       await load();
                       setMessage(
@@ -214,6 +227,7 @@ export default function InventoryPage() {
                 disabled={busy}
                 onClick={() =>
                   run(async () => {
+                    clearAnalysisSelection();
                     const analysis = await api<Analysis>(
                       `items/${editing.id}/analysis`,
                       "POST",
@@ -229,7 +243,7 @@ export default function InventoryPage() {
               >
                 Analyze photo & value
               </Button>
-              {editing.status === "available" && (
+              {editing.status === "available" && view.storage === "mongodb" && (
                 <Button
                   variant="outline"
                   disabled={busy}
@@ -304,9 +318,10 @@ export default function InventoryPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() =>
-                    setEditing({ ...editing, analysis: null })
-                  }
+                  onClick={() => {
+                    clearAnalysisSelection();
+                    setEditing({ ...editing, analysis: null });
+                  }}
                 >
                   Ignore suggestion
                 </Button>

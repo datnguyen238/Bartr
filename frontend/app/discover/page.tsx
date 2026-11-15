@@ -309,7 +309,9 @@ export default function DiscoverPage() {
               ? useSemantic
                 ? "Semantic matching is on. Equivalent wording can be considered by the configured providers."
                 : "Exact-text matching is on. Turn on semantic matching to consider equivalent wording."
-              : "Exact-text local testing is active. Semantic matching requires MongoDB Atlas, Bedrock and Gemini."}
+              : view.storage === "dynamodb"
+                ? "Matching uses your saved interests as exact text. Semantic matching is not yet available with DynamoDB."
+                : "Exact-text local testing is active. Semantic matching requires MongoDB Atlas, Bedrock and Gemini."}
           </p>
         </CardContent>
       </Card>
