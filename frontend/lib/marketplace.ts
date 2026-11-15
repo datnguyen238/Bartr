@@ -76,7 +76,7 @@ export interface Trade {
   reason: string | null;
 }
 export interface View {
-  storage: "temporary-memory" | "mongodb" | "dynamodb";
+  storage: "temporary-memory" | "temporary-json" | "mongodb" | "dynamodb";
   integrations: { gemini_configured: boolean; bedrock_configured: boolean };
   profile: Profile;
   members: Member[];
@@ -95,6 +95,7 @@ export interface Recommendations {
   retrieval: string;
 }
 export interface ApiFieldError { field: string; message: string }
+export type FieldIssue = ApiFieldError;
 
 function errorFields(value: unknown): ApiFieldError[] {
   if (!Array.isArray(value)) return [];
@@ -145,6 +146,35 @@ export async function api<T>(
   }
   return value as T;
 }
+export const initials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "B";
+const itemStatusLabels: Record<Item["status"], string> = {
+  draft: "Draft",
+  available: "Available",
+  reserved: "Reserved",
+  exchanged: "Exchanged",
+  removed: "Removed",
+};
+export const itemStatusLabel = (status: Item["status"]) =>
+  itemStatusLabels[status] ?? status;
+const tradeStatusLabels: Record<string, string> = {
+  open: "Open offer",
+  agreed: "Agreed",
+  awaiting_handoff: "Awaiting handoff",
+  completed: "Completed",
+  declined: "Declined",
+  withdrawn: "Withdrawn",
+  invalidated: "Needs review",
+  cancelled: "Cancelled",
+};
+export const tradeStatusLabel = (status: string) =>
+  tradeStatusLabels[status] ?? status.replaceAll("_", " ");
+
 export async function upload(item: Item, file: File): Promise<Item> {
   const data = new FormData();
   data.append("file", file);

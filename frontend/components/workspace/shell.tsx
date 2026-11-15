@@ -12,11 +12,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [signOutError, setSignOutError] = useState("");
   const links = hasSession
-    ? [{ href: "/home", label: "Home", icon: "home" }, { href: "/profile", label: "Profile", icon: "account" }, { href: "/trade", label: "Trade", icon: "trade" }] as const
-    : [{ href: "/home", label: "Home", icon: "home" }, { href: "/trade", label: "Trade", icon: "trade" }] as const;
+    ? [{ href: "/home", label: "Home", icon: "home" }, { href: "/profile", label: "Profile", icon: "account" }, { href: "/trades", label: "Trade", icon: "trade" }] as const
+    : [{ href: "/home", label: "Home", icon: "home" }, { href: "/trades", label: "Trade", icon: "trade" }] as const;
   const localFeedback = pathname === "/home" || pathname.startsWith("/profile");
   return (
-    <div className={`app-shell ${hasSession ? "" : "app-shell-public"}`}>
+    <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="app-rail">
         <Link className="wordmark" href="/home" aria-label="Bartr home">bartr<span>.</span></Link>

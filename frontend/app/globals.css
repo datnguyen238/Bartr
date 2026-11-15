@@ -4,13 +4,13 @@
 
 :root {
   color-scheme: light dark;
-  --background: #f5f3ed;
-  --foreground: #20211e;
+  --background: #f6f2e8;
+  --foreground: #1d3024;
   --card: #fffefa;
   --card-foreground: #20211e;
   --popover: #fffefa;
   --popover-foreground: #20211e;
-  --primary: #20211e;
+  --primary: #203b2b;
   --primary-foreground: #fffefa;
   --secondary: #eaece4;
   --secondary-foreground: #33362e;
@@ -22,7 +22,7 @@
   --border: #dedfd7;
   --input: #8e9185;
   --ring: #52634b;
-  --rail: #eeeee7;
+  --rail: #ebe9dc;
   --success: #3c5a3b;
   --radius: .875rem;
 }
@@ -51,6 +51,7 @@
   }
 }
 @theme inline {
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --color-background: var(--background); --color-foreground: var(--foreground);
   --color-card: var(--card); --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
@@ -271,3 +272,5 @@
   .modal-sheet-title { font-size: 1.375rem; }
 }
 @media (prefers-reduced-transparency: reduce) { .modal-overlay { background: rgba(18, 20, 16, .78); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+
+@layer components { .caption { @apply text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground; } }

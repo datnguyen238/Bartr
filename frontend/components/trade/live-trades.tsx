@@ -87,16 +87,16 @@ export default function TradesPage() {
         <h1 className="screen-title">Trades</h1>
         <p className="screen-description">Choose items, talk it through, and agree together.</p>
       </header>
-      <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
-        <aside aria-label="Trade list" className="rounded-2xl border bg-card p-4">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
+        <aside aria-label="Trade list" className="min-w-0 rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Your trades</h2><span className="text-xs text-muted-foreground">{view.trades.length}</span></div>
           <Button variant="outline" className="mt-4 w-full justify-start" onClick={() => { setCounterEditing(false); setTradeId(""); setOther(""); setLeft([]); setRight([]); setAck(false); }}><Plus aria-hidden="true" /> New offer</Button>
-          <nav aria-label="Trade conversations" className="mt-4 flex gap-2 overflow-x-auto lg:max-h-[65vh] lg:flex-col lg:overflow-y-auto">
+          <nav aria-label="Trade conversations" className="mt-4 flex min-w-0 gap-2 overflow-x-auto lg:max-h-[65vh] lg:flex-col lg:overflow-y-auto">
             {view.trades.map((t) => <button type="button" key={t.id} aria-current={t.id === tradeId ? "true" : undefined} className={`min-w-40 rounded-xl px-3 py-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:w-full ${t.id === tradeId ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`} onClick={() => { setCounterEditing(false); setTradeId(t.id); setOther(""); setLeft([]); setRight([]); setAck(false); }}><span className="block truncate font-medium">{name(t.participants.find((id) => id !== who)!)}</span><span className="mt-1 block text-xs opacity-70">{t.status.replaceAll("_", " ")} · offer {t.offers.at(-1)?.version}</span></button>)}
             {!view.trades.length && <p className="px-1 py-2 text-sm text-muted-foreground">No trades yet.</p>}
           </nav>
         </aside>
-        <div className="grid min-w-0 items-stretch gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,.9fr)]">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-stretch gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,.9fr)]">
         <Card className="gap-0 overflow-hidden rounded-2xl shadow-none">
           <CardHeader className="border-b pb-5"><CardDescription className="flex items-center gap-2">{trade ? `Offer ${offer?.version} · ${trade.status.replaceAll("_", " ")}` : "New offer"}</CardDescription><CardTitle className="text-xl">{partner ? `Exchange with ${name(partner)}` : "Choose your exchange"}</CardTitle>{editingOffer && <p className="text-sm text-muted-foreground">Choose up to three items on each side, then send your offer.</p>}</CardHeader>
           <CardContent className="space-y-5 pt-5">

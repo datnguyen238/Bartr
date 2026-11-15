@@ -14,6 +14,8 @@ MAX_IMAGE_BYTES = 3 * 1024 * 1024
 class DynamoImages:
     memory = False
     backend = 'dynamodb'
+    storage_label = 'dynamodb'
+    supports_atlas = False
 
     def __init__(self, client=None):
         self.client = client

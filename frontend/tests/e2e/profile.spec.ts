@@ -505,7 +505,7 @@ test("preferences draft remains in the profile while switching its tabs", async 
   expect(state.profileSaves).toEqual([]);
 });
 
-test("profile navigation remains usable at 390px without deferred offer controls", async ({ page }) => {
+test("profile navigation opens the offer workspace at 390px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installApi(page);
   await page.goto("/profile/inventory");
@@ -517,15 +517,15 @@ test("profile navigation remains usable at 390px without deferred offer controls
   await expect(page).toHaveURL(/\/profile\/inventory$/);
   await expect(page.getByLabel("Interests", { exact: true })).toBeVisible();
   await main.getByRole("link", { name: "Trade", exact: true }).click();
-  await expect(page).toHaveURL(/\/trade$/);
-  await expect(page.getByRole("heading", { name: "Trading is coming next" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /offer|accept|handoff|Discover bundles/i })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/trades$/);
+  await expect(page.getByText("Choose your exchange", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send offer" })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 for (const [legacy, canonical] of [
   ["/inventory", "/profile/inventory"], ["/preferences", "/profile/preferences"],
-  ["/discover", "/trade"], ["/trades", "/trade"],
+  ["/trade", "/trades"],
 ]) {
   test(`legacy ${legacy} redirects to ${canonical}`, async ({ page }) => {
     await installApi(page);
@@ -533,6 +533,25 @@ for (const [legacy, canonical] of [
     await expect(page).toHaveURL(new RegExp(`${canonical}$`));
   });
 }
+
+test("discovery retains the signed-in marketplace and profile sidebar", async ({ page }) => {
+  await installApi(page);
+  await page.goto("/discover");
+  await expect(page).toHaveURL(/\/discover$/);
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  await expect(page.getByText("Test monitor").first()).toBeVisible();
+  await page.getByRole("button", { name: "Build an offer" }).first().click();
+  await expect(page).toHaveURL(/\/trades$/);
+  await expect(page.getByLabel("Trade with")).toHaveValue("test-bob");
+});
+
+test("the landing page retains the shared navigation sidebar", async ({ page }) => {
+  await installApi(page, false);
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  await expect(page.locator(".app-rail")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
 
 test("keyboard sign-in and profile saving work in the mobile layout", async ({ page }, testInfo) => {
   const state = await installApi(page, false);

@@ -22,6 +22,9 @@ def test_offer_hash_serialization_survives_dynamodb_numeric_normalization():
 
 @pytest.fixture
 def repo(monkeypatch):
+    # Offline emulator tests must not depend on the developer's configured profile.
+    monkeypatch.delenv('AWS_PROFILE', raising=False)
+    monkeypatch.delenv('AWS_DEFAULT_PROFILE', raising=False)
     monkeypatch.setenv('DYNAMODB_TABLE', 'test-bartr')
     monkeypatch.setenv('DYNAMODB_PARTITION_KEY', 'PK')
     monkeypatch.setenv('DYNAMODB_SORT_KEY', 'SK')

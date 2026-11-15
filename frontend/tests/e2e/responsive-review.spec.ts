@@ -84,7 +84,7 @@ for (const size of sizes) {
     await expect(page).toHaveURL(/\/profile$/);
     await capture("preferences");
     await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("link", { name: "Trade", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Trading is coming next" })).toBeVisible();
+    await expect(page.getByText("Choose your exchange", { exact: true })).toBeVisible();
     await capture("trade");
   });
 }

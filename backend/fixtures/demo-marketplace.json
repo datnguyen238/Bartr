@@ -1,0 +1,423 @@
+{
+  "seed_id": "bartr-demo-v1",
+  "community": "ASU Tempe",
+  "viewer": {
+    "username": "demo-alice",
+    "name": "Alice Chen",
+    "interests": [
+      "Electronics",
+      "Study supplies",
+      "Furniture"
+    ],
+    "exclusions": [
+      "Broken items"
+    ],
+    "gap_limit": 20,
+    "items": [
+      {
+        "key": "alice-chair",
+        "title": "Wooden study chair",
+        "description": "Solid wooden chair sized for a dorm or apartment desk.",
+        "category": "Furniture",
+        "condition": "Good — light wear on the seat",
+        "value_minor": 4000,
+        "status": "available",
+        "color": "#b77b4b"
+      },
+      {
+        "key": "alice-calculator",
+        "title": "Scientific calculator",
+        "description": "Working scientific calculator with a protective cover.",
+        "category": "Study supplies",
+        "condition": "Good — tested and working",
+        "value_minor": 2000,
+        "status": "available",
+        "color": "#3f4c5a"
+      },
+      {
+        "key": "alice-desk-organizer",
+        "title": "Bamboo desk organizer",
+        "description": "Three compartments for pens, notebooks, and small study supplies.",
+        "category": "Study supplies",
+        "condition": "Excellent — clean and lightly used",
+        "value_minor": 1500,
+        "status": "available",
+        "color": "#c6a477"
+      },
+      {
+        "key": "alice-lamp-draft",
+        "title": "Desk lamp draft",
+        "description": "A fictional draft that must remain private to Alice.",
+        "category": "Household essentials",
+        "condition": "Condition review pending",
+        "value_minor": null,
+        "status": "draft",
+        "color": "#d5b95f"
+      }
+    ]
+  },
+  "members": [
+    {
+      "username": "demo-brian",
+      "name": "Brian Patel",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": ["Broken items"],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "brian-monitor",
+          "title": "24-inch desktop monitor",
+          "description": "1080p monitor with an HDMI cable, stand, and power adapter.",
+          "category": "Electronics",
+          "condition": "Good — tested and working",
+          "value_minor": 6500,
+          "status": "available",
+          "color": "#4a5968"
+        },
+        {
+          "key": "brian-usb-hub",
+          "title": "Four-port USB hub",
+          "description": "Compact USB hub with four working ports and a short cable.",
+          "category": "Electronics",
+          "condition": "Good — all ports tested",
+          "value_minor": 1500,
+          "status": "available",
+          "color": "#64748b"
+        },
+        {
+          "key": "brian-notebook-set",
+          "title": "Unused dotted notebook set",
+          "description": "Two A5 dotted notebooks with unused pages for class notes or planning.",
+          "category": "Study supplies",
+          "condition": "New — unopened",
+          "value_minor": 1000,
+          "status": "available",
+          "color": "#799b88"
+        },
+        {
+          "key": "brian-hdmi-removed",
+          "title": "Old HDMI cable",
+          "description": "A fictional removed listing used to verify discovery filtering.",
+          "category": "Electronics",
+          "condition": "Fair",
+          "value_minor": 500,
+          "status": "removed",
+          "color": "#23272b"
+        }
+      ]
+    },
+    {
+      "username": "demo-carol",
+      "name": "Carol Rivera",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": [],
+      "gap_limit": 25,
+      "items": [
+        {
+          "key": "carol-laptop-stand",
+          "title": "Foldable laptop stand",
+          "description": "Adjustable aluminum stand for a laptop or tablet.",
+          "category": "Study supplies",
+          "condition": "Excellent",
+          "value_minor": 2200,
+          "status": "available",
+          "color": "#9ba4aa"
+        },
+        {
+          "key": "carol-webcam",
+          "title": "1080p USB webcam",
+          "description": "Clip-on webcam with a privacy cover for online classes and calls.",
+          "category": "Electronics",
+          "condition": "Good — tested with a laptop",
+          "value_minor": 2800,
+          "status": "available",
+          "color": "#475569"
+        },
+        {
+          "key": "carol-tablet-sleeve",
+          "title": "Padded tablet sleeve",
+          "description": "Soft zip sleeve for a small tablet; comparison value has not been set.",
+          "category": "Study supplies",
+          "condition": "Very good — clean lining",
+          "value_minor": null,
+          "status": "available",
+          "color": "#8f82a8"
+        }
+      ]
+    },
+    {
+      "username": "demo-diego",
+      "name": "Diego Morales",
+      "interests": ["Furniture"],
+      "exclusions": [],
+      "gap_limit": 30,
+      "items": [
+        {
+          "key": "diego-keyboard",
+          "title": "Compact mechanical keyboard",
+          "description": "USB mechanical keyboard with working switches and cable.",
+          "category": "Electronics",
+          "condition": "Good — all keys tested",
+          "value_minor": 4500,
+          "status": "available",
+          "color": "#5c6570"
+        },
+        {
+          "key": "diego-mouse-pad",
+          "title": "Extended desk mouse pad",
+          "description": "Washable desk mat with stitched edges and space for a keyboard and mouse.",
+          "category": "Study supplies",
+          "condition": "Good — freshly cleaned",
+          "value_minor": 1200,
+          "status": "available",
+          "color": "#4e6681"
+        },
+        {
+          "key": "diego-speakers",
+          "title": "Compact desktop speakers",
+          "description": "Pair of USB-powered speakers with a 3.5 mm audio connection.",
+          "category": "Electronics",
+          "condition": "Fair — cosmetic scratches, working audio",
+          "value_minor": 2500,
+          "status": "available",
+          "color": "#47505d"
+        }
+      ]
+    },
+    {
+      "username": "demo-elena",
+      "name": "Elena Park",
+      "interests": ["Study supplies"],
+      "exclusions": ["Upholstered furniture"],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "elena-textbooks",
+          "title": "Intro science textbook set",
+          "description": "Three introductory science reference books for first-year courses.",
+          "category": "Study supplies",
+          "condition": "Good — clean pages with light notes",
+          "value_minor": 3500,
+          "status": "available",
+          "color": "#557b63"
+        },
+        {
+          "key": "elena-whiteboard",
+          "title": "Small revision whiteboard",
+          "description": "Double-sided dry-erase board with a stand and two working markers.",
+          "category": "Study supplies",
+          "condition": "Good — faint marker wear",
+          "value_minor": 1800,
+          "status": "available",
+          "color": "#d5d9cb"
+        },
+        {
+          "key": "elena-bookends",
+          "title": "Metal bookend pair",
+          "description": "Two sturdy bookends for keeping textbooks upright on a study desk.",
+          "category": "Furniture",
+          "condition": "Excellent",
+          "value_minor": 1200,
+          "status": "available",
+          "color": "#6b8176"
+        }
+      ]
+    },
+    {
+      "username": "demo-farah",
+      "name": "Farah Ahmed",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": [],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "farah-desk",
+          "title": "Compact writing desk",
+          "description": "Small wood-look desk that fits a dorm room study corner.",
+          "category": "Furniture",
+          "condition": "Good — minor edge marks",
+          "value_minor": 6000,
+          "status": "available",
+          "color": "#956c4c"
+        },
+        {
+          "key": "farah-stool",
+          "title": "Stackable wooden stool",
+          "description": "Lightweight stool for a desk, side table, or extra seat.",
+          "category": "Furniture",
+          "condition": "Good — light surface wear",
+          "value_minor": 2200,
+          "status": "available",
+          "color": "#ba9470"
+        },
+        {
+          "key": "farah-reading-lamp",
+          "title": "Adjustable LED reading lamp",
+          "description": "USB-powered study lamp with three brightness settings.",
+          "category": "Electronics",
+          "condition": "Very good — all settings tested",
+          "value_minor": 1800,
+          "status": "available",
+          "color": "#c1ad87"
+        }
+      ]
+    },
+    {
+      "username": "demo-gabriel",
+      "name": "Gabriel Stone",
+      "interests": ["Furniture"],
+      "exclusions": [],
+      "gap_limit": 25,
+      "items": [
+        {
+          "key": "gabriel-headphones",
+          "title": "Over-ear study headphones",
+          "description": "Wired over-ear headphones with a zip case.",
+          "category": "Electronics",
+          "condition": "Good — ear cushions reviewed",
+          "value_minor": 4000,
+          "status": "available",
+          "color": "#334155"
+        },
+        {
+          "key": "gabriel-power-bank",
+          "title": "Portable USB power bank",
+          "description": "10,000 mAh power bank with a USB charging cable for campus days.",
+          "category": "Electronics",
+          "condition": "Good — holds a charge",
+          "value_minor": 2000,
+          "status": "available",
+          "color": "#526575"
+        },
+        {
+          "key": "gabriel-study-timer",
+          "title": "Digital study timer",
+          "description": "Small countdown timer with a silent setting for focused study periods.",
+          "category": "Study supplies",
+          "condition": "Excellent — battery included",
+          "value_minor": 1000,
+          "status": "available",
+          "color": "#7e8d99"
+        }
+      ]
+    },
+    {
+      "username": "demo-hana",
+      "name": "Hana Kim",
+      "interests": ["Study supplies"],
+      "exclusions": [],
+      "gap_limit": 25,
+      "items": [
+        {
+          "key": "hana-art-kit",
+          "title": "Drawing and art supply kit",
+          "description": "Sketch pencils, markers, rulers, and a clean zip organizer.",
+          "category": "Study supplies",
+          "condition": "Very good — lightly used",
+          "value_minor": 3000,
+          "status": "available",
+          "color": "#c75b7a"
+        },
+        {
+          "key": "hana-sketchbooks",
+          "title": "Blank sketchbook pair",
+          "description": "Two spiral-bound A4 sketchbooks with blank heavyweight paper.",
+          "category": "Study supplies",
+          "condition": "New — unused pages",
+          "value_minor": 1800,
+          "status": "available",
+          "color": "#d6a08c"
+        },
+        {
+          "key": "hana-drawing-tablet",
+          "title": "Small USB drawing tablet",
+          "description": "Entry-level graphics tablet with a stylus, spare nibs, and USB cable.",
+          "category": "Electronics",
+          "condition": "Good — stylus and surface tested",
+          "value_minor": 4500,
+          "status": "available",
+          "color": "#867498"
+        }
+      ]
+    },
+    {
+      "username": "demo-isaac",
+      "name": "Isaac Nguyen",
+      "interests": ["Furniture", "Study supplies"],
+      "exclusions": [],
+      "gap_limit": 20,
+      "items": [
+        {
+          "key": "isaac-bookshelf",
+          "title": "Three-shelf bookcase",
+          "description": "Compact bookcase for textbooks, supplies, and small plants.",
+          "category": "Furniture",
+          "condition": "Good — stable with light wear",
+          "value_minor": 4500,
+          "status": "available",
+          "color": "#7a5b44"
+        },
+        {
+          "key": "isaac-side-table",
+          "title": "Small bedside table",
+          "description": "Compact side table with a lower shelf for books or storage baskets.",
+          "category": "Furniture",
+          "condition": "Fair — visible top marks, stable frame",
+          "value_minor": 2500,
+          "status": "available",
+          "color": "#a5815f"
+        },
+        {
+          "key": "isaac-file-tray",
+          "title": "Stackable document tray",
+          "description": "Two-tier paper organizer for class handouts and assignment folders.",
+          "category": "Study supplies",
+          "condition": "Good",
+          "value_minor": 1200,
+          "status": "available",
+          "color": "#857d70"
+        }
+      ]
+    }
+  ],
+  "outside_community_member": {
+    "username": "demo-jordan",
+    "name": "Jordan Lee",
+    "community": "Downtown Phoenix",
+    "interests": ["Furniture"],
+    "exclusions": [],
+    "gap_limit": 20,
+    "items": [
+      {
+        "key": "jordan-mouse",
+        "title": "Wireless computer mouse",
+        "description": "A working wireless mouse that must stay outside ASU Tempe discovery.",
+        "category": "Electronics",
+        "condition": "Good — receiver included",
+        "value_minor": 1800,
+        "status": "available",
+        "color": "#2f3740"
+      },
+      {
+        "key": "jordan-usb-keyboard",
+        "title": "Full-size USB keyboard",
+        "description": "Working keyboard in the other community, hidden from ASU Tempe discovery.",
+        "category": "Electronics",
+        "condition": "Good — all keys working",
+        "value_minor": 2200,
+        "status": "available",
+        "color": "#546376"
+      },
+      {
+        "key": "jordan-notebook",
+        "title": "Hardcover study notebook",
+        "description": "Unused notebook belonging to the outside-community test member.",
+        "category": "Study supplies",
+        "condition": "New — unused",
+        "value_minor": 900,
+        "status": "available",
+        "color": "#769388"
+      }
+    ]
+  }
+}

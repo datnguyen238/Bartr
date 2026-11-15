@@ -28,8 +28,8 @@ class SemanticSearch:
     def index_item(self,item,community):
         if getattr(self.repo,'backend',None)=='dynamodb':
             raise AppError('Semantic search still requires Atlas and is not included in this DynamoDB login/photo-valuation increment.', 'SEMANTIC_STORAGE_UNSUPPORTED', 503)
-        if self.repo.memory:
-            raise AppError('Atlas indexing needs MongoDB storage, not temporary memory mode.','ATLAS_REQUIRED',503)
+        if not self.repo.supports_atlas:
+            raise AppError('Atlas indexing needs MongoDB storage, not temporary storage mode.','ATLAS_REQUIRED',503)
         db=self.repo.database()
         prior=db.search_items.find_one({'_id':item['id']})
         if prior and prior['revision']==item['revision'] and prior['model']==self.embeddings.model and prior['dimensions']==self.embeddings.dimensions:
@@ -61,7 +61,7 @@ class SemanticSearch:
     def candidates(self,state,actor):
         if getattr(self.repo,'backend',None)=='dynamodb':
             raise AppError('Semantic search still requires Atlas and is not included in this DynamoDB login/photo-valuation increment.', 'SEMANTIC_STORAGE_UNSUPPORTED', 503)
-        if self.repo.memory:
+        if not self.repo.supports_atlas:
             raise AppError('Semantic discovery needs MongoDB Atlas. Select exact-text discovery for temporary local testing.','ATLAS_REQUIRED',503)
         model=os.getenv('GEMINI_MODEL') or os.getenv('GEMINI_VALUATION_MODEL','')
         if not model or not os.getenv('GEMINI_API_KEY'):

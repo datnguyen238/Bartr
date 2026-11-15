@@ -8,9 +8,11 @@ from backend.app.errors import AppError
 from backend.app.storage.state import StateRepository
 
 
-@pytest.fixture
-def market():
-    app=Marketplace(StateRepository(memory=True))
+@pytest.fixture(params=['memory','json'])
+def market(request,tmp_path):
+    repository=(StateRepository(memory=True) if request.param=='memory'
+                else StateRepository(json_path=tmp_path/'bartr.json'))
+    app=Marketplace(repository)
     a=app.register('alice','safe-password-one','Alice','Tempe')['id']
     b=app.register('brian','safe-password-two','Brian','Tempe')['id']
     c=app.register('carol','safe-password-three','Carol','Tempe')['id']
