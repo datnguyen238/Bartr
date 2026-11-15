@@ -2,6 +2,8 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
+  distDir: process.env.BARTR_NEXT_DIST_DIR || '.next',
   outputFileTracingRoot: path.resolve(__dirname),
   turbopack: { root: path.resolve(__dirname) },
   async rewrites() {

@@ -1,11 +1,5 @@
-import { AuthForm } from "@/components/auth-form";
-import { safeNext } from "@/lib/navigation";
+import { redirect } from "next/navigation";
 
-export default async function RegisterPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string }>;
-}) {
-  const params = await searchParams;
-  return <AuthForm mode="register" next={safeNext(params.next)} />;
+export default function RegisterPage() {
+  redirect("/home?mode=register");
 }

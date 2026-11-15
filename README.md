@@ -42,6 +42,8 @@ npm run dev
 
 Open **http://localhost:3000**. API docs: **http://localhost:8000/docs**. Keep both terminals running. The frontend forwards `/api` requests to port 8000; change `frontend/.env.local` using its `.env.example` and restart/rebuild if the origin differs.
 
+The public landing page is at `/`. After sign-in, the main sidebar provides Home, Profile and Trades; `/discover` contains marketplace discovery, and `/trades` opens the offer workspace. Profile and inventory retain account-scoped session and draft handling.
+
 ### Temporary JSON document mode without Atlas or AI credentials
 
 The root `.env.example` selects this mode. It can also be selected explicitly:

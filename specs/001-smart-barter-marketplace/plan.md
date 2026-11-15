@@ -181,3 +181,11 @@ A hosted pilot uses TLS, private database access, managed credentials, real back
 ## Complexity Tracking
 
 No constitution violations or waived gates. The guard/policy history, item epochs, receipts and leased jobs are necessary to satisfy the specified concurrency, permanence and recovery semantics. Every other infrastructure addition is deferred until evidence requires it.
+
+## Approved profile frontend increment — 2026-11-14
+
+The maintainer approved the [profile page plan](../../.claude/plans/profile-page.plan.md), then explicitly narrowed this frontend phase to defer offers. This increment implements Story 1 and FR-001–003, FR-006, FR-028 and FR-030 through `/home`, protected `/profile`, `/profile/inventory` and `/profile/preferences`. `/trade` is a public placeholder. The existing discovery and negotiation pages redirect there; their backend endpoints and domain rules remain available and unchanged. This is a frontend delivery boundary, not removal of the marketplace requirements above.
+
+Session restoration uses the existing cookie-backed `/api/me`. Account and preference forms share the existing revisioned full-profile PATCH contract while preserving the other section's saved fields. Private drafts are reset on confirmed sign-out, expiry or identity change, and old asynchronous responses are rejected. No persisted-data schema, API contract, provider configuration or migration changes. Recovery consists of reverting the frontend increment; saved accounts/items remain compatible.
+
+Ownership: root agent coordinates Home, navigation, routes, documentation and verification; `frontend_api_trace` owns session/provider behavior; `frontend_ui_trace` owns profile forms, guard and inventory extraction. `engineering_process_review` independently reviews access, revisions and failure handling. The [TDD report](../../.claude/tdd/profile-page.tdd.md) records RED/GREEN and mode-specific evidence. Existing custom checklist markers remain reviewer-owned.

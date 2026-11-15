@@ -94,16 +94,22 @@ export interface Recommendations {
   reason: string | null;
   retrieval: string;
 }
-export interface FieldIssue {
-  field: string;
-  message: string;
+export interface ApiFieldError { field: string; message: string }
+export type FieldIssue = ApiFieldError;
+
+function errorFields(value: unknown): ApiFieldError[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((field): field is ApiFieldError => Boolean(
+    field && typeof field === "object" && typeof field.field === "string" && typeof field.message === "string",
+  ));
 }
+
 export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
     public code?: string,
-    public fields: FieldIssue[] = [],
+    public fields: ApiFieldError[] = [],
   ) {
     super(message);
   }
@@ -130,23 +136,12 @@ export async function api<T>(
   }
   const value = await response.json();
   if (!response.ok) {
-    const issues: FieldIssue[] = Array.isArray(value.fields)
-      ? value.fields.filter(
-          (x: unknown): x is FieldIssue =>
-            typeof x === "object" &&
-            x !== null &&
-            typeof (x as FieldIssue).field === "string" &&
-            typeof (x as FieldIssue).message === "string",
-        )
-      : [];
-    const fields = issues
-      .map((x) => `${x.field}: ${x.message}`)
-      .join("; ");
+    const fields = errorFields(value.fields);
     throw new ApiError(
-      fields || value.detail || "Request failed.",
+      fields.map((field) => `${field.field}: ${field.message}`).join("; ") || value.detail || "Request failed.",
       response.status,
       value.code,
-      issues,
+      fields,
     );
   }
   return value as T;
@@ -179,6 +174,7 @@ const tradeStatusLabels: Record<string, string> = {
 };
 export const tradeStatusLabel = (status: string) =>
   tradeStatusLabels[status] ?? status.replaceAll("_", " ");
+
 export async function upload(item: Item, file: File): Promise<Item> {
   const data = new FormData();
   data.append("file", file);
@@ -188,7 +184,7 @@ export async function upload(item: Item, file: File): Promise<Item> {
   );
   const value = await r.json();
   if (!r.ok)
-    throw new ApiError(value.detail || "Photo upload failed.", r.status);
+    throw new ApiError(value.detail || "Photo upload failed.", r.status, value.code, errorFields(value.fields));
   return value;
 }
 export const money = (v: number | null) =>
