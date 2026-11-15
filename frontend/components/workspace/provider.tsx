@@ -20,7 +20,7 @@ function useWorkspaceState() {
   const router = useRouter();
   const pathname = usePathname();
   const tab = pathname.split("/")[1] || "home";
-  const setTab = (value: string) => router.push(({ inventory: "/profile/inventory", preferences: "/profile/preferences", discover: "/trade", trades: "/trade" } as Record<string, string>)[value] ?? `/${value}`);
+  const setTab = (value: string) => router.push(({ inventory: "/profile/inventory", preferences: "/profile/preferences", discover: "/discover", trades: "/trades" } as Record<string, string>)[value] ?? `/${value}`);
   const [view, setView] = useState<View | null>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),

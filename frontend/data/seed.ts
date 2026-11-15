@@ -31,6 +31,16 @@ const keyboard = item('seed-keyboard', carol.id, 'Mechanical keyboard', 'Electro
   'Good — all keys working', 'Compact keyboard with USB cable.', 'exchanged');
 const stand = item('seed-stand', carol.id, 'Laptop stand', 'Study supplies', 2000,
   'Excellent', 'Foldable metal stand for a study desk.');
+const deskLight = item('seed-desk-light', alice.id, 'USB desk light', 'Electronics', 1500,
+  'Good — brightness controls tested', 'Compact adjustable desk light with a USB power cable.');
+const webcam = item('seed-webcam', brian.id, '1080p study webcam', 'Electronics', 3000,
+  'Good — camera and microphone tested', 'Clip-on USB webcam for online classes and study calls.');
+const usbHub = item('seed-usb-hub', brian.id, 'Four-port USB hub', 'Electronics', 1500,
+  'Very good — all ports working', 'Compact hub with four USB ports and an attached laptop cable.');
+const notebooks = item('seed-notebooks', carol.id, 'Unused notebook set', 'Study supplies', 1000,
+  'New — unused pages', 'Three ruled notebooks and a folder for class notes.');
+const speakers = item('seed-speakers', carol.id, 'Compact desktop speakers', 'Electronics', 2500,
+  'Good — both speakers tested', 'Small wired stereo speakers with a volume dial and audio cable.');
 
 function terms(left: Item[], right: Item[]): Terms {
   const total = (items: Item[]) => items.some(x => x.value_minor === null) ? null : items.reduce((sum, x) => sum + x.value_minor!, 0);
@@ -69,7 +79,8 @@ export function createSeedView(): View {
     profile: { ...alice, username: 'seed-alice', interests: ['Electronics', 'Study supplies'],
       exclusions: ['Broken items'], gap_limit: 20, revision: 1 },
     members: [alice, brian, carol],
-    items: [chair, calculator, monitor, lamp, shelf, router, headphones, keyboard, stand],
+    items: [chair, calculator, deskLight, monitor, webcam, usbHub, stand, notebooks, speakers,
+      lamp, shelf, router, headphones, keyboard],
     trades: [open, awaiting, completed],
   });
 }

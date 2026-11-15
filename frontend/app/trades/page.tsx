@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import { AuthGate } from "@/components/workspace/auth-gate";
+import TradesPage from "@/components/trade/trade-workspace";
 
-export default function TradesPage() {
-  redirect("/trade");
+export default function TradePage() {
+  return <AuthGate><TradesPage /></AuthGate>;
 }
