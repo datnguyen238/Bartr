@@ -31,8 +31,10 @@ vi.mock("@/data/seed", () => ({
 type SessionWorkspace = ReturnType<typeof useWorkspace> & {
   sessionStatus: "checking" | "authenticated" | "anonymous" | "unavailable";
   signIn: (credentials: { username: string; password: string }) => Promise<void>;
+  signUp: (credentials: { username: string; password: string; name: string; community: string }) => Promise<void>;
   signOut: () => Promise<void>;
   retrySession: () => Promise<void>;
+  guardSession: <T>(operation: Promise<T>) => Promise<T>;
 };
 
 const item: Item = {
@@ -72,6 +74,7 @@ function Consumer() {
     <>
       <output aria-label="Session status">{workspace.sessionStatus ?? "missing"}</output>
       <output aria-label="Authenticated">{String(workspace.hasSession)}</output>
+      <output aria-label="Busy">{String(workspace.busy)}</output>
       <output aria-label="Saved member">{workspace.view?.profile.name ?? ""}</output>
       <output aria-label="Private state">{JSON.stringify({
         editor: workspace.editing?.id ?? null,
@@ -85,19 +88,31 @@ function Consumer() {
         acknowledged: workspace.ack,
       })}</output>
       <output aria-label="Action error">{workspace.error}</output>
+      <output aria-label="Draft revisions">{JSON.stringify(workspace.profileDraftRevision)}</output>
       <label>
         Profile name draft
         <input value={workspace.profileForm.name} onChange={(event) => workspace.setProfileForm({
           ...workspace.profileForm, name: event.target.value,
         })} />
       </label>
+      <label>
+        Interests draft
+        <input value={workspace.profileForm.interests} onChange={(event) => workspace.setProfileForm({
+          ...workspace.profileForm, interests: event.target.value,
+        })} />
+      </label>
       <button onClick={() => invoke(workspace.signIn({ username: "alice", password: "synthetic-password" }))}>Sign in</button>
+      <button onClick={() => invoke(workspace.signUp({ username: "alice", password: "synthetic-password", name: "Alice", community: "Tempe" }))}>Register</button>
       <button onClick={() => invoke(workspace.signOut())}>Sign out</button>
       <button onClick={() => invoke(workspace.retrySession())}>Retry session</button>
       <button onClick={() => invoke(workspace.load())}>Refresh saved snapshot</button>
       <button onClick={() => invoke(workspace.run(async () => {
         await mocks.api("items", "POST", { title: "New draft" });
       }))}>Save authenticated draft</button>
+      <button onClick={() => invoke(workspace.run(async () => {
+        const updated = await workspace.guardSession(mocks.api("items/late"));
+        workspace.edit(updated as Item);
+      }))}>Save delayed item</button>
       <button onClick={() => {
         workspace.edit(item);
         workspace.setForm({ ...workspace.form, title: "Private unsaved title" });
@@ -266,5 +281,190 @@ describe("Workspace session lifecycle", () => {
 
     await waitFor(() => expect(value("Saved member")).toBe("Alice updated elsewhere"));
     expect((screen.getByLabelText("Profile name draft") as HTMLInputElement).value).toBe("My unsaved name");
+  });
+
+  it("ignores delayed item callbacks after confirmed logout", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    const pending = deferred<Item>();
+    mocks.api.mockImplementation((path: string) => path === "items/late" ? pending.promise : Promise.resolve({ signed_out: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Save delayed item" }));
+    await act(async () => {});
+    expect(value("Action error")).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await waitFor(() => expect(value("Session status")).toBe("anonymous"));
+
+    await act(async () => { pending.resolve(item); });
+    expectPrivateStateCleared();
+  });
+
+  it("clears all previous private drafts if /me identifies a different member", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    fireEvent.click(screen.getByRole("button", { name: "Prepare private drafts" }));
+    sessionStorage.setItem("bartr-command:previous-member", "pending-command");
+    const bob = savedView("Bob");
+    bob.profile.id = "bob";
+    bob.profile.username = "bob";
+    bob.members = [{ id: "bob", name: "Bob", community: "Tempe" }];
+    bob.items = [];
+    mocks.api.mockResolvedValue(bob);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+
+    await waitFor(() => expect(value("Saved member")).toBe("Bob"));
+    expect(JSON.parse(value("Private state")!)).toEqual({
+      editor: null, title: "", results: 0, selectedTrade: "", counterpart: "",
+      selectedItems: 0, natural: "", interpreted: null, acknowledged: false,
+    });
+    expect((screen.getByLabelText("Profile name draft") as HTMLInputElement).value).toBe("Bob");
+    expect(sessionStorage.getItem("bartr-command:previous-member")).toBeNull();
+  });
+
+  it("does not expire a newer signed-in account after an old guarded action returns 401", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    const oldAction = deferred<Item>();
+    const bob = savedView("Bob");
+    bob.profile.id = "bob";
+    mocks.api.mockImplementation((path: string) => {
+      if (path === "items/late") return oldAction.promise;
+      if (path === "auth/login") return Promise.resolve(bob.profile);
+      if (path === "me") return Promise.resolve(bob);
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save delayed item" }));
+    await act(async () => {});
+    expect(value("Action error")).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(value("Saved member")).toBe("Bob"));
+
+    await act(async () => { oldAction.reject(new ApiError("Old session expired.", 401)); });
+    expect(value("Session status")).toBe("authenticated");
+    expect(value("Saved member")).toBe("Bob");
+    expect(value("Action error")).toBe("");
+  });
+
+  it("keeps rejected registration editable as anonymous rather than calling validation an outage", async () => {
+    mocks.api.mockRejectedValueOnce(new ApiError("Sign in to continue.", 401));
+    renderWorkspace();
+    await waitFor(() => expect(value("Session status")).toBe("anonymous"));
+    mocks.api.mockRejectedValue(new ApiError("That username is unavailable.", 409, "USERNAME_TAKEN"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Register" }));
+    await waitFor(() => expect(value("Action error")).toBe("That username is unavailable."));
+    expect(value("Session status")).toBe("anonymous");
+    expect(value("Authenticated")).toBe("false");
+  });
+
+  it("reports an outage if login succeeds but the authoritative workspace cannot be restored", async () => {
+    mocks.api.mockRejectedValueOnce(new ApiError("Sign in to continue.", 401));
+    renderWorkspace();
+    await waitFor(() => expect(value("Session status")).toBe("anonymous"));
+    mocks.api.mockImplementation((path: string) => path === "auth/login"
+      ? Promise.resolve(savedView().profile)
+      : Promise.reject(new ApiError("Saved profile unavailable.", 503)));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(value("Session status")).toBe("unavailable"));
+    expect(value("Authenticated")).toBe("false");
+    expect(value("Saved member")).toBe("");
+    expect(value("Action error")).toBe("Saved profile unavailable.");
+  });
+
+  it("advances a preference draft's revision across an unrelated account update without erasing the draft", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    fireEvent.change(screen.getByLabelText("Interests draft"), { target: { value: "My unsaved interests" } });
+    const updated = savedView("Alice renamed");
+    updated.profile.revision = 3;
+    mocks.api.mockResolvedValue(updated);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+
+    await waitFor(() => expect(value("Saved member")).toBe("Alice renamed"));
+    expect((screen.getByLabelText("Interests draft") as HTMLInputElement).value).toBe("My unsaved interests");
+    expect((screen.getByLabelText("Profile name draft") as HTMLInputElement).value).toBe("Alice renamed");
+    expect(JSON.parse(value("Draft revisions")!)).toEqual({ account: 3, preferences: 3 });
+  });
+
+  it("retains a dirty account draft's reviewed revision if the same saved section changes elsewhere", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    fireEvent.change(screen.getByLabelText("Profile name draft"), { target: { value: "My unsaved name" } });
+    const updated = savedView("Different saved name");
+    updated.profile.revision = 3;
+    mocks.api.mockResolvedValue(updated);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+
+    await waitFor(() => expect(value("Saved member")).toBe("Different saved name"));
+    expect((screen.getByLabelText("Profile name draft") as HTMLInputElement).value).toBe("My unsaved name");
+    expect(JSON.parse(value("Draft revisions")!)).toEqual({ account: 2, preferences: 3 });
+  });
+
+  it("keeps a newer /me snapshot when an older same-session refresh finishes later", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    const older = deferred<View>();
+    const newer = deferred<View>();
+    mocks.api.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+    const newView = savedView("Newest saved name");
+    newView.profile.revision = 5;
+    await act(async () => { newer.resolve(newView); });
+    expect(value("Saved member")).toBe("Newest saved name");
+
+    const oldView = savedView("Outdated saved name");
+    oldView.profile.revision = 3;
+    await act(async () => { older.resolve(oldView); });
+    expect(value("Saved member")).toBe("Newest saved name");
+    expect(JSON.parse(value("Draft revisions")!)).toEqual({ account: 5, preferences: 5 });
+    expect(value("Action error")).toBe("");
+  });
+
+  it("ignores an older /me failure after a newer same-session refresh establishes the session", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    const older = deferred<View>();
+    const newer = deferred<View>();
+    mocks.api.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh saved snapshot" }));
+    await act(async () => { newer.resolve(savedView()); });
+
+    await act(async () => { older.reject(new ApiError("Old request saw an expired session.", 401)); });
+    expect(value("Session status")).toBe("authenticated");
+    expect(value("Saved member")).toBe("Alice");
+    expect(value("Action error")).toBe("");
+  });
+
+  it("keeps authentication busy when a superseded attempt finishes during the newer attempt", async () => {
+    mocks.api.mockRejectedValueOnce(new ApiError("No session.", 401));
+    renderWorkspace();
+    await waitFor(() => expect(value("Session status")).toBe("anonymous"));
+    const firstLogin = deferred<View["profile"]>();
+    const newerRegistration = deferred<View["profile"]>();
+    mocks.api.mockImplementation((path: string) => {
+      if (path === "auth/login") return firstLogin.promise;
+      if (path === "auth/register") return newerRegistration.promise;
+      if (path === "me") return Promise.resolve(savedView());
+      return Promise.reject(new Error(`Unexpected path ${path}`));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Register" }));
+    expect(value("Busy")).toBe("true");
+    await act(async () => { firstLogin.resolve(savedView().profile); });
+    expect(value("Session status")).toBe("checking");
+    expect(value("Busy")).toBe("true");
+
+    await act(async () => { newerRegistration.resolve(savedView().profile); });
+    await expectAuthenticated();
+    expect(value("Busy")).toBe("false");
   });
 });

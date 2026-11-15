@@ -1,41 +1,33 @@
 "use client";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/marketplace";
 import { useWorkspace } from "./provider";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
-  const { view, hasSession, seeded, tab, busy, message, error, loading, run, load, setView, setResults, setMessage } = useWorkspace();
-  if (loading)
-    return (
-      <main className="p-10" role="status">
-        Loading Bartr…
-      </main>
-    );
+  const { view, hasSession, seeded, busy, message, error, signOut } = useWorkspace();
+  const pathname = usePathname();
+  const router = useRouter();
   return (
     <div className="min-h-screen">
       <header className="border-b bg-card/70">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <a className="text-2xl font-semibold tracking-tight" href="/">
+          <Link className="text-2xl font-semibold tracking-tight" href="/home">
             bartr.
-          </a>
+          </Link>
           {hasSession && (
-            <div className="flex items-center gap-3 text-sm">
-              <span>
+            <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
+              <span className="break-words [overflow-wrap:anywhere]">
                 {view.profile.name} · {view.profile.community}
               </span>
               <Button
                 variant="ghost"
                 disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    await api("auth/logout", "POST", {});
-                    setView(null);
-                    setResults(null);
-                    setMessage("Signed out.");
-                  })
-                }
+                onClick={async () => {
+                  try { await signOut(); router.replace("/home"); }
+                  catch { /* The provider keeps the session and explains the failure. */ }
+                }}
               >
                 Sign out
               </Button>
@@ -58,7 +50,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             your decision.
           </p>
         </div>
-        {seeded && <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">Fictional frontend seed data — not a signed-in account, saved inventory, or live AI result. Backend actions are disabled.</p>}
+        {seeded && <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">Sample data preview — these accounts and items are fictional. Sign-in and saving are disabled.</p>}
         <div aria-live="polite" role="status">
           {busy && (
             <p className="mb-4 text-sm">
@@ -79,40 +71,30 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             {error}
           </p>
         )}
-        {!seeded && view?.storage === "temporary-memory" && (
+        {hasSession && !seeded && view?.storage === "temporary-memory" && (
           <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">
-            Temporary memory storage is explicitly enabled. Accounts and
-            listings are real within this local session, but disappear when the
-            backend restarts. Configure MongoDB Atlas for saved data.
+            This preview uses temporary storage. Accounts and listings
+            disappear when the service restarts.
           </p>
         )}
         <>
             <nav
               className="mb-7 flex flex-wrap gap-2 border-b pb-4"
-              aria-label="Workspace"
+              aria-label="Main navigation"
             >
-              {["inventory", "discover", "trades", "preferences"].map((t) => (
+              {[["/home", "Home"], ["/profile", "Profile"], ["/trade", "Trade"]].map(([href, label]) => {
+                const active = pathname === href || (href === "/profile" && pathname.startsWith("/profile/"));
+                return (
                 <Button
-                  key={t}
-                  variant={tab === t ? "default" : "ghost"}
-                  aria-current={tab === t ? "page" : undefined}
+                  key={href}
+                  variant={active ? "default" : "ghost"}
+                  aria-current={active ? "page" : undefined}
                   asChild
                 >
-                  <Link href={`/${t}`}>{t[0].toUpperCase() + t.slice(1)}</Link>
+                  <Link href={href}>{label}</Link>
                 </Button>
-              ))}
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    await load();
-                    setMessage("Loaded the latest saved state.");
-                  })
-                }
-              >
-                Reload saved state
-              </Button>
+                );
+              })}
             </nav>
           {children}
         </>
