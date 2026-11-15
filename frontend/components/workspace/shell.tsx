@@ -44,7 +44,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
-        <div className="py-10">
+        {tab !== "trades" && <div className="py-10">
           <p className="mb-3 text-sm text-muted-foreground">
             Less unused. More possibility.
           </p>
@@ -57,7 +57,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             Discover combinations worth trading. Your items, your preferences,
             your decision.
           </p>
-        </div>
+        </div>}
         {seeded && <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">Fictional frontend seed data — not a signed-in account, saved inventory, or live AI result. Backend actions are disabled.</p>}
         <div aria-live="polite" role="status">
           {busy && (

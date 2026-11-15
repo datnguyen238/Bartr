@@ -1,9 +1,11 @@
 """Account-backed routes. All ownership and actor identity are server-derived."""
 import os
+import asyncio
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadFile
+from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..domain import now
@@ -85,6 +87,45 @@ class Dismiss(Closed):
 
 
 router=APIRouter()
+
+
+@router.websocket('/trades/{trade_id}/live')
+async def live_trade(socket: WebSocket, trade_id: str):
+    from ..domain import trade_for
+    allowed = {x.strip() for x in os.getenv('WEB_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')}
+    if socket.headers.get('origin') not in allowed:
+        await socket.close(code=1008)
+        return
+    service = socket.app.state.marketplace
+    token = socket.cookies.get('bartr_session')
+    def current():
+        who = service.authenticate(token)
+        return trade_for(service.repo.read(), who, trade_id)
+    try:
+        trade = await run_in_threadpool(current)
+    except AppError:
+        await socket.close(code=1008)
+        return
+    await socket.accept()
+    try:
+        last_revision = None
+        while True:
+            if trade['revision'] != last_revision:
+                await socket.send_json(trade)
+                last_revision = trade['revision']
+            try:
+                message = await asyncio.wait_for(socket.receive(), timeout=2)
+                if message['type'] == 'websocket.disconnect':
+                    return
+                await socket.close(code=1008)
+                return
+            except asyncio.TimeoutError:
+                pass
+            trade = await run_in_threadpool(current)
+    except WebSocketDisconnect:
+        pass
+    except AppError:
+        await socket.close(code=1008)
 
 
 def market(request:Request): return request.app.state.marketplace

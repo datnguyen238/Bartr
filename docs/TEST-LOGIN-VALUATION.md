@@ -18,6 +18,8 @@ Root `.env` is loaded automatically. Explicit shell environment variables take p
 
 For the browser flow, start the frontend in another terminal with Node 20.19 or newer: `cd frontend && npm run dev`. Open `http://localhost:3000`, register or sign in, save a draft, upload a photo, and select **Analyze photo & value**. Review the estimate and uncertainty, select **Use this estimate**, then save the listing. You can correct the amount instead; a corrected value is recorded as owner-entered. Disable `NEXT_PUBLIC_USE_SEED_DATA` so actions reach the backend. Gemini model access and image valuation have not yet been verified live.
 
+For trade chat, restart both servers after installing the current `requirements.txt`, disable seed mode, and sign in with two different accounts in separate browser profiles. Create a trade and open it in both profiles. The conversation should show **Live**, and a sent message should appear in the other profile within a few seconds. A disconnect changes the status to **Reconnecting**; reopening recovers saved messages. For a different frontend origin, add it exactly to `WEB_ORIGINS`; any hosting proxy must support WebSocket upgrades. Local proxy verification uses temporary memory storage and does not validate your deployed setup.
+
 The following commands go in terminal 2. They create real test records in the existing DynamoDB table and send one image to Gemini, consuming normal API quota. The credentials below are public sample credentials for testing only; do not reuse the password elsewhere. If the username is taken, change its number in both commands. The cookie file contains a session credential; do not share or commit it.
 
 ## 2. Register (automatically signs in)

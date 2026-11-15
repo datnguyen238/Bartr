@@ -10,12 +10,12 @@ export function TermsView({ terms, who }: { terms: Terms; who: string }) {
           ["You offer", outgoing],
           ["You receive", incoming],
         ].map(([label, items]) => (
-          <div className="rounded-lg bg-secondary/60 p-4" key={String(label)}>
-            <p className="mb-3 text-xs font-medium text-muted-foreground">
+          <div className="rounded-xl border bg-secondary/25 p-4" key={String(label)}>
+            <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {String(label)}
             </p>
             {(items as Item[]).map((item) => (
-              <div key={item.id} className="mb-3">
+              <div key={item.id} className="border-t py-3 last:pb-0">
                 {item.image_id && (
                   <img
                     src={`/api/images/${item.image_id}`}
@@ -40,7 +40,7 @@ export function TermsView({ terms, who }: { terms: Terms; who: string }) {
           </div>
         ))}
       </div>
-      <p className="mt-4 text-sm">
+      <p className="mt-4 rounded-lg bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
         You offer{" "}
         {money(
           terms.left_owner === who
