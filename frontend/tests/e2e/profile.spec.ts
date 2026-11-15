@@ -208,7 +208,7 @@ test("anonymous profile subpages return Home and restore the requested destinati
   await expect(page).toHaveURL(/\/profile\/preferences$/);
   await expect(page.getByRole("tab", { name: "Preferences", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("list", { name: "Interests list", exact: true }).getByRole("listitem")).toHaveText(["Monitor", "Study supplies"]);
-  await expect(page.getByLabel("Interests", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("Interests", { exact: true })).toHaveText("Search interests");
 });
 
 test("service unavailability offers retry without treating a member as signed out", async ({ page }) => {
@@ -266,7 +266,8 @@ test("preferences update on the same profile page and preserve the saved account
   await expect(page).toHaveURL(/\/profile$/);
   await setEntries(page, "interest", ["Furniture", "Monitor"]);
   await setEntries(page, "exclusion", ["Electronics"]);
-  await page.getByLabel("Estimated value difference (%)", { exact: true }).selectOption("15");
+  await page.getByRole("combobox", { name: "Estimated value difference (%)", exact: true }).click();
+  await page.getByRole("option", { name: "15%", exact: true }).click();
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();
   await expect.poll(() => state.profileSaves.length).toBe(1);
   expect(state.profileSaves[0]).toMatchObject({
@@ -407,7 +408,8 @@ test("photo assistance shows the estimate for review without changing the draft"
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
   });
   await expect(dialog.getByRole("button", { name: "Estimate price", exact: true })).toBeDisabled();
-  await dialog.getByLabel("Condition", { exact: true }).selectOption("Used");
+  await dialog.getByRole("combobox", { name: "Condition", exact: true }).click();
+  await page.getByRole("option", { name: "Used", exact: true }).click();
   await expect(dialog.getByRole("button", { name: "Estimate price", exact: true })).toBeEnabled();
   await dialog.getByRole("button", { name: "Estimate price", exact: true }).click();
   await expect(dialog.getByText(/Suggested value: \$42\.00/)).toBeVisible();
@@ -432,7 +434,8 @@ test("item evaluation errors stay in the item dialog when navigating to trades",
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
   });
   await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Synthetic lamp");
-  await dialog.getByLabel("Condition", { exact: true }).selectOption("Used");
+  await dialog.getByRole("combobox", { name: "Condition", exact: true }).click();
+  await page.getByRole("option", { name: "Used", exact: true }).click();
   await dialog.getByRole("button", { name: "Estimate price", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("Evaluation temporarily unavailable");
   await dialog.getByRole("button", { name: "Close Add item" }).click();
@@ -479,8 +482,10 @@ test("photo-first preparation creates only a private draft until reviewed public
   expect(state.view.items.find(candidate => candidate.id === "test-new-item")?.status).toBe("draft");
   await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
   await page.getByLabel("Title", { exact: true }).fill("Reviewed synthetic lamp");
-  await page.getByLabel("Category", { exact: true }).selectOption("Household essentials");
-  await page.getByLabel("Condition", { exact: true }).selectOption("Good");
+  await page.getByRole("combobox", { name: "Category", exact: true }).click();
+  await page.getByRole("option", { name: "Household essentials", exact: true }).click();
+  await page.getByRole("combobox", { name: "Condition", exact: true }).click();
+  await page.getByRole("option", { name: "Good", exact: true }).click();
   await page.getByLabel("Description", { exact: true }).fill("A synthetic lamp prepared for publication.");
   await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
   await dialog.getByRole("button", { name: "Estimate price", exact: true }).click();
@@ -573,13 +578,14 @@ test("preferences draft remains in the profile while switching its tabs", async 
   await page.goto("/profile");
   await selectSection(page, "Preferences");
   await page.getByLabel("Interests", { exact: true }).click();
-  await page.getByRole("menuitem", { name: "Monitor", exact: true }).click();
-  await page.getByLabel("Estimated value difference (%)", { exact: true }).selectOption("12");
+  await page.getByRole("menuitem", { name: "Furniture", exact: true }).click();
+  await page.getByRole("combobox", { name: "Estimated value difference (%)", exact: true }).click();
+  await page.getByRole("option", { name: "12%", exact: true }).click();
   await selectSection(page, "Items");
   await expect(page.getByRole("button", { name: "Add item", exact: true })).toBeVisible();
   await selectSection(page, "Preferences");
-  await expect(page.getByRole("button", { name: "Remove interest Monitor", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Estimated value difference (%)", { exact: true })).toHaveValue("12");
+  await expect(page.getByRole("button", { name: "Remove interest Furniture", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Estimated value difference (%)", exact: true })).toHaveText("12%");
   await expect(page).toHaveURL(/\/profile$/);
   expect(state.profileSaves).toEqual([]);
 });
@@ -598,7 +604,8 @@ test("profile navigation opens the offer workspace at 390px", async ({ page }) =
   await main.getByRole("link", { name: "Trade", exact: true }).click();
   await expect(page).toHaveURL(/\/trades$/);
   await expect(page.getByText("Choose your exchange", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Send offer" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Send offer" })).toHaveCount(0);
+  await expect(page.getByText("Choose an item on Home to start an offer.", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -698,6 +705,8 @@ test("keyboard sign-in and profile saving work in the mobile layout", async ({ p
   await displayName.focus();
   await page.keyboard.press("End");
   await page.keyboard.type(" Keyboard");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Reload profile", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Save profile", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");

@@ -100,27 +100,28 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, gapLimi
   const sendLabel = mode === 'propose' ? 'Send offer' : 'Send counter-offer';
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-5">
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
 
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-secondary p-1 lg:hidden" role="group" aria-label="Choose which list to show">
         {(['theirs', 'mine'] as const).map((side) => (
-          <button
+          <Button
             key={side}
             type="button"
+            variant="ghost"
             aria-pressed={activeSide === side}
             onClick={() => setActiveSide(side)}
             className={cn(
-              'rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              'h-auto min-h-10 min-w-0 rounded-md px-3 py-2 text-sm font-medium whitespace-normal',
               activeSide === side ? 'bg-card shadow-xs' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {side === 'theirs' ? `${theirName}’s items (${get.length})` : `Your items (${give.length})`}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:gap-6">
         <ItemPicker
           id="pick-mine"
           heading="Your items"
@@ -145,9 +146,9 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, gapLimi
 
       {/* Reserved for a future assistant that suggests a counter-offer the user can apply and edit. */}
 
-      <div className="sticky bottom-0 z-10 -mx-5 border-t bg-background/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+      <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-10 rounded-xl border bg-card p-4 md:bottom-3">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <dl className="flex items-center gap-4 text-sm">
+          <dl className="flex min-w-0 flex-wrap items-center gap-4 text-sm tabular-nums">
             <div>
               <dt className="text-xs text-muted-foreground">You give</dt>
               <dd className="font-medium">{pluralize(give.length, 'item')} · {formatValue(balance.give)}</dd>
@@ -159,11 +160,11 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, gapLimi
             </div>
           </dl>
           <BalanceMeter balance={balance} className="hidden w-64 md:grid" />
-          <div className="flex w-full items-center gap-3 sm:w-auto">
-            {blockedReason && <p id="review-blocked" className="flex-1 text-xs text-muted-foreground sm:max-w-48 sm:text-right">{blockedReason}</p>}
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+            {blockedReason && <p id="review-blocked" className="w-full text-xs leading-5 text-muted-foreground sm:w-auto sm:max-w-48 sm:text-right">{blockedReason}</p>}
             {onCancel && <Button variant="outline" onClick={onCancel}>Cancel</Button>}
             <Button
-              className={cn(!blockedReason && 'flex-1 sm:flex-none')}
+              className="flex-1 sm:flex-none"
               disabled={Boolean(blockedReason)}
               aria-describedby={blockedReason ? 'review-blocked' : undefined}
               onClick={() => { setFailure(null); setReviewOpen(true); }}
@@ -175,7 +176,7 @@ export function TradeBuilder({ mode, them, myItems, theirItems, initial, gapLimi
       </div>
 
       <Dialog open={reviewOpen} onOpenChange={(open) => { if (!sending) setReviewOpen(open); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{mode === 'propose' ? `Review your offer to ${theirName}` : 'Review your counter-offer'}</DialogTitle>
             <DialogDescription>Check both sides before you send.</DialogDescription>

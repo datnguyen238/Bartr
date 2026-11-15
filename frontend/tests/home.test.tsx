@@ -34,6 +34,7 @@ describe("Home authentication", () => {
     render(<HomeScreen />);
     expect(screen.getByRole("heading", { name: /Trade what you have.*Find what you need/ })).toBeVisible();
     expect(screen.queryByText(/Trade what you have for what you need/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Welcome to Bartr")).not.toBeInTheDocument();
   });
   it("waits for the saved session before displaying credentials", () => {
     mock.status = "checking";

@@ -19,6 +19,9 @@ describe("Landing page trading guide", () => {
     const guide = screen.getByRole("region", { name: "How trading works" });
     const browse = screen.getByRole("region", { name: "Available to trade" });
     expect(guide.compareDocumentPosition(browse) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const disclosure = within(guide).getByText("How trading works").closest("details");
+    expect(disclosure).not.toHaveAttribute("open");
+    fireEvent.click(within(guide).getByText("How trading works"));
     expect(within(guide).getByText(/both confirm the handoff/i)).toBeInTheDocument();
     expect(within(guide).getByRole("link", { name: "List an item" })).toHaveAttribute("href", "/inventory");
     expect(screen.queryByRole("heading", { name: "Get started" })).not.toBeInTheDocument();

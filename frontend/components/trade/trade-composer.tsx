@@ -64,13 +64,11 @@ export function TradeComposer({ withUserId, preselectItemId }: { withUserId?: st
   const name = firstName(them.name);
 
   return (
-    <div>
-      <div className="mb-8">
+    <div className="min-w-0 space-y-5">
+      <div className="space-y-3">
         <BackLink href="/trades">All trades</BackLink>
-        <h2 className="mt-4 text-3xl leading-tight tracking-tight sm:text-4xl">
-          <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.name}</span>
-        </h2>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="screen-title break-words">Trade with {them.name}</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
           Pick up to three items on each side. Values are estimates from each listing.
         </p>
       </div>

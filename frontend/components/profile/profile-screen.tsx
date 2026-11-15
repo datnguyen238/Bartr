@@ -40,7 +40,7 @@ export function ProfileScreen({ initialSection = "items" }: { initialSection?: P
     <header className="profile-identity">
       <div className="profile-avatar" aria-hidden="true">{initials}</div>
       <div className="profile-identity-copy">
-        <h1 className="screen-title">{profile.name}</h1>
+        <h1 className="screen-title break-words">{profile.name}</h1>
       </div>
       <Button ref={editButton} variant="outline" onClick={() => setEditingProfile(true)}><Icon name="account" />Edit profile</Button>
       <dl className="profile-stats" aria-label="Your inventory summary">

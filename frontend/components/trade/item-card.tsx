@@ -90,11 +90,12 @@ export function SelectableItemCard({ item, selected, onToggle, atLimit }: Select
 /** Compact, read-only item line for reviews and trade summaries. */
 export function ItemRow({ item }: { item: Item }) {
   return (
-    <li className="flex items-center gap-3">
-      <ItemThumb item={item} className="size-10 text-base" />
+    <li className="flex min-w-0 items-start gap-3">
+      <ItemThumb item={item} className="size-14 object-contain text-base" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{item.title || 'Untitled item'}</span>
-        <span className="block text-xs text-muted-foreground">{details(item)}</span>
+        <span className="block text-sm leading-5 font-medium break-words">{item.title || 'Untitled item'}</span>
+        {item.condition && <span className="mt-1 block text-xs text-muted-foreground">{item.condition}</span>}
+        <span className="mt-1 block text-sm tabular-nums">{formatValue(item.value_minor)}</span>
       </span>
     </li>
   );

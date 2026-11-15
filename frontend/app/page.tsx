@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDown } from "lucide-react";
 import { useWorkspace } from "@/components/workspace/provider";
 import {
   ArrowRight,
@@ -48,9 +50,6 @@ const handshakeFont = localFont({
   display: "swap",
   fallback: ["Segoe Print", "Comic Sans MS", "cursive"],
 });
-
-const fieldClass =
-  "h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-shadow focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25";
 
 function BrowseSkeleton() {
   return (
@@ -223,7 +222,7 @@ export default function LandingPage() {
         <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-end gap-3 px-4 py-3 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]">
           <nav
             aria-label="Primary"
-            className="hidden items-center gap-6 text-sm text-muted-foreground md:col-start-2 md:flex"
+            className="primary-navigation hidden items-center gap-6 text-sm text-muted-foreground md:col-start-2 md:flex"
           >
             <a className="transition-colors hover:text-foreground" href="#browse">
               Browse items
@@ -256,9 +255,9 @@ export default function LandingPage() {
         </div>
       </header>}
 
-      <main>
-        <section className="mx-auto max-w-6xl px-4 py-6 text-center sm:px-6 sm:py-8">
-          <h1 className={`${handshakeFont.className} text-[clamp(3.5rem,8vw,7rem)] font-normal leading-[1.2] tracking-normal text-balance`}>
+      <div>
+        <section className="mx-auto py-3 text-center sm:py-4">
+          <h1 className={`${handshakeFont.className} text-[clamp(3rem,6vw,5rem)] font-normal leading-[1.2] tracking-normal text-balance`}>
             Bart<span className="opacity-25">e</span>r.
           </h1>
         </section>
@@ -266,57 +265,53 @@ export default function LandingPage() {
         <section
           id="how-it-works"
           aria-labelledby="how-heading"
-          className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-8 sm:px-6 sm:pb-10"
+          className="mx-auto scroll-mt-20 pb-6"
         >
-          <div id="trust" className="rounded-xl border bg-card p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 id="how-heading" className="text-xl font-semibold">How trading works</h2>
-              <Button size="sm" variant="outline" asChild>
-                <Link href={browsing ? "/inventory" : "/register"}>
-                  {browsing ? "List an item" : "Join Bartr"}
-                </Link>
-              </Button>
-            </div>
-            <div className="mt-5 grid gap-5 sm:grid-cols-3">
+          <details id="trust" className="trading-guide rounded-xl border bg-card px-4 py-2 sm:px-5" open={!browsing}>
+            <summary>
+              <h2 id="how-heading" className="text-sm font-semibold">How trading works</h2>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </summary>
+            <div className="grid gap-4 pt-3 pb-4 sm:grid-cols-3">
               {[
                 { icon: Package, title: "List an item", copy: "Add a photo and item details." },
                 { icon: Search, title: "Find a trade", copy: "Browse listings, set interests and send an offer." },
                 { icon: Handshake, title: "Agree and exchange", copy: "Chat privately, agree on the same offer and both confirm the handoff." },
               ].map(({ icon: Icon, title, copy }) => (
                 <div key={title} className="flex items-start gap-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary">
-                    <Icon className="size-4" aria-hidden="true" />
-                  </span>
+                  <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div>
-                    <h3 className="font-medium">{title}</h3>
+                    <h3 className="text-sm font-medium">{title}</h3>
                     <p className="mt-1 text-sm leading-5 text-muted-foreground">{copy}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+            <div className="pb-3">
+              <Button size="sm" variant="outline" asChild>
+                <Link href={browsing ? "/inventory" : "/register"}>
+                  {browsing ? "List an item" : "Create account"}
+                </Link>
+              </Button>
+            </div>
+          </details>
         </section>
 
         <section
           id="browse"
           aria-labelledby="browse-heading"
-          className="scroll-mt-20 border-y bg-card/40"
+          className="scroll-mt-6"
         >
-          <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="mx-auto">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="caption mb-3">Browse</p>
                 <h2
                   id="browse-heading"
-                  className="font-display text-4xl tracking-[-0.03em] sm:text-5xl"
+                  className="text-2xl font-semibold tracking-tight sm:text-3xl"
                 >
                   Available to trade
                 </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  {browsing
-                    ? "Browse items available to trade. Open an item to see its details."
-                    : "Sign in to browse published listings and members."}
-                </p>
+                {!browsing && <p className="mt-2 text-sm text-muted-foreground">Sign in to browse published listings.</p>}
               </div>
               {browsing && browseView === "all" && !loading && (
                 <p role="status" className="text-sm text-muted-foreground">
@@ -329,9 +324,9 @@ export default function LandingPage() {
             </div>
 
             {browsing && (
-              <div className="mt-7 flex flex-wrap gap-2" role="group" aria-label="Browse view">
-                <Button size="sm" variant={browseView === "all" ? "default" : "outline"} aria-pressed={browseView === "all"} onClick={() => setBrowseView("all")}>All items</Button>
-                <Button size="sm" variant={browseView === "matches" ? "default" : "outline"} aria-pressed={browseView === "matches"} onClick={() => setBrowseView("matches")}>Your matches</Button>
+              <div className="mt-5 inline-flex rounded-xl bg-secondary p-1" role="group" aria-label="Browse view">
+                <Button size="sm" variant={browseView === "all" ? "default" : "ghost"} aria-pressed={browseView === "all"} onClick={() => setBrowseView("all")}>All items</Button>
+                <Button size="sm" variant={browseView === "matches" ? "default" : "ghost"} aria-pressed={browseView === "matches"} onClick={() => setBrowseView("matches")}>Your matches</Button>
               </div>
             )}
 
@@ -385,10 +380,7 @@ export default function LandingPage() {
                           Sign in to browse live items
                         </h3>
                         <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                          Published listings are visible to signed-in members. Drafts, preferences and private
-                          negotiations stay private to their owners and
-                          participants. Sign in to see what people near you are
-                          ready to trade.
+                          Browse items and choose a member to trade with.
                         </p>
                       </div>
                     </div>
@@ -405,55 +397,46 @@ export default function LandingPage() {
               </div>
             ) : (
               <>
-                <div className="mt-7 grid gap-3 rounded-xl border bg-card p-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
-                  <div>
+                <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-[minmax(0,1fr)_11rem_11rem]">
+                  <div className="relative col-span-2 lg:col-span-1">
                     <label htmlFor="browse-search" className="sr-only">
                       Search available items
                     </label>
                     <Input
                       id="browse-search"
-                      className="h-11"
-                      placeholder="Search titles, descriptions or members…"
+                      className="h-11 bg-card pl-10"
+                      placeholder="Search items or members…"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                     />
+                    <Search className="pointer-events-none absolute top-3.5 left-3.5 size-4 text-muted-foreground" aria-hidden="true" />
                   </div>
                   <div>
                     <label htmlFor="browse-condition" className="sr-only">
                       Filter by condition
                     </label>
-                    <select
-                      id="browse-condition"
-                      className={fieldClass}
-                      value={condition}
-                      onChange={(event) => setCondition(event.target.value)}
-                    >
-                      {conditions.map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={condition} onValueChange={setCondition}>
+                      <SelectTrigger id="browse-condition" className="h-11 w-full bg-card"><SelectValue /></SelectTrigger>
+                      <SelectContent position="popper">{conditions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <label htmlFor="browse-sort" className="sr-only">
                       Sort available items
                     </label>
-                    <select
-                      id="browse-sort"
-                      className={fieldClass}
-                      value={sort}
-                      onChange={(event) => setSort(event.target.value)}
-                    >
-                      <option value="title">Title A–Z</option>
-                      <option value="value-high">Value: high to low</option>
-                      <option value="value-low">Value: low to high</option>
-                    </select>
+                    <Select value={sort} onValueChange={setSort}>
+                      <SelectTrigger id="browse-sort" className="h-11 w-full bg-card"><SelectValue /></SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="title">Title A–Z</SelectItem>
+                        <SelectItem value="value-high">Value: high to low</SelectItem>
+                        <SelectItem value="value-low">Value: low to high</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 <div
-                  className="mt-4 flex flex-wrap gap-2"
+                  className="mt-3 flex gap-2 overflow-x-auto pb-2 sm:flex-wrap"
                   role="group"
                   aria-label="Categories"
                 >
@@ -461,7 +444,7 @@ export default function LandingPage() {
                     <Button
                       key={value}
                       size="sm"
-                      className="rounded-full"
+                      className="shrink-0 rounded-full whitespace-nowrap"
                       variant={category === value ? "default" : "outline"}
                       aria-pressed={category === value}
                       onClick={() => setCategory(value)}
@@ -472,7 +455,7 @@ export default function LandingPage() {
                 </div>
 
                 {filteredItems.length ? (
-                  <ul className="mt-6 grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,27rem),1fr))] items-start gap-4" aria-label="Members and their available items" role="list">
+                  <ul className="mt-4 grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,25rem),1fr))] items-start gap-4" aria-label="Members and their available items" role="list">
                     {memberListings.slice(0, visibleCount).map(({ member, items }) => (
                       <li key={member.id} className="min-w-0">
                         <MemberListing
@@ -521,7 +504,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-      </main>
+      </div>
 
       <Dialog
         open={Boolean(selected)}

@@ -31,7 +31,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <Button variant="ghost" size="icon" className="sidebar-toggle" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={sidebarCollapsed} aria-controls="main-navigation" onClick={() => setSidebarCollapsed((value) => !value)}>{sidebarCollapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}</Button>
         </div>
         <nav id="main-navigation" className="app-navigation" aria-label="Main navigation">
-          {links.map(({ href, label, icon }) => <Link key={href} href={href} aria-label={label} className="app-nav-link" aria-current={pathname === href || (href === "/profile" && pathname.startsWith("/profile/")) ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>)}
+          {links.map(({ href, label, icon }) => <Link key={href} href={href} aria-label={label} title={sidebarCollapsed ? label : undefined} className="app-nav-link" aria-current={pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)) ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>)}
           {hasSession && <button type="button" className="app-nav-link app-nav-logout" aria-label="Sign out" disabled={busy} onClick={async () => { setSignOutError(""); try { await signOut(); router.replace("/home"); } catch { setSignOutError("We couldn’t sign you out. Your account is still open; try Sign out again."); } }}><LogOut size={20} aria-hidden="true" /><span>Sign out</span></button>}
         </nav>
       </aside>}

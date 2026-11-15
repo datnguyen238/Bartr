@@ -4,37 +4,40 @@ export function TermsView({ terms, who }: { terms: Terms; who: string }) {
   const outgoing = terms.left_owner === who ? terms.left : terms.right,
     incoming = terms.left_owner === who ? terms.right : terms.left;
   return (
-    <div>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <div className="min-w-0">
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
         {[
           ["You offer", outgoing],
           ["You receive", incoming],
         ].map(([label, items]) => (
-          <div className="rounded-xl border bg-secondary/25 p-4" key={String(label)}>
-            <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <section className="min-w-0" aria-label={String(label)} key={String(label)}>
+            <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
               {String(label)}
-            </p>
+            </h3>
+            <ul className="divide-y">
             {(items as Item[]).map((item) => (
-              <div key={item.id} className="border-t py-3 last:pb-0">
+              <li key={item.id} className="flex min-w-0 items-start gap-3 py-3">
                 {item.image_id && (
                   <img
                     src={`/api/images/${item.image_id}`}
                     alt={item.title}
-                    className="mb-2 h-24 w-full rounded-md object-contain"
+                    className="size-16 shrink-0 rounded-lg bg-secondary/40 object-contain"
                   />
                 )}
-                <p className="text-sm font-medium">
-                  {item.title} · {money(item.value_minor)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {item.condition}
-                </p>
-              </div>
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-medium leading-5">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{item.condition}</p>
+                  <p className="mt-1 text-sm tabular-nums">{money(item.value_minor)}</p>
+                </div>
+              </li>
             ))}
-          </div>
+            </ul>
+          </section>
         ))}
       </div>
-      <p className="mt-4 rounded-lg bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
+      <p className="mt-2 border-t pt-4 text-sm leading-6 text-muted-foreground tabular-nums">
         You offer{" "}
         {money(
           terms.left_owner === who

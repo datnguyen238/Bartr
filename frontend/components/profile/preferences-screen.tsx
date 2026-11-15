@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, ApiError, list, type Profile } from "@/lib/marketplace";
 import { useWorkspace } from "@/components/workspace/provider";
 
@@ -41,7 +42,7 @@ function EntryField({ id, label, kind, value, pending, onPending, onChange, erro
     <div className="field-group min-w-0 gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <label className="text-sm font-medium" htmlFor={id}>{label}</label>
-        <span className="text-sm text-muted-foreground">{values.length} of 20</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{values.length} of 20</span>
       </div>
       <DropdownMenu onOpenChange={open => { if (open) requestAnimationFrame(() => searchRef.current?.focus()); else onPending(""); }}>
         <DropdownMenuTrigger asChild>
@@ -53,14 +54,14 @@ function EntryField({ id, label, kind, value, pending, onPending, onChange, erro
           <Input ref={searchRef} aria-label={`Search ${label.toLowerCase()}`} placeholder="Search..." value={pending} onChange={event => onPending(event.target.value)} onKeyDown={event => {
             if (event.key !== "ArrowDown" && event.key !== "Escape" && event.key !== "Tab") event.stopPropagation();
           }} />
-          <div className="mt-1 max-h-56 overflow-y-auto">
-            {matches.length ? matches.map(suggestion => <DropdownMenuItem key={suggestion} onSelect={() => onChange(entries(value, suggestion))}>{suggestion}</DropdownMenuItem>) : <p className="px-2 py-3 text-sm text-muted-foreground">No matches found.</p>}
+          <div className="mt-1 max-h-56 overflow-y-auto overscroll-contain">
+            {matches.length ? matches.map(suggestion => <DropdownMenuItem className="min-h-11" key={suggestion} onSelect={() => onChange(entries(value, suggestion))}>{suggestion}</DropdownMenuItem>) : <p className="px-2 py-3 text-sm text-muted-foreground">No matches found.</p>}
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
       {values.length > 0 && <ul className="flex flex-wrap gap-2" aria-label={`${label} list`}>
         {values.map(entry => <li key={entry.toLocaleLowerCase()} className="choice-chip inline-flex max-w-full items-center rounded-full bg-secondary text-sm">
-          <span className="min-w-0 break-words py-2 pl-4">{entry}</span>
+          <span className="min-w-0 break-words">{entry}</span>
           <Button className="ml-1 rounded-full" variant="ghost" size="icon" type="button" aria-label={`Remove ${kind} ${entry}`} onClick={() => onChange(values.filter(value => value !== entry))}>
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-4"><path d="m6 6 8 8m0-8-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
           </Button>
@@ -116,14 +117,13 @@ export function PreferencesScreen({ embedded = false }: { embedded?: boolean } =
     <div className={`${embedded ? "w-full" : "w-full max-w-4xl"} space-y-7`}>
       {!embedded && <header className="screen-heading">
         <h1 className="screen-title">Your preferences</h1>
-        <p className="screen-description">Tell Bartr what would be useful to you. These details stay private.</p>
       </header>}
       <section className="surface-panel" aria-labelledby="preferences-interests-heading">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <h2 id="preferences-interests-heading" className="text-xl font-semibold">What you’re looking for</h2>
           </div>
-          <span className="text-sm text-muted-foreground">{dirty ? "Unsaved changes" : "Up to date"}</span>
+          <span className="text-xs leading-6 text-muted-foreground">{dirty ? "Unsaved changes" : "Up to date"}</span>
         </div>
         <form onSubmit={event => {
           event.preventDefault();
@@ -160,19 +160,22 @@ export function PreferencesScreen({ embedded = false }: { embedded?: boolean } =
               <EntryField id="profile-interests" label="Interests" kind="interest" value={profileForm.interests} pending={interestEntry} onPending={value => { setInterestEntry(value); setFeedback(null); }} onChange={values => changeEntries("interests", values)} error={validation.interests || apiFieldError("interests")} />
               <EntryField id="profile-exclusions" label="Exclusions" kind="exclusion" value={profileForm.exclusions} pending={exclusionEntry} onPending={value => { setExclusionEntry(value); setFeedback(null); }} onChange={values => changeEntries("exclusions", values)} error={validation.exclusions || apiFieldError("exclusions")} />
             </div>
-            <div className="flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t pt-6">
               <div className="max-w-prose space-y-2">
                 <label className="text-sm font-medium" htmlFor="profile-gap">Estimated value difference (%)</label>
                 {apiFieldError("gap_limit") && <p id="profile-gap-error" className="text-sm text-destructive">{apiFieldError("gap_limit")}</p>}
               </div>
-              <select id="profile-gap" className="h-11 w-28 shrink-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25" required value={profileForm.gap_limit} aria-invalid={Boolean(apiFieldError("gap_limit"))} aria-describedby={apiFieldError("gap_limit") ? "profile-gap-error" : undefined} onChange={event => { setFeedback(null); setProfileForm({ ...profileForm, gap_limit: Number(event.target.value) }); }}>
-                {Array.from({ length: 101 }, (_, value) => <option key={value} value={value}>{value}%</option>)}
-              </select>
+              <Select disabled={busy || seeded} required value={String(profileForm.gap_limit)} onValueChange={value => { setFeedback(null); setProfileForm({ ...profileForm, gap_limit: Number(value) }); }}>
+                <SelectTrigger id="profile-gap" className="w-28 shrink-0 bg-background tabular-nums shadow-none data-[size=default]:h-11" aria-invalid={Boolean(apiFieldError("gap_limit"))} aria-describedby={apiFieldError("gap_limit") ? "profile-gap-error" : undefined}><SelectValue /></SelectTrigger>
+                <SelectContent position="popper" className="max-h-[min(16rem,var(--radix-select-content-available-height))]">
+                  {Array.from({ length: 101 }, (_, value) => <SelectItem className="min-h-11" key={value} value={String(value)}>{value}%</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             {feedback && <p className="inline-feedback text-sm leading-6" data-tone={feedback.error ? "error" : "success"} role={feedback.error ? "alert" : "status"}>{feedbackMessage}</p>}
             <div className="form-actions flex flex-wrap items-center gap-3 border-t pt-6">
-              <Button type="submit">{busy ? "Saving…" : "Save preferences"}</Button>
-              <Button variant="ghost" type="button" onClick={() => dirty ? setConfirmReload(true) : void reload()}>Reload preferences</Button>
+              <Button className="w-full sm:w-auto" variant="ghost" type="button" onClick={() => dirty ? setConfirmReload(true) : void reload()}>Reload preferences</Button>
+              <Button className="w-full sm:ml-auto sm:w-auto" type="submit">{busy ? "Saving…" : "Save preferences"}</Button>
             </div>
             {confirmReload && <div className="inline-feedback space-y-3 text-sm" role="group" aria-label="Review unsaved preference changes">
               <p>Reloading replaces your unsaved preference edits with the latest saved choices.</p>

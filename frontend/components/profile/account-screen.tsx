@@ -37,17 +37,17 @@ export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps 
   }
 
   return (
-    <div className="max-w-3xl space-y-7">
+    <div className="w-full max-w-3xl space-y-7">
       {!embedded && <header className="screen-heading">
         <h1 className="screen-title">Your profile</h1>
       </header>}
-      <section className="surface-panel" aria-labelledby="account-details-heading">
-        <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
+      <section className={embedded ? "min-w-0" : "surface-panel"} aria-labelledby="account-details-heading">
+        <div className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
           <div className="max-w-xl space-y-2">
             <h2 id="account-details-heading" className="text-xl font-semibold">Public details</h2>
             <p className="text-sm leading-6 text-muted-foreground">Your display name is visible to other members.</p>
           </div>
-          <span className="text-sm text-muted-foreground">{dirty ? "Unsaved changes" : "Up to date"}</span>
+          <span className="text-xs leading-6 text-muted-foreground">{dirty ? "Unsaved changes" : "Up to date"}</span>
         </div>
         <form onSubmit={event => {
           event.preventDefault();
@@ -73,20 +73,20 @@ export function AccountScreen({ embedded = false, onSaved }: AccountScreenProps 
           });
         }}>
           <fieldset disabled={busy || seeded} className="space-y-6">
-            <div className="field-group space-y-2">
+            <div className="field-group">
               <label className="text-sm font-medium" htmlFor="profile-username">Username</label>
-              <Input id="profile-username" value={view.profile.username} readOnly autoComplete="username" aria-describedby="profile-username-help" />
+              <Input id="profile-username" className="bg-secondary/50 text-muted-foreground" value={view.profile.username} readOnly autoComplete="username" aria-describedby="profile-username-help" />
               <p id="profile-username-help" className="text-sm text-muted-foreground">Only used to sign in. Your username stays the same.</p>
             </div>
-            <div className="field-group space-y-2">
+            <div className="field-group">
               <label className="text-sm font-medium" htmlFor="profile-name">Display name</label>
               <Input id="profile-name" required maxLength={200} pattern=".*\S.*" autoComplete="nickname" value={profileForm.name} aria-invalid={Boolean(fieldError("name"))} aria-describedby={fieldError("name") ? "profile-name-error" : undefined} onChange={event => { setFeedback(null); setProfileForm({ ...profileForm, name: event.target.value }); }} />
               {fieldError("name") && <p id="profile-name-error" className="text-sm text-destructive">{fieldError("name")}</p>}
             </div>
             {feedback && <p className="inline-feedback text-sm leading-6" data-tone={feedback.error ? "error" : "success"} role={feedback.error ? "alert" : "status"}>{feedbackMessage}</p>}
             <div className="form-actions flex flex-wrap items-center gap-3 border-t pt-6">
-              <Button type="submit">{busy ? "Saving…" : "Save profile"}</Button>
-              <Button variant="ghost" type="button" onClick={() => dirty ? setConfirmReload(true) : void reload()}>Reload profile</Button>
+              <Button className="w-full sm:w-auto" variant="ghost" type="button" onClick={() => dirty ? setConfirmReload(true) : void reload()}>Reload profile</Button>
+              <Button className="w-full sm:ml-auto sm:w-auto" type="submit">{busy ? "Saving…" : "Save profile"}</Button>
             </div>
             {confirmReload && (
               <div className="inline-feedback space-y-3 text-sm" role="group" aria-label="Review unsaved profile changes">

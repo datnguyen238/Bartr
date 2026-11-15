@@ -31,13 +31,13 @@ export function MemberListing({
       aria-labelledby={headingId}
       className="w-full min-w-0 gap-0 overflow-hidden py-0 shadow-none"
     >
-      <CardHeader className="border-b bg-secondary/30 px-4 py-4 sm:px-5">
+      <CardHeader className="border-b bg-secondary/30 px-4 py-3">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar name={member.name} tone="light" className="size-10" />
+            <Avatar name={member.name} tone="light" className="size-8 text-xs" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 id={headingId} className="break-words text-base font-semibold">
+                <h3 id={headingId} className="break-words text-sm font-semibold">
                   {member.name}
                 </h3>
                 {own && <Badge variant="outline">Your listings</Badge>}
@@ -70,8 +70,8 @@ export function ListingItemRow({
   onOpen?: (item: Item, trigger: HTMLButtonElement) => void;
 }) {
   return (
-    <li className="flex min-w-0 items-start gap-4 px-4 py-4 sm:px-5">
-      <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border bg-secondary sm:size-20">
+    <li className="flex min-w-0 items-start gap-3 p-4">
+      <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-secondary sm:size-20">
         {item.image_id ? (
           <img
             src={`/api/images/${item.image_id}`}
@@ -107,16 +107,6 @@ export function ListingItemRow({
             )}
           </div>
         )}
-        {!onOpen && <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            {item.value_minor === null
-              ? "Comparison value not set"
-              : item.value_source === "owner"
-                ? "Owner-entered estimate"
-                : "Assisted estimate"}
-            {item.value_set_at && (
-              <> · {new Date(item.value_set_at).toLocaleDateString()}</>
-            )}
-          </p>}
         {onOpen && (
           <Button
             size="sm"

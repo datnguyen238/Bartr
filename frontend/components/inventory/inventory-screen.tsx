@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ModalSheet } from "@/components/ui/modal-sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -135,7 +136,7 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
   }
 
   return <section className="profile-inventory space-y-6">
-    <div className="screen-heading flex flex-wrap items-start justify-between gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <div>
         {embedded ? <h2 className="text-xl font-semibold">Your items</h2> : <h1 className="screen-title">Your inventory</h1>}
       </div>
@@ -162,16 +163,18 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
               <p className="mt-1 text-sm">{item.value_minor === null ? "Value not set" : money(item.value_minor)}</p>
               <p className="mt-1 text-xs text-muted-foreground">{item.value_source === "owner" ? "Value entered by you" : item.value_minor === null ? "You can add a value later" : item.value_basis === "image_assisted_estimate" ? "AI estimate · no comparable listings" : "AI-assisted estimate"}{item.value_set_at ? ` · ${new Date(item.value_set_at).toLocaleDateString()}` : ""}</p>
             </div>
-            {["draft", "available"].includes(item.status) && <Button variant="outline" aria-label={`Edit ${item.title || "untitled draft"}`} onClick={event => openEditor(item, event.currentTarget)} disabled={busy || seeded}>Edit</Button>}
-            {["draft", "available"].includes(item.status) && <AlertDialog>
+            {["draft", "available"].includes(item.status) && <div className="inventory-row-actions flex shrink-0 items-center gap-1">
+              <Button variant="outline" aria-label={`Edit ${item.title || "untitled draft"}`} onClick={event => openEditor(item, event.currentTarget)} disabled={busy || seeded}>Edit</Button>
+              <AlertDialog>
               <AlertDialogTrigger asChild><Button type="button" variant="ghost" aria-label={`Remove ${item.title || "untitled draft"}`} disabled={busy || seeded}>Remove</Button></AlertDialogTrigger>
-              <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove {item.title || "this draft"}?</AlertDialogTitle><AlertDialogDescription>This removes the item from trading. Its record remains in your past items.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => void removeItem(item)}>Remove item</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-            </AlertDialog>}
+              <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove {item.title || "this draft"}?</AlertDialogTitle><AlertDialogDescription>This removes the item from your inventory and trading. Previous trade records are kept.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => void removeItem(item)}>Remove item</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+              </AlertDialog>
+            </div>}
           </li>)}
         </ul>
         {!visibleItems.length && <div className="inventory-empty space-y-3 px-6 py-12 text-center">
-          <h3 className="text-lg font-medium">{inventoryItems.length ? "No items here yet" : "Start with one thing"}</h3>
-          <p className="mx-auto max-w-xs text-sm leading-6 text-muted-foreground">{inventoryItems.length ? "Choose another filter to see your other items." : "A chair, a calculator, something you’re ready to pass on. Add a photo or start with the details."}</p>
+          <h3 className="text-lg font-medium">{inventoryItems.length ? "No items in this view" : "No items yet"}</h3>
+          <p className="mx-auto max-w-xs text-sm leading-6 text-muted-foreground">{inventoryItems.length ? "Choose another filter to see your other items." : "Add an item to your inventory."}</p>
           {!inventoryItems.length && <Button variant="outline" disabled={busy || seeded} onClick={event => openEditor(null, event.currentTarget)}>Add your first item</Button>}
         </div>}
       </section>
@@ -185,7 +188,9 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
           </div>}
           <div className="inventory-photo space-y-3">
             <div className="font-medium"><label htmlFor="listing-photo">Item photo</label> <span aria-hidden="true">*</span></div>
-            {editing?.image_id && <img src={`/api/images/${editing.image_id}`} alt={editing.title || "Your item"} className="max-h-56 w-full rounded-xl object-contain bg-secondary" />}
+            <div className={editing?.image_id ? "grid items-center gap-4 sm:grid-cols-[128px_minmax(0,1fr)]" : undefined}>
+            {editing?.image_id && <img src={`/api/images/${editing.image_id}`} alt={editing.title || "Your item"} className="h-40 w-full rounded-lg bg-secondary object-contain sm:h-36" />}
+            <div className="min-w-0 space-y-2">
             <Input id="listing-photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.heic,.heif" disabled={disabled} aria-describedby="listing-photo-help" onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void attachPhoto(file);
@@ -193,6 +198,8 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
             }} />
             <p id="listing-photo-help" className="text-sm leading-6 text-muted-foreground">JPEG, PNG, WebP or HEIC. Your draft stays private until published.</p>
             {fieldError("image_id") && <p className="text-sm text-destructive">{fieldError("image_id")}</p>}
+            </div>
+            </div>
           </div>
           <div className="inventory-feedback" aria-live="polite">
             {feedback && <p role="status" className="inline-feedback rounded-xl bg-secondary p-4 text-sm leading-6">{feedback}</p>}
@@ -211,18 +218,23 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
           <form ref={listingForm} onSubmit={(event) => { event.preventDefault(); void save(editing?.status === "available" ? "available" : "draft"); }} className="space-y-5">
             <fieldset disabled={disabled} className="space-y-4">
               <legend className="mb-3 text-lg font-semibold">Item details</legend>
-              {(["title", "category", "condition"] as const).map((key) => <div className="field-group" key={key}>
+              <div className="grid gap-4 sm:grid-cols-2">
+              {(["title", "category", "condition"] as const).map((key) => <div className={`field-group min-w-0 ${key === "title" ? "sm:col-span-2" : ""}`} key={key}>
                 <div className="text-sm font-medium"><label htmlFor={`listing-${key}`}>{key[0].toUpperCase() + key.slice(1)}</label> <span aria-hidden="true">*</span></div>
-                {key === "title" ? <Input id={`listing-${key}`} value={form[key]} maxLength={150} placeholder="For example, wooden study chair" aria-invalid={Boolean(fieldError(key))} aria-describedby={fieldError(key) ? `listing-${key}-error` : undefined} onChange={(event) => setForm({ ...form, [key]: event.target.value })} /> : <select id={`listing-${key}`} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25" value={form[key]} aria-invalid={Boolean(fieldError(key))} aria-describedby={fieldError(key) ? `listing-${key}-error` : undefined} onChange={(event) => setForm({ ...form, [key]: event.target.value })}>
-                  <option value="">Select {key}</option>
-                  {form[key] && !(key === "category" ? categories : conditions).includes(form[key]) && <option value={form[key]}>{form[key]}</option>}
-                  {(key === "category" ? categories : conditions).map(value => <option key={value} value={value}>{value}</option>)}
-                </select>}
+                {key === "title" ? <Input id={`listing-${key}`} value={form[key]} maxLength={150} placeholder="For example, wooden study chair" aria-invalid={Boolean(fieldError(key))} aria-describedby={fieldError(key) ? `listing-${key}-error` : undefined} onChange={(event) => setForm({ ...form, [key]: event.target.value })} /> : <Select disabled={disabled} value={form[key]} onValueChange={value => setForm({ ...form, [key]: value === "__unset" ? "" : value })}>
+                  <SelectTrigger id={`listing-${key}`} className="w-full bg-background shadow-none data-[size=default]:h-11" aria-invalid={Boolean(fieldError(key))} aria-describedby={fieldError(key) ? `listing-${key}-error` : undefined}><SelectValue placeholder={`Select ${key}`} /></SelectTrigger>
+                  <SelectContent position="popper" className="max-h-[min(16rem,var(--radix-select-content-available-height))]">
+                    <SelectItem className="min-h-11 text-muted-foreground" value="__unset">Select {key}</SelectItem>
+                    {form[key] && !(key === "category" ? categories : conditions).includes(form[key]) && <SelectItem className="min-h-11" value={form[key]}>{form[key]}</SelectItem>}
+                    {(key === "category" ? categories : conditions).map(value => <SelectItem className="min-h-11" key={value} value={value}>{value}</SelectItem>)}
+                  </SelectContent>
+                </Select>}
                 {fieldError(key) && <p id={`listing-${key}-error`} className="text-sm text-destructive">{fieldError(key)}</p>}
               </div>)}
+              </div>
               <div className="field-group">
                 <div className="text-sm font-medium"><label htmlFor="listing-description">Description</label> <span aria-hidden="true">*</span></div>
-                <Textarea id="listing-description" value={form.description} maxLength={3000} placeholder="What should the next owner know?" aria-invalid={Boolean(fieldError("description"))} aria-describedby={fieldError("description") ? "listing-description-error" : undefined} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+                <Textarea id="listing-description" className="min-h-24 resize-y" value={form.description} maxLength={3000} placeholder="What should the next owner know?" aria-invalid={Boolean(fieldError("description"))} aria-describedby={fieldError("description") ? "listing-description-error" : undefined} onChange={(event) => setForm({ ...form, description: event.target.value })} />
                 {fieldError("description") && <p id="listing-description-error" className="text-sm text-destructive">{fieldError("description")}</p>}
               </div>
           <section className="space-y-3" aria-labelledby="listing-assistance-heading">
@@ -238,7 +250,7 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
               {editing.analysis.estimate_minor != null && (["title", "description", "category", "condition"] as const).some(key => form[key] !== editing[key]) && <p className="text-sm text-muted-foreground">Item details changed. Evaluate again before selecting an estimate.</p>}
               {editing.analysis.estimate_minor != null && form.value && Number(form.value) * 100 === editing.analysis.estimate_minor && <p className="text-sm font-medium">Estimate selected</p>}
               {editing.analysis.attributes.clarification_questions.map((question) => <p key={question} className="text-sm leading-6">{question}</p>)}
-              {editing.analysis.evidence?.length ? <div className="space-y-2 rounded-xl border p-4"><p className="text-sm font-medium">{editing.analysis.estimate_minor == null ? "Results — no estimate available" : "Sources"}</p>{editing.analysis.evidence.map((evidence) => <a key={evidence.uri} className="block text-sm underline underline-offset-4" href={evidence.uri} target="_blank" rel="noopener noreferrer">{evidence.title || "Comparable listing"} · {money(evidence.price_minor)}{evidence.match_kind && evidence.match_kind !== "unknown" ? ` · ${evidence.match_kind === "similar" ? "similar item" : "same model"}` : ""}{evidence.price_type ? ` · ${evidence.price_type}` : ""}{evidence.condition ? ` · ${evidence.condition}` : ""}</a>)}<p className="text-xs text-muted-foreground">Comparable items may differ by model or color. Prices are reported by search results; check the linked listings.</p></div> : null}
+              {editing.analysis.evidence?.length ? <div className="space-y-3 rounded-xl bg-secondary/50 p-4"><p className="text-sm font-medium">{editing.analysis.estimate_minor == null ? "Results — no estimate available" : "Sources"}</p>{editing.analysis.evidence.map((evidence) => <a key={evidence.uri} className="block break-words text-sm leading-6 underline underline-offset-4" href={evidence.uri} target="_blank" rel="noopener noreferrer">{evidence.title || "Comparable listing"} · {money(evidence.price_minor)}{evidence.match_kind && evidence.match_kind !== "unknown" ? ` · ${evidence.match_kind === "similar" ? "similar item" : "same model"}` : ""}{evidence.price_type ? ` · ${evidence.price_type}` : ""}{evidence.condition ? ` · ${evidence.condition}` : ""}</a>)}<p className="text-xs leading-5 text-muted-foreground">Comparable items may differ by model or color. Prices are reported by search results; check the linked listings.</p></div> : null}
             </div>}
           </section>
               <div className="inventory-editor-actions form-actions flex flex-wrap gap-3">
@@ -255,7 +267,7 @@ export function InventoryScreen({ embedded = false, active = true }: { embedded?
                 announce(analysis.estimate_minor == null ? "No estimate was found. Review the item details and try again." : analysis.price_basis === "image_assisted_estimate" ? "AI estimate ready without comparable listings." : "Comparable listings are ready for review.");
               });
             }}>Estimate price</Button>
-                <Button type="submit" className={editing?.status === "available" ? "ml-auto" : undefined} variant={editing?.status === "available" ? "default" : "outline"}>{busy ? "Saving…" : editing?.status === "available" ? "Save changes" : "Save draft"}</Button>
+                <Button type="submit" className="ml-auto" variant={editing?.status === "available" ? "default" : "outline"}>{busy ? "Saving…" : editing?.status === "available" ? "Save changes" : "Save draft"}</Button>
                 {editing?.status !== "available" && <Button type="button" disabled={!complete || disabled} onClick={() => { if (listingForm.current?.reportValidity()) void save("available"); }}>Publish listing</Button>}
               </div>
             </fieldset>

@@ -154,10 +154,11 @@ describe("section-scoped profile saves", () => {
     fireEvent.keyDown(screen.getByLabelText("Exclusions", { exact: true }), { key: "Enter" });
     fireEvent.click(screen.getByRole("menuitem", { name: "Electronics" }));
     expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ exclusions: "Unsaved broken, Electronics" }));
-    fireEvent.change(screen.getByLabelText("Estimated value difference (%)"), { target: { value: "30" } });
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ gap_limit: 30 }));
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Estimated value difference (%)" }), { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "0%" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "100%" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: "30%" }));
+    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ gap_limit: 30 }));
   });
 
   it("does not add unlisted search text to preferences", async () => {

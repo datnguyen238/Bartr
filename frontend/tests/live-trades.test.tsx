@@ -29,6 +29,15 @@ it("keeps a message after a failed send", async () => {
   expect(screen.getByLabelText("Message")).toHaveValue("Hello");
 });
 
+it("disables send for an empty or whitespace-only message", () => {
+  render(<TradesPage />);
+  expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Message"), { target: { value: "   " } });
+  expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Hello" } });
+  expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled();
+});
+
 it("asks for confirmation with an in-app dialog before withdrawal", () => {
   render(<TradesPage />);
   fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
@@ -46,4 +55,23 @@ it("closes the confirmation when the trade revision changes", () => {
   rerender(<TradesPage />);
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   expect(mocks.workspace.act).not.toHaveBeenCalled();
+});
+
+it("lets a participant select a trade from the trade list", () => {
+  const current = mocks.workspace.trade as { id: string; participants: string[] };
+  mocks.workspace.view = { trades: [current, { ...current, id: "second", participants: ["alice", "carol"] }], items: [], members: [] };
+  mocks.workspace.name = (id: string) => id === "carol" ? "Carol" : "Bob";
+  render(<TradesPage />);
+  expect(screen.getByRole("button", { name: /Bob/ })).toHaveAttribute("aria-current", "true");
+  fireEvent.click(screen.getByRole("button", { name: /Carol/ }));
+  expect(mocks.workspace.setTradeId).toHaveBeenCalledWith("second");
+});
+
+it("distinguishes a declined reason from other trade reasons", () => {
+  mocks.workspace.trade = { ...(mocks.workspace.trade as object), status: "declined", reason: "Offer declined" };
+  const { rerender } = render(<TradesPage />);
+  expect(screen.getByText("Offer declined")).toHaveClass("text-red-800");
+  mocks.workspace.trade = { ...(mocks.workspace.trade as object), status: "invalidated", reason: "Item unavailable" };
+  rerender(<TradesPage />);
+  expect(screen.getByText("Item unavailable")).not.toHaveClass("text-red-800");
 });

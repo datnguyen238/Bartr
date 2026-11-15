@@ -25,7 +25,10 @@ for (const size of sizes) {
       return route.fulfill({ status: 501, json: { detail: "Synthetic presentation review; no records changed.", code: "REVIEW_ONLY" } });
     });
     async function capture(name: string) {
-      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth ? [] : Array.from(document.querySelectorAll("main *")).filter(element => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.width > 0 && bounds.right > window.innerWidth + 1;
+      }).map(element => ({ tag: element.tagName, className: element.className, text: element.textContent?.slice(0, 80) }))), `${name} should fit the viewport`).toEqual([]);
       const dialog = page.getByRole("dialog");
       if (await dialog.count()) {
         await expect(dialog).toBeInViewport();

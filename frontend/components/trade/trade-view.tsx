@@ -106,17 +106,15 @@ export function TradeView({ tradeId, noteFailed }: { tradeId: string; noteFailed
   }
 
   return (
-    <div>
+    <div className="min-w-0 space-y-5">
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
-      <div className="mb-8">
+      <div className="space-y-3">
         <BackLink href="/trades">All trades</BackLink>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <h2 className="text-3xl leading-tight tracking-tight sm:text-4xl">
-            <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.name}</span>
-          </h2>
-          <Badge variant={status.tone === 'action' ? 'default' : status.tone === 'closed' ? 'outline' : 'secondary'} className="text-sm">{status.label}</Badge>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="screen-title min-w-0 break-words">Trade with {them.name}</h1>
+          <Badge variant={status.tone === 'action' ? 'default' : status.tone === 'closed' ? 'outline' : 'secondary'} className="whitespace-normal">{status.label}</Badge>
         </div>
-        <p className="mt-2 text-muted-foreground">{status.detail}</p>
+        <p className="max-w-prose text-sm leading-6 text-muted-foreground">{status.detail}</p>
         {noteFailed && (
           <p role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-card p-3 text-sm text-destructive">
             Your offer was sent, but the note couldn’t be saved. Add it again from the message box.
@@ -146,20 +144,20 @@ export function TradeView({ tradeId, noteFailed }: { tradeId: string; noteFailed
           theirEmpty={<EmptyList>{name} doesn’t have any available items.</EmptyList>}
         />
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="grid content-start gap-8">
-            <section aria-labelledby="terms-heading" className="rounded-xl border bg-card p-5">
-              <h3 id="terms-heading" className="mb-4 text-lg font-semibold tracking-tight">
-                {isAgreed || trade.status === 'completed' ? 'Agreed items' : `Current offer · version ${offer.version}`}
-              </h3>
-              <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,.8fr)]">
+          <div className="grid min-w-0 content-start gap-5">
+            <section aria-labelledby="terms-heading" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
+              <h2 id="terms-heading" className="mb-5 text-lg font-semibold tracking-tight">
+                {isAgreed || trade.status === 'completed' ? 'Agreed items' : 'Current offer'}
+              </h2>
+              <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
                 <div>
-                  <h4 className="mb-2 text-sm font-semibold">You give</h4>
-                  <ul className="grid gap-3">{side.mine.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
+                  <h3 className="mb-3 text-sm font-medium text-muted-foreground">You offer</h3>
+                  <ul className="grid gap-4">{side.mine.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
                 </div>
                 <div>
-                  <h4 className="mb-2 text-sm font-semibold">You get</h4>
-                  <ul className="grid gap-3">{side.theirs.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
+                  <h3 className="mb-3 text-sm font-medium text-muted-foreground">You receive</h3>
+                  <ul className="grid gap-4">{side.theirs.map((item) => <ItemRow key={item.id} item={item} />)}</ul>
                 </div>
               </div>
               <BalanceMeter balance={balance} className="mt-5" />
@@ -167,11 +165,11 @@ export function TradeView({ tradeId, noteFailed }: { tradeId: string; noteFailed
             <TradeTimeline trade={trade} viewerId={me} other={them} />
           </div>
 
-          <aside className="grid content-start gap-4" aria-label="Trade actions">
+          <aside className="grid min-w-0 content-start gap-4" aria-label="Trade actions">
             {myTurn && (
-              <Card className="gap-4 shadow-none">
-                <CardHeader><CardTitle>Respond to {name}</CardTitle></CardHeader>
-                <CardContent className="grid gap-2">
+              <Card className="gap-4 py-5 shadow-none">
+                <CardHeader className="px-4 sm:px-6"><CardTitle className="text-base leading-6"><h2>Respond to {name}</h2></CardTitle></CardHeader>
+                <CardContent className="grid gap-2 px-4 sm:px-6">
                   <ConfirmAction
                     triggerLabel="Accept trade"
                     title="Accept this trade?"
@@ -199,9 +197,9 @@ export function TradeView({ tradeId, noteFailed }: { tradeId: string; noteFailed
             )}
 
             {isOpen && !myTurn && (
-              <Card className="gap-4 shadow-none">
-                <CardHeader><CardTitle>Waiting for {name}</CardTitle></CardHeader>
-                <CardContent className="grid gap-2">
+              <Card className="gap-4 py-5 shadow-none">
+                <CardHeader className="px-4 sm:px-6"><CardTitle className="text-base leading-6"><h2>Waiting for {name}</h2></CardTitle></CardHeader>
+                <CardContent className="grid gap-2 px-4 sm:px-6">
                   <ConfirmAction
                     triggerLabel="Withdraw offer"
                     triggerVariant="outline"
@@ -345,11 +343,11 @@ function NoteComposer({ label, placeholder, readOnly, onSend }: { label: string;
   }
 
   return (
-    <form onSubmit={send} className="grid gap-2 rounded-xl border bg-card p-4">
+    <form onSubmit={send} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 sm:p-5">
       <NoteField id="trade-note" label={label} value={note} onChange={setNote} disabled={sending || Boolean(readOnly)} placeholder={placeholder} />
       {failure && <p role="alert" className="text-sm text-destructive">{failure.message}</p>}
       {readOnly && <p className="text-xs text-muted-foreground">{readOnly}</p>}
-      <Button type="submit" variant="secondary" disabled={sending || !note.trim() || Boolean(readOnly)}>{sending ? 'Sending…' : 'Send note'}</Button>
+      <Button type="submit" className="sm:justify-self-end" disabled={sending || !note.trim() || Boolean(readOnly)}>{sending ? 'Sending…' : 'Send note'}</Button>
     </form>
   );
 }
@@ -376,9 +374,9 @@ function HandoffPanel({ trade, me, them, readOnly, act }: {
   }, [trade]);
 
   return (
-    <Card className="gap-4 shadow-none">
-      <CardHeader><CardTitle>{completed ? 'Trade complete' : 'Hand off the items'}</CardTitle></CardHeader>
-      <CardContent className="grid gap-5">
+    <Card className="gap-4 py-5 shadow-none">
+      <CardHeader className="px-4 sm:px-6"><CardTitle className="text-base leading-6"><h2>{completed ? 'Trade complete' : 'Hand off the items'}</h2></CardTitle></CardHeader>
+      <CardContent className="grid gap-5 px-4 sm:px-6">
         {!completed && (
           <div className="grid gap-3 text-sm">
             <p className="text-muted-foreground">Meet somewhere public, or agree on shipping in the notes. Report the hand-off once you’ve exchanged items.</p>

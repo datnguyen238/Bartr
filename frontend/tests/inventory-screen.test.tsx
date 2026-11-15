@@ -193,6 +193,15 @@ describe("stale listing review", () => {
 });
 
 describe("listing preparation", () => {
+  it.each([["Category", "Electronics", "category"], ["Condition", "Used", "condition"]])("updates %s through its dropdown without saving the draft", (label, value, field) => {
+    renderEditor();
+    fireEvent.keyDown(screen.getByRole("combobox", { name: label }), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: value }));
+    expect(mocks.workspace.setForm).toHaveBeenCalledWith(expect.objectContaining({ [field]: value }));
+    expect(mocks.workspace.saveItem).not.toHaveBeenCalled();
+    expect(mocks.api).not.toHaveBeenCalled();
+  });
+
   it("removes the selected saved item only after confirmation using its saved revision", async () => {
     mocks.api.mockResolvedValue({ ...savedItem, status: "removed", revision: 3 });
     render(<InventoryScreen />);

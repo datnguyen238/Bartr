@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ListingItemRow, MemberListing } from "./member-listing";
-import { Compass, Package, Search, Sparkles } from "@/components/icons";
+import { Package, Search, Sparkles } from "@/components/icons";
 import { TermsView } from "@/components/terms-view";
 import { useWorkspace } from "@/components/workspace/provider";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -214,37 +213,30 @@ export function Discovery() {
   if (!who) return null;
 
   return (
-    <section aria-labelledby="discover-heading" className="space-y-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <section aria-labelledby="discover-heading" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Badge variant="secondary" className="mb-3">
-            <Compass className="size-3.5" aria-hidden="true" />
-            Your matches
-          </Badge>
           <h2
             id="discover-heading"
-            className="font-display text-3xl tracking-[-0.025em] sm:text-4xl"
+            className="text-lg font-semibold tracking-tight"
           >
             Items matching your interests
           </h2>
         </div>
-        <Button variant="outline" asChild>
+        <Button size="sm" variant="outline" asChild>
           <Link href="/preferences">Edit your preferences</Link>
         </Button>
       </div>
 
-      <Card className="gap-5 shadow-none">
-        <CardHeader className="gap-3">
-          <CardTitle role="heading" aria-level={3}>
+      <Card className="gap-4 py-4 shadow-none">
+        <CardHeader className="gap-3 px-4">
+          <CardTitle role="heading" aria-level={3} className="sr-only">
             Your discovery filters
           </CardTitle>
-          <CardDescription>
-            Items match your interests and exclude the things you don’t want.
-          </CardDescription>
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2">
             {view.profile.interests.length ? (
               view.profile.interests.map((interest) => (
-                <Badge key={interest} tone="success">
+                <Badge key={interest} variant="secondary">
                   Looking for {interest}
                 </Badge>
               ))
@@ -258,9 +250,9 @@ export function Discovery() {
             ))}
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 border-t pt-5 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
-          <div>
-            <label htmlFor="member-search" className="mb-2 block text-sm font-medium">
+        <CardContent className="grid grid-cols-1 gap-3 px-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto] xl:items-end">
+          <div className="sm:col-span-2 xl:col-span-1">
+            <label htmlFor="member-search" className="sr-only">
               Search people or matching items
             </label>
             <div className="relative">
@@ -272,12 +264,12 @@ export function Discovery() {
                 id="member-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Try a name, category or item…"
+                placeholder="Search matching items or members…"
                 className="pl-9"
               />
             </div>
           </div>
-          <div className="flex h-11 items-center gap-3 rounded-md border px-3">
+          <div className="flex min-h-11 items-center gap-3 rounded-lg border px-3">
             <Switch
               id="semantic-discovery"
               checked={useSemantic}
@@ -307,15 +299,13 @@ export function Discovery() {
           </Button>
           <p
             id="semantic-help"
-            className="text-xs leading-5 text-muted-foreground lg:col-span-3"
+            className="text-xs leading-5 text-muted-foreground sm:col-span-2 xl:col-span-3"
           >
             {semanticAvailable
               ? useSemantic
-                ? "Click Find bundle matches to compare your saved interests with similar item descriptions."
-                : "Exact text is used. Turn on semantic matching, then click Find bundle matches to include similar wording."
-              : view.storage === "dynamodb"
-                ? "Matching uses exact text. Configure Bedrock to enable semantic matching."
-                : "Exact-text local testing is active. Semantic matching requires MongoDB Atlas, Bedrock and Gemini."}
+                ? "Find bundle matches includes similar wording and checks both members’ trade preferences."
+                : "Text matching is active. Enable semantic matching to include similar wording."
+              : "Text matching is active. Semantic matching is currently unavailable."}
           </p>
         </CardContent>
       </Card>
@@ -336,20 +326,17 @@ export function Discovery() {
 
       {results?.reason === "MISSING_VALUATION" && (
         <p className="rounded-lg border bg-secondary/60 p-4 text-sm">
-          Relevant items need comparison values before Bartr can qualify an
-          automatic bundle. You can still inspect listings and compose a manual
-          offer.
+          Some items need values for bundle matching. You can still make an offer.
         </p>
       )}
       {results?.reason === "NO_MATCH" && (
         <p className="rounded-lg border bg-secondary/60 p-4 text-sm">
-          No eligible bundle currently satisfies both members&apos; rules. The item
-          list remains available for inspection or a manual offer.
+          No bundle meets both members’ preferences. You can still make an offer.
         </p>
       )}
 
       {filteredDiscoveries.length ? (
-        <ul className="w-full space-y-5" aria-label="Members and their matching items" role="list">
+        <ul className="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,25rem),1fr))] items-start gap-4" aria-label="Members and their matching items" role="list">
           {filteredDiscoveries.map(({ member, items, recommendations }) => (
             <li key={member.id} className="min-w-0">
               <MemberListing
@@ -367,9 +354,6 @@ export function Discovery() {
                 }
               >
                 <CardContent className="p-0">
-                  <div className="border-b px-5 py-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground sm:px-6">
-                    Available items that fit your preferences
-                  </div>
                   {items.length ? (
                     <ul className="divide-y" aria-label={`${member.name}'s matching items`} role="list">
                       {items.map((entry) => (
