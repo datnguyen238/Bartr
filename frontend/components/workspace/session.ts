@@ -30,7 +30,7 @@ type SessionCallbacks = {
   seeded: boolean;
   onView: (view: View, resetDrafts: boolean) => void;
   onClear: () => void;
-  onError: (message: string) => void;
+  onError: (message: string, error?: unknown) => void;
 };
 
 export function useWorkspaceSession(options: SessionCallbacks) {
@@ -66,7 +66,7 @@ export function useWorkspaceSession(options: SessionCallbacks) {
     if (error instanceof SupersededSession || !isCurrent(token)) return;
     if (error instanceof ApiError && error.status === 401) becomeAnonymous();
     else if (unavailable) setSessionStatus("unavailable");
-    callbacks.current.onError(errorMessage(error));
+    callbacks.current.onError(errorMessage(error), error);
   }
   async function fetchView(token: number, resetDrafts: boolean) {
     assertCurrent(token);
@@ -100,13 +100,17 @@ export function useWorkspaceSession(options: SessionCallbacks) {
       becomeAnonymous();
       return;
     }
+    const restoringMember = memberId.current !== null;
     const token = advance();
     setSessionStatus("checking");
     callbacks.current.onError("");
     try {
       await fetchView(token, true);
     } catch (error) {
-      recordFailure(error, token, true);
+      if (!restoringMember && isCurrent(token) && error instanceof ApiError && error.status === 401) {
+        becomeAnonymous();
+        callbacks.current.onError("");
+      } else recordFailure(error, token, true);
     }
   }
 
@@ -127,7 +131,7 @@ export function useWorkspaceSession(options: SessionCallbacks) {
     } catch (error) {
       if (isCurrent(token) && !authenticated && error instanceof ApiError && error.status >= 400 && error.status < 500) {
         becomeAnonymous();
-        callbacks.current.onError(errorMessage(error));
+        callbacks.current.onError(errorMessage(error), error);
       } else recordFailure(error, token, true);
       throw error;
     }

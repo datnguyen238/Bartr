@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useRef, useState, type ReactNode, type SetStateAction } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { api, command, type View, type Profile, type Item, type Trade, type Recommendations } from "@/lib/marketplace";
+import { api, ApiError, command, type View, type Profile, type Item, type Trade, type Recommendations } from "@/lib/marketplace";
 import { seedEnabled } from "@/data/seed";
-import { blank } from "./constants";
 import { SupersededSession, useWorkspaceSession } from "./session";
 import { profileDraft, reconcileProfileDraft, type ProfileDraft, type DraftRevisions } from "./session-profile";
+import { useListingDrafts } from "./listing-drafts";
 
 // Empty page state is not an authenticated identity or sample account.
 const emptyWorkspace: Omit<View, "storage"> & { storage: "unloaded" } = {
@@ -24,10 +24,15 @@ function useWorkspaceState() {
   const [view, setView] = useState<View | null>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
-    [error, setError] = useState("");
-  const [editing, setEditing] = useState<Item | null>(null),
-    [form, setForm] = useState(blank),
-    [results, setResults] = useState<Recommendations | null>(null),
+    [error, setErrorState] = useState("");
+  const [actionError, setActionError] = useState<ApiError | null>(null);
+  function setError(value: SetStateAction<string>) {
+    setErrorState(value);
+    setActionError(null);
+  }
+  const listingDrafts = useListingDrafts();
+  const { editing, setEditing, form, setForm, edit, replaceItemDraft, listingDirty, hasListingDrafts } = listingDrafts;
+  const [results, setResults] = useState<Recommendations | null>(null),
     [semantic, setSemantic] = useState(true);
   const [tradeId, setTradeId] = useState(""),
     [other, setOther] = useState(""),
@@ -53,8 +58,7 @@ function useWorkspaceState() {
   function clearPrivateState() {
     savedProfile.current = null;
     setView(null);
-    setEditing(null);
-    setForm(blank);
+    listingDrafts.resetListingDrafts();
     setResults(null);
     setTradeId("");
     setOther("");
@@ -72,12 +76,16 @@ function useWorkspaceState() {
   const session = useWorkspaceSession({
     seeded: seedEnabled,
     onClear: clearPrivateState,
-    onError: setError,
+    onError: (message, error) => {
+      setErrorState(message);
+      setActionError(error instanceof ApiError ? error : null);
+    },
     onView: (next, resetDrafts) => {
       const previous = savedProfile.current;
       const changedMember = previous?.id !== next.profile.id;
       savedProfile.current = next.profile;
       setView(next);
+      listingDrafts.reconcileListings(next.items.filter((item) => item.owner === next.profile.id));
       if (resetDrafts || changedMember) {
         setProfileForm(profileDraft(next.profile));
         setProfileDraftRevision({ account: next.profile.revision, preferences: next.profile.revision });
@@ -133,22 +141,6 @@ function useWorkspaceState() {
   const offer = trade?.offers.at(-1);
   const name = (id: string) =>
     view?.members.find((x) => x.id === id)?.name || "Member";
-  function edit(item: Item | null) {
-    setEditing(item);
-    setForm(
-      item
-        ? {
-            title: item.title,
-            description: item.description,
-            category: item.category,
-            condition: item.condition,
-            value:
-              item.value_minor === null ? "" : String(item.value_minor / 100),
-            status: item.status,
-          }
-        : blank,
-    );
-  }
   const facts = () => ({
     title: form.title,
     description: form.description,
@@ -158,16 +150,19 @@ function useWorkspaceState() {
       form.value === "" ? null : Math.round(Number(form.value) * 100),
     status: form.status,
   });
-  async function saveItem() {
+  async function saveItem(options: { status?: Item["status"] } = {}) {
     const generation = session.generation;
+    const submitted = { ...form };
+    const previousItem = editing;
+    const data = { ...facts(), ...(options.status ? { status: options.status } : {}) };
     const saved = editing
       ? await api<Item>(`items/${editing.id}`, "PATCH", {
-          ...facts(),
+          ...data,
           expected_revision: editing.revision,
         })
-      : await api<Item>("items", "POST", facts());
+      : await api<Item>("items", "POST", data);
     session.assertCurrent(generation);
-    edit(saved);
+    listingDrafts.savedListing(saved, submitted, previousItem);
     await load();
     setResults(null);
     setMessage("Listing saved.");
@@ -267,6 +262,7 @@ function useWorkspaceState() {
     message,
     setMessage,
     error,
+    actionError,
     setError,
     loading,
     editing,
@@ -303,6 +299,9 @@ function useWorkspaceState() {
     offer,
     name,
     edit,
+    replaceItemDraft,
+    listingDirty,
+    hasListingDrafts,
     facts,
     saveItem,
     submitOffer,

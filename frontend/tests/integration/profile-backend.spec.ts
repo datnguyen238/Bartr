@@ -15,13 +15,17 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   expect(cookie?.httpOnly).toBe(true);
   expect(cookie?.sameSite).toBe("Lax");
 
-  await page.getByLabel("Interests", { exact: false }).fill("Monitor, Study supplies");
+  for (const interest of ["Monitor", "Study supplies"]) {
+    await page.getByLabel("Interests", { exact: true }).fill(interest);
+    await page.getByLabel("Interests", { exact: true }).press("Enter");
+    await expect(page.getByRole("button", { name: `Remove interest ${interest}`, exact: true })).toBeVisible();
+  }
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Preferences saved");
+  await expect(page.getByRole("region", { name: "What you’re looking for", exact: true }).getByRole("status")).toContainText("Preferences saved");
   await page.getByRole("link", { name: "Account", exact: true }).click();
   await page.getByLabel("Display name", { exact: true }).fill("Local updated member");
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Profile saved");
+  await expect(page.getByRole("region", { name: "Public details", exact: true }).getByRole("status")).toContainText("Profile saved");
   await page.reload();
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Local updated member");
   const saved = await (await page.request.get("/api/me")).json();
@@ -40,9 +44,10 @@ test("real local cookies, profile revisions, inventory and expired-session prote
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Unsaved stale member");
 
   await page.getByRole("link", { name: "Inventory", exact: true }).click();
+  await page.getByRole("button", { name: "New item", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Local synthetic chair");
-  await page.getByRole("button", { name: "Save listing", exact: true }).click();
-  await expect(page.getByText("Listing saved.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(page.getByText("Private draft saved. You can finish it later.", { exact: true })).toBeVisible();
   const itemState = await (await page.request.get("/api/me")).json();
   expect(itemState.items.some((item: {title: string; status: string}) => item.title === "Local synthetic chair" && item.status === "draft")).toBe(true);
 

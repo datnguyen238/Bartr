@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InventoryScreen } from "@/components/inventory/inventory-screen";
-import type { Item } from "@/lib/marketplace";
+import { ApiError, type Item } from "@/lib/marketplace";
 
 const mocks = vi.hoisted(() => ({ upload: vi.fn(), api: vi.fn(), workspace: {} as Record<string, unknown> }));
 
@@ -20,9 +20,9 @@ const savedItem: Item = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.workspace = {
-    view: { profile: { id: "alice" } }, busy: false, mine: [savedItem], editing: savedItem,
+    view: { profile: { id: "alice" }, integrations: { gemini_configured: false, bedrock_configured: false } }, busy: false, seeded: false, listingDirty: true, mine: [savedItem], editing: savedItem,
     form: { title: "Unsaved title", description: "Unsaved description", category: "Furniture", condition: "Good", value: "", status: "draft" },
-    setMessage: vi.fn(), setEditing: vi.fn(), setForm: vi.fn(), edit: vi.fn(), saveItem: vi.fn(),
+    setMessage: vi.fn(), setEditing: vi.fn(), setForm: vi.fn(), edit: vi.fn(), replaceItemDraft: vi.fn(), saveItem: vi.fn(async () => savedItem),
     load: vi.fn(async () => ({ profile: { id: "alice" } })),
     guardSession: vi.fn(async <T,>(promise: Promise<T>) => promise),
     run: vi.fn(async (action: () => Promise<void>) => { try { await action(); } catch { /* shared provider owns feedback */ } }),
@@ -35,7 +35,7 @@ describe("inventory photo attachment", () => {
     mocks.upload.mockResolvedValue(attached);
     render(<InventoryScreen />);
     fireEvent.change(screen.getByLabelText("Item photo"), { target: { files: [new File(["synthetic"], "photo.png", { type: "image/png" })] } });
-    await waitFor(() => expect(mocks.workspace.setMessage).toHaveBeenCalledWith("Photo normalized and saved. Review before publishing."));
+    await waitFor(() => expect(mocks.workspace.setMessage).toHaveBeenCalledWith("Photo saved. Review your details before publishing."));
     const update = vi.mocked(mocks.workspace.setEditing as (updater: (current: Item) => Item) => void).mock.calls[0][0];
     expect(update(savedItem)).toEqual(attached);
     expect(update({ ...savedItem, id: "another-draft" })).toEqual({ ...savedItem, id: "another-draft" });
@@ -67,6 +67,7 @@ describe("stale listing review", () => {
     const latest = { ...savedItem, revision: 3, title: "Changed elsewhere", description: "Latest saved description", category: "Electronics", condition: "Fair", value_minor: 2500, status: "available" as const };
     mocks.workspace.load = vi.fn(async () => ({ profile: { id: "alice" }, items: [latest] }));
     render(<InventoryScreen />);
+    fireEvent.click(screen.getByText("Saved version and listing options"));
     fireEvent.click(screen.getByRole("button", { name: "Review latest saved listing" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Latest saved listing" })).toBeVisible());
     expect(screen.getByText("Latest saved description")).toBeVisible();
@@ -76,16 +77,17 @@ describe("stale listing review", () => {
     expect(mocks.workspace.edit).not.toHaveBeenCalled();
     expect((mocks.workspace.editing as Item).revision).toBe(2);
     fireEvent.click(screen.getByRole("button", { name: "Replace draft with saved listing" }));
-    await waitFor(() => expect(mocks.workspace.edit).toHaveBeenCalledWith(latest));
+    await waitFor(() => expect(mocks.workspace.replaceItemDraft).toHaveBeenCalledWith(latest));
   });
 
   it.each(["reserved", "exchanged", "removed"] as const)("does not adopt a %s listing into an editable draft", async (status) => {
     mocks.workspace.load = vi.fn(async () => ({ profile: { id: "alice" }, items: [{ ...savedItem, revision: 3, status }] }));
     render(<InventoryScreen />);
+    fireEvent.click(screen.getByText("Saved version and listing options"));
     fireEvent.click(screen.getByRole("button", { name: "Review latest saved listing" }));
     await waitFor(() => expect(screen.getByText(/This listing is no longer editable/)).toBeVisible());
     expect(screen.queryByRole("button", { name: "Replace draft with saved listing" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save listing" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
     expect(screen.getByLabelText("Title")).toHaveValue("Unsaved title");
     expect(mocks.workspace.edit).not.toHaveBeenCalled();
   });
@@ -93,18 +95,20 @@ describe("stale listing review", () => {
   it("keeps the draft when the saved listing is unavailable", async () => {
     mocks.workspace.load = vi.fn(async () => ({ profile: { id: "alice" }, items: [] }));
     render(<InventoryScreen />);
+    fireEvent.click(screen.getByText("Saved version and listing options"));
     fireEvent.click(screen.getByRole("button", { name: "Review latest saved listing" }));
     await waitFor(() => expect(screen.getByText(/This listing is no longer available/)).toBeVisible());
-    expect(screen.getByRole("button", { name: "Save listing" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
     expect(mocks.workspace.edit).not.toHaveBeenCalled();
   });
 
   it("hides a saved comparison after the active member changes", async () => {
     mocks.workspace.load = vi.fn(async () => ({ profile: { id: "alice" }, items: [{ ...savedItem, revision: 3, description: "Private comparison" }] }));
     const { rerender } = render(<InventoryScreen />);
+    fireEvent.click(screen.getByText("Saved version and listing options"));
     fireEvent.click(screen.getByRole("button", { name: "Review latest saved listing" }));
     await waitFor(() => expect(screen.getByText("Private comparison")).toBeVisible());
-    mocks.workspace.view = { profile: { id: "bob" } };
+    mocks.workspace.view = { profile: { id: "bob" }, integrations: { gemini_configured: false, bedrock_configured: false } };
     rerender(<InventoryScreen />);
     expect(screen.queryByText("Private comparison")).not.toBeInTheDocument();
   });
@@ -113,9 +117,109 @@ describe("stale listing review", () => {
     mocks.workspace.load = vi.fn(async () => ({ profile: { id: "alice" }, items: [{ ...savedItem, revision: 3 }] }));
     mocks.workspace.guardSession = vi.fn(async (promise: Promise<unknown>) => { await promise; throw new Error("Superseded session"); });
     render(<InventoryScreen />);
+    fireEvent.click(screen.getByText("Saved version and listing options"));
     fireEvent.click(screen.getByRole("button", { name: "Review latest saved listing" }));
     await waitFor(() => expect(mocks.workspace.guardSession).toHaveBeenCalledOnce());
     expect(screen.queryByRole("heading", { name: "Latest saved listing" })).not.toBeInTheDocument();
     expect(mocks.workspace.edit).not.toHaveBeenCalled();
+  });
+});
+
+describe("listing preparation", () => {
+  it("creates a private draft behind a new item's photo attachment", async () => {
+    const newDraft = { ...savedItem, id: "new-photo-draft", revision: 1 };
+    mocks.workspace.editing = null;
+    mocks.workspace.saveItem = vi.fn(async () => newDraft);
+    mocks.upload.mockResolvedValue({ ...newDraft, revision: 2, image_id: "new-image" });
+    render(<InventoryScreen />);
+    expect(screen.getByLabelText("Item photo")).toBeEnabled();
+    fireEvent.change(screen.getByLabelText("Item photo"), { target: { files: [new File(["synthetic"], "new.png", { type: "image/png" })] } });
+    await waitFor(() => expect(mocks.upload).toHaveBeenCalledWith(newDraft, expect.any(File)));
+    expect(mocks.workspace.saveItem).toHaveBeenCalledWith({ status: "draft" });
+    expect(mocks.workspace.saveItem).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Photo saved"));
+  });
+
+  it("does not upload if creating the private draft fails", async () => {
+    mocks.workspace.editing = null;
+    mocks.workspace.saveItem = vi.fn(async () => { throw new Error("Unable to save draft. Try again."); });
+    render(<InventoryScreen />);
+    fireEvent.change(screen.getByLabelText("Item photo"), { target: { files: [new File(["synthetic"], "new.png", { type: "image/png" })] } });
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Unable to save draft"));
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.workspace.setEditing).not.toHaveBeenCalled();
+  });
+
+  it("keeps publication disabled until required listing information and photo exist", () => {
+    render(<InventoryScreen />);
+    expect(screen.getByRole("button", { name: "Publish listing" })).toBeDisabled();
+    expect(screen.getByText("Photo: needed")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeEnabled();
+  });
+
+  it("publishes reviewed complete details explicitly and permits an unknown value", async () => {
+    mocks.workspace.editing = { ...savedItem, image_id: "reviewed-image" };
+    render(<InventoryScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Publish listing" }));
+    await waitFor(() => expect(mocks.workspace.saveItem).toHaveBeenCalledWith({ status: "available" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Listing published");
+    expect(screen.getByLabelText("Comparison value (USD, optional)")).toHaveValue(null);
+  });
+
+  it("moves focus into the editor when opening an existing item", async () => {
+    render(<InventoryScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Saved title" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Saved title", level: 2 })).toHaveFocus());
+    expect(mocks.workspace.edit).toHaveBeenCalledWith(savedItem);
+    fireEvent.click(screen.getByRole("button", { name: "Back to inventory" }));
+    expect(screen.getByRole("heading", { name: "Your inventory" })).toHaveFocus();
+    expect(mocks.workspace.setForm).not.toHaveBeenCalled();
+  });
+
+  it("does not bypass value validation when publication is chosen", () => {
+    mocks.workspace.editing = { ...savedItem, image_id: "reviewed-image" };
+    mocks.workspace.form = { ...(mocks.workspace.form as Record<string, unknown>), value: "-1" };
+    render(<InventoryScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Publish listing" }));
+    expect(screen.getByLabelText("Comparison value (USD, optional)")).toBeInvalid();
+    expect(mocks.workspace.saveItem).not.toHaveBeenCalled();
+  });
+
+  it("places returned field errors beside their listing controls", async () => {
+    mocks.workspace.saveItem = vi.fn(async () => { throw new ApiError("Review the highlighted detail.", 422, "VALIDATION_ERROR", [{ field: "title", message: "Use a shorter item title." }]); });
+    render(<InventoryScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Title")).toHaveAccessibleDescription("Use a shorter item title.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Review the highlighted item details");
+  });
+
+  it("normalizes dotted server field paths for local feedback", async () => {
+    mocks.workspace.saveItem = vi.fn(async () => { throw new ApiError("body.title: A title is needed.", 422, "VALIDATION_ERROR", [{ field: "body.title", message: "A title is needed." }]); });
+    render(<InventoryScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveAccessibleDescription("A title is needed."));
+    expect(screen.getByRole("alert")).toHaveTextContent("Title: A title is needed.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("body.title");
+  });
+
+  it.each(["reserved", "removed", "missing"] as const)("locks a dirty editor when the saved inventory reports %s", (status) => {
+    const cached = { ...savedItem, status: "available" as const, revision: 2 };
+    mocks.workspace.editing = cached;
+    mocks.workspace.mine = [cached];
+    mocks.workspace.form = { ...(mocks.workspace.form as Record<string, unknown>), status: "available" };
+    const { rerender } = render(<InventoryScreen />);
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    mocks.workspace.mine = status === "missing" ? [] : [{ ...cached, revision: 3, status }];
+    rerender(<InventoryScreen />);
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    expect(screen.getByLabelText("Item photo")).toBeDisabled();
+    expect(screen.getByLabelText("Title")).toBeDisabled();
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved title");
+    expect(screen.getByRole("status")).toHaveTextContent(status === "missing" ? "isn’t in your current saved inventory" : status === "reserved" ? "Current status: Reserved for a trade" : "Current status: Removed");
+    expect(screen.getByRole("button", { name: "Check saved listing" })).toBeEnabled();
+    expect((mocks.workspace.editing as Item).revision).toBe(2);
+    expect(mocks.workspace.setForm).not.toHaveBeenCalled();
+    expect(mocks.workspace.replaceItemDraft).not.toHaveBeenCalled();
   });
 });

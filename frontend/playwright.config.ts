@@ -13,6 +13,6 @@ export default defineConfig({
     url: 'http://127.0.0.1:3100',
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { NEXT_PUBLIC_USE_SEED_DATA: 'false', NEXT_TELEMETRY_DISABLED: '1' },
+    env: { BARTR_NEXT_DIST_DIR: '.next-e2e', NEXT_PUBLIC_USE_SEED_DATA: 'false', NEXT_TELEMETRY_DISABLED: '1' },
   },
 });

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen, profileDestination } from "@/components/home/home-screen";
+import { ApiError } from "@/lib/marketplace";
 
 const mock = vi.hoisted(() => ({
   params: new URLSearchParams(), replace: vi.fn(), signIn: vi.fn(), signUp: vi.fn(),
@@ -29,6 +30,13 @@ function credentials() {
 }
 
 describe("Home authentication", () => {
+  it("explains money-free local bundle trading without presenting example values as market evidence", () => {
+    render(<HomeScreen />);
+    expect(screen.getByRole("heading", { name: "Trade what you have.Find what you need." })).toBeVisible();
+    expect(screen.getByText(/campus or city community/)).toBeVisible();
+    expect(screen.getByText(/one to three items on each side/)).toBeVisible();
+    expect(screen.getByText(/Illustrative values, not market prices/)).toBeVisible();
+  });
   it("waits for the saved session before displaying credentials", () => {
     mock.status = "checking";
     render(<HomeScreen />);
@@ -66,6 +74,20 @@ describe("Home authentication", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(screen.getByLabelText("Password")).toHaveValue(""));
     expect(screen.getByLabelText("Username")).toHaveValue("synthetic.member");
+    expect(mock.replace).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Invalid credentials");
+  });
+
+  it("shows registration errors beside the affected field", async () => {
+    mock.params.set("mode", "register");
+    mock.signUp.mockRejectedValue(new ApiError("Choose another username.", 422, "USERNAME_TAKEN", [{ field: "body.username", message: "That username is taken." }]));
+    render(<HomeScreen />); credentials();
+    fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Synthetic member" } });
+    fireEvent.change(screen.getByLabelText("Community"), { target: { value: "Test Campus" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => expect(screen.getByLabelText("Username")).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Username")).toHaveAccessibleDescription("That username is taken.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Review the highlighted account details and try again.");
     expect(mock.replace).not.toHaveBeenCalled();
   });
 

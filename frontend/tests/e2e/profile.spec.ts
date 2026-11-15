@@ -35,6 +35,7 @@ type Stub = {
   unavailable: boolean;
   rejectLogin: boolean;
   rejectProfileSave: boolean;
+  profileFieldErrors: { field: string; message: string }[];
   rejectItemSave: boolean;
   view: View;
   profileSaves: Record<string, unknown>[];
@@ -45,7 +46,7 @@ type Stub = {
 
 async function installApi(page: Page, authenticated = true): Promise<Stub> {
   const state: Stub = {
-    authenticated, unavailable: false, rejectLogin: false, rejectProfileSave: false, rejectItemSave: false,
+    authenticated, unavailable: false, rejectLogin: false, rejectProfileSave: false, profileFieldErrors: [], rejectItemSave: false,
     view: fixture(), profileSaves: [], itemSaves: [], uploads: 0, unexpected: [],
   };
   async function json(route: Route, status: number, data: unknown) {
@@ -85,6 +86,7 @@ async function installApi(page: Page, authenticated = true): Promise<Stub> {
     if (path === "profile" && method === "PATCH") {
       const body = request.postDataJSON() as Record<string, unknown>;
       state.profileSaves.push(body);
+      if (state.profileFieldErrors.length) return json(route, 422, { detail: "Check the highlighted fields.", fields: state.profileFieldErrors });
       if (state.rejectProfileSave) return json(route, 409, { detail: "Profile changed. Reload before saving.", code: "STALE_PROFILE" });
       state.view.profile = { ...state.view.profile, ...body, revision: state.view.profile.revision + 1 } as View["profile"];
       return json(route, 200, state.view.profile);
@@ -141,6 +143,32 @@ async function signIn(page: Page, username = "alice.test") {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
+async function setEntries(page: Page, kind: "interest" | "exclusion", values: string[]) {
+  const input = page.getByLabel(kind === "interest" ? "Interests" : "Exclusions", { exact: true });
+  await expect(input).toBeVisible();
+  const removals = page.getByRole("button", { name: new RegExp(`^Remove ${kind} `) });
+  while (await removals.count()) {
+    const count = await removals.count();
+    await removals.first().click();
+    await expect(removals).toHaveCount(count - 1);
+  }
+  for (const value of values) {
+    await input.fill(value);
+    await input.press("Enter");
+    await expect(page.getByRole("button", { name: `Remove ${kind} ${value}`, exact: true })).toBeVisible();
+  }
+}
+
+test("initial signed-out entry is a normal state rather than an error", async ({ page }) => {
+  const state = await installApi(page, false);
+  await page.goto("/home");
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign out", exact: true })).toHaveCount(0);
+  expect(state.authenticated).toBe(false);
+  expect(state.unexpected).toEqual([]);
+});
+
 test("anonymous profile subpages return Home and restore the requested destination after sign-in", async ({ page }) => {
   await installApi(page, false);
   await page.goto("/profile/preferences");
@@ -149,7 +177,8 @@ test("anonymous profile subpages return Home and restore the requested destinati
   await expect(page.getByRole("button", { name: "Save preferences" })).not.toBeVisible();
   await signIn(page);
   await expect(page).toHaveURL(/\/profile\/preferences$/);
-  await expect(page.getByLabel("Interests", { exact: false })).toHaveValue("Monitor, Study supplies");
+  await expect(page.getByRole("list", { name: "Interests list", exact: true }).getByRole("listitem")).toHaveText(["Monitor", "Study supplies"]);
+  await expect(page.getByLabel("Interests", { exact: true })).toHaveValue("");
 });
 
 test("service unavailability offers retry without treating a member as signed out", async ({ page }) => {
@@ -192,9 +221,9 @@ test("account save preserves the saved trading preferences", async ({ page }) =>
 test("preferences save preserves the saved account details", async ({ page }) => {
   const state = await installApi(page);
   await page.goto("/profile/preferences");
-  await page.getByLabel("Interests", { exact: false }).fill("Desk, Computer monitor");
-  await page.getByLabel("Exclusions", { exact: false }).fill("Damaged electronics");
-  await page.getByLabel("Maximum recommendation gap (%)", { exact: true }).fill("15");
+  await setEntries(page, "interest", ["Desk", "Computer monitor"]);
+  await setEntries(page, "exclusion", ["Damaged electronics"]);
+  await page.getByLabel("Estimated value difference (%)", { exact: true }).fill("15");
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();
   await expect.poll(() => state.profileSaves.length).toBe(1);
   expect(state.profileSaves[0]).toMatchObject({
@@ -203,15 +232,16 @@ test("preferences save preserves the saved account details", async ({ page }) =>
   });
 });
 
-test("unrelated inventory refresh and Profile navigation preserve an unsaved account draft", async ({ page }) => {
+test("unrelated inventory refresh and account navigation preserve an unsaved account draft", async ({ page }) => {
   await installApi(page);
   await page.goto("/profile");
   await page.getByLabel("Display name", { exact: true }).fill("Unsaved private draft");
   await page.getByRole("link", { name: "Inventory", exact: true }).click();
   await expect(page).toHaveURL(/\/profile\/inventory$/);
+  await page.getByRole("button", { name: "New item", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("New synthetic draft");
-  await page.getByRole("button", { name: "Save listing", exact: true }).click();
-  await expect(page.getByText("Listing saved.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(page.getByText("Private draft saved. You can finish it later.", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Account", exact: true }).click();
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Unsaved private draft");
 });
@@ -226,13 +256,27 @@ test("a stale profile save keeps the draft and reports renewed review", async ({
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Keep this draft");
 });
 
+test("profile field errors identify the affected control and preserve its draft", async ({ page }) => {
+  const state = await installApi(page);
+  state.profileFieldErrors = [{ field: "body.community", message: "Choose a campus or city community." }];
+  await page.goto("/profile");
+  const community = page.getByLabel("Community", { exact: true });
+  await community.fill("Keep my community draft");
+  await page.getByRole("button", { name: "Save profile", exact: true }).click();
+  await expect(community).toHaveAttribute("aria-invalid", "true");
+  await expect(community).toHaveAttribute("aria-describedby", /profile-community-error/);
+  await expect(page.locator("#profile-community-error")).toHaveText("Choose a campus or city community.");
+  await expect(community).toHaveValue("Keep my community draft");
+  await expect(page.getByRole("region", { name: "Public details", exact: true }).getByRole("alert")).toContainText("Review the highlighted fields");
+});
+
 test("logout removes old drafts before another member signs in", async ({ page }) => {
   await installApi(page);
   await page.goto("/profile");
   await page.getByLabel("Display name", { exact: true }).fill("Old member private draft");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/\/home(?:\?.*)?$/);
-  await expect(page.getByText("Alice Example · Test Campus", { exact: true })).not.toBeVisible();
+  await expect(page.getByRole("link", { name: "Account", exact: true })).toHaveCount(0);
   await signIn(page, "bob.test");
   await expect(page).toHaveURL(/\/profile$/);
   await expect(page.getByLabel("Display name", { exact: true })).toHaveValue("Bob Example");
@@ -258,12 +302,14 @@ test("an external return destination cannot replace the local Profile destinatio
   await expect(page).toHaveURL(/\/profile$/);
 });
 
-test("inventory create, photo attachment and edit remain usable inside Profile", async ({ page }) => {
+test("inventory draft saving and photo attachment preserve unsaved details", async ({ page }) => {
   const state = await installApi(page);
   await page.goto("/profile/inventory");
+  await page.getByRole("button", { name: "New item", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Synthetic desk lamp");
-  await page.getByRole("button", { name: "Save listing", exact: true }).click();
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect.poll(() => state.itemSaves.length).toBe(1);
+  expect(state.itemSaves[0]).toMatchObject({ title: "Synthetic desk lamp", status: "draft" });
   await page.getByLabel("Title", { exact: true }).fill("Unsaved title before upload");
   await page.getByLabel("Description", { exact: true }).fill("Unsaved description before upload");
   await page.getByLabel("Item photo", { exact: true }).setInputFiles({
@@ -271,11 +317,12 @@ test("inventory create, photo attachment and edit remain usable inside Profile",
     buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
   });
   await expect.poll(() => state.uploads).toBe(1);
-  await expect(page.getByText("Photo normalized and saved. Review before publishing.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Photo saved. Review your details before publishing.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title before upload");
   await expect(page.getByLabel("Description", { exact: true })).toHaveValue("Unsaved description before upload");
+  expect(state.itemSaves).toHaveLength(1);
   await page.getByLabel("Title", { exact: true }).fill("Reviewed synthetic desk lamp");
-  await page.getByRole("button", { name: "Save listing", exact: true }).click();
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect.poll(() => state.itemSaves.length).toBe(2);
   expect(state.itemSaves[1]).toMatchObject({ title: "Reviewed synthetic desk lamp", expected_revision: 2 });
 });
@@ -284,23 +331,87 @@ test("a stale item edit retains its reviewed revision and unsaved draft", async 
   const state = await installApi(page);
   state.rejectItemSave = true;
   await page.goto("/profile/inventory");
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "Edit Test chair", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Keep my reviewed item draft");
-  await page.getByRole("button", { name: "Save listing", exact: true }).click();
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Item changed");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Keep my reviewed item draft");
   expect(state.itemSaves[0]).toMatchObject({ title: "Keep my reviewed item draft", expected_revision: 1 });
 });
 
-test("Home Profile Trade navigation remains usable at 390px without offers", async ({ page }) => {
+test("photo-first preparation creates only a private draft until reviewed publication", async ({ page }) => {
+  const state = await installApi(page);
+  await page.goto("/profile/inventory");
+  await page.getByRole("button", { name: "New item", exact: true }).click();
+  const photo = page.getByLabel("Item photo", { exact: true });
+  await expect(photo).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
+  await photo.setInputFiles({
+    name: "synthetic-pixel.png", mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG2kAAAAASUVORK5CYII=", "base64"),
+  });
+  await expect.poll(() => state.uploads).toBe(1);
+  await expect(page.getByText("Photo saved. Review your details before publishing.", { exact: true })).toBeVisible();
+  expect(state.itemSaves).toHaveLength(1);
+  expect(state.itemSaves[0]).toMatchObject({ title: "", status: "draft" });
+  expect(state.view.items.find(candidate => candidate.id === "test-new-item")?.status).toBe("draft");
+  await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeDisabled();
+  await page.getByLabel("Title", { exact: true }).fill("Reviewed synthetic lamp");
+  await page.getByLabel("Category", { exact: true }).fill("Household essentials");
+  await page.getByLabel("Condition", { exact: true }).fill("Good");
+  await page.getByLabel("Description", { exact: true }).fill("A synthetic lamp prepared for publication.");
+  await expect(page.getByRole("button", { name: "Publish listing", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Publish listing", exact: true }).click();
+  await expect(page.getByText("Listing published. It is available for trading.", { exact: true })).toBeVisible();
+  expect(state.itemSaves).toHaveLength(2);
+  expect(state.itemSaves[1]).toMatchObject({ title: "Reviewed synthetic lamp", status: "available", expected_revision: 2, value_minor: null });
+  expect(state.view.items.find(candidate => candidate.id === "test-new-item")).toMatchObject({ status: "available", image_id: "test-uploaded-image" });
+  expect(state.unexpected).toEqual([]);
+});
+
+test("mobile editing reveals its context and restores separate item and new drafts", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page);
+  state.view.items.push(item("test-lamp", "test-alice", "Test lamp"));
+  await page.goto("/profile/inventory");
+  await page.getByRole("button", { name: "Edit Test chair", exact: true }).click();
+  const chairHeading = page.getByRole("heading", { name: "Test chair", level: 2, exact: true });
+  await expect(chairHeading).toBeFocused();
+  await expect(chairHeading).toBeInViewport();
+  await expect(page.getByLabel("Title", { exact: true })).toBeVisible();
+  await page.getByLabel("Title", { exact: true }).fill("Unfinished chair edit");
+  await page.getByRole("button", { name: "Back to inventory", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Your inventory", level: 1, exact: true })).toBeFocused();
+  await page.getByRole("button", { name: "New item", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Add an item", level: 2, exact: true })).toBeFocused();
+  await page.getByLabel("Title", { exact: true }).fill("Unfinished new item");
+  await page.getByRole("button", { name: "Back to inventory", exact: true }).click();
+  await page.getByRole("button", { name: "Edit Test lamp", exact: true }).click();
+  await page.getByLabel("Title", { exact: true }).fill("Unfinished lamp edit");
+  await page.getByRole("button", { name: "Back to inventory", exact: true }).click();
+  await page.getByRole("button", { name: "Edit Test chair", exact: true }).click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unfinished chair edit");
+  await page.getByRole("button", { name: "Back to inventory", exact: true }).click();
+  await page.getByRole("button", { name: "New item", exact: true }).click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unfinished new item");
+  await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("link", { name: "Preferences", exact: true }).click();
+  await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("link", { name: "Inventory", exact: true }).click();
+  await page.getByRole("button", { name: "New item", exact: true }).click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unfinished new item");
+  expect(state.itemSaves).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("single primary navigation remains usable at 390px without deferred offer controls", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installApi(page);
-  await page.goto("/profile");
+  await page.goto("/profile/inventory");
   const main = page.getByRole("navigation", { name: "Main navigation", exact: true });
-  await expect(main.getByRole("link")).toHaveText(["Home", "Profile", "Trade"]);
-  await expect(main.getByRole("link", { name: "Profile", exact: true })).toHaveAttribute("aria-current", "page");
-  const profile = page.getByRole("navigation", { name: "Profile navigation", exact: true });
-  await expect(profile.getByRole("link")).toHaveText(["Account", "Inventory", "Preferences"]);
+  await expect(main.getByRole("link")).toHaveText(["Home", "Inventory", "Preferences", "Trade"]);
+  await expect(main.getByRole("link", { name: "Inventory", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("navigation", { name: "Profile navigation", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Account", exact: true })).toHaveAttribute("aria-current", "page");
   await main.getByRole("link", { name: "Trade", exact: true }).click();
   await expect(page).toHaveURL(/\/trade$/);
   await expect(page.getByRole("heading", { name: "Trading is coming next" })).toBeVisible();
@@ -340,13 +451,14 @@ test("keyboard sign-in and profile saving work in the mobile layout", async ({ p
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Save profile", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("status")).toContainText("Profile saved.");
+  await expect(page.getByRole("region", { name: "Public details", exact: true }).getByRole("status")).toContainText("Profile saved.");
   expect(state.profileSaves[0]).toMatchObject({ name: "Alice Example Keyboard" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("profile-mobile.png"), fullPage: true });
   for (const section of ["Inventory", "Preferences"]) {
-    await page.getByRole("navigation", { name: "Profile navigation" }).getByRole("link", { name: section, exact: true }).click();
-    await expect(page.getByRole("button", { name: section === "Inventory" ? "Save listing" : "Save preferences", exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: section, exact: true }).click();
+    if (section === "Inventory") await page.getByRole("button", { name: "New item", exact: true }).click();
+    await expect(page.getByRole("button", { name: section === "Inventory" ? "Save draft" : "Save preferences", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
 });

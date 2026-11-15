@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountScreen } from "@/components/profile/account-screen";
 import { PreferencesScreen } from "@/components/profile/preferences-screen";
 import { AuthGate } from "@/components/workspace/auth-gate";
+import { ApiError } from "@/lib/marketplace";
 
 const mocks = vi.hoisted(() => ({
   api: vi.fn(), replace: vi.fn(), pathname: "/profile/preferences", workspace: {} as Record<string, unknown>,
@@ -27,7 +28,7 @@ beforeEach(() => {
   mocks.pathname = "/profile/preferences";
   mocks.workspace = {
     sessionStatus: "authenticated", seeded: false, busy: false,
-    view: { profile: { ...saved } },
+    view: { profile: { ...saved }, integrations: { gemini_configured: true, bedrock_configured: false } },
     profileForm: {
       name: "Unsaved Alice", community: "Unsaved Campus", interests: "Unsaved desk",
       exclusions: "Unsaved broken", gap_limit: 15,
@@ -81,11 +82,14 @@ describe("section-scoped profile saves", () => {
   it("reloads only the chosen section after the member requests renewed review", async () => {
     const { unmount } = render(<AccountScreen />);
     fireEvent.click(screen.getByRole("button", { name: "Reload profile" }));
+    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard edits and reload" }));
     await waitFor(() => expect(mocks.workspace.resetProfileDraft).toHaveBeenCalledWith("account", saved));
     expect(mocks.api).not.toHaveBeenCalled();
     unmount();
     render(<PreferencesScreen />);
     fireEvent.click(screen.getByRole("button", { name: "Reload preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard edits and reload" }));
     await waitFor(() => expect(mocks.workspace.resetProfileDraft).toHaveBeenCalledWith("preferences", saved));
   });
 
@@ -102,30 +106,115 @@ describe("section-scoped profile saves", () => {
     mocks.workspace.natural = "A screen for studying";
     mocks.api.mockResolvedValue({ interests: ["Computer monitor"], summary: "Suggested a study screen." });
     const { rerender } = render(<PreferencesScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Interpret with Gemini" }));
+    fireEvent.click(screen.getByText("Get help choosing interests"));
+    fireEvent.click(screen.getByRole("button", { name: "Suggest interests" }));
     await waitFor(() => expect(mocks.workspace.setInterpreted).toHaveBeenCalledWith(["Computer monitor"]));
     expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
     expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
     expect(mocks.api).toHaveBeenCalledWith("preferences/interpret", "POST", { text: "A screen for studying" });
     mocks.workspace.interpreted = ["Computer monitor"];
     rerender(<PreferencesScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Use these interests in the form" }));
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "Computer monitor", name: "Unsaved Alice", exclusions: "Unsaved broken" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add suggested interests" }));
+    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "Unsaved desk, Computer monitor", name: "Unsaved Alice", exclusions: "Unsaved broken" }));
     expect(mocks.api).toHaveBeenCalledTimes(1);
   });
 
   it("edits interests, exclusions and the bounded percentage independently", () => {
     render(<PreferencesScreen />);
-    fireEvent.change(screen.getByLabelText("Interests (comma-separated)"), { target: { value: "Monitor, Furniture" } });
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "Monitor, Furniture" }));
-    fireEvent.change(screen.getByLabelText("Exclusions (comma-separated)"), { target: { value: "Broken items" } });
-    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ exclusions: "Broken items" }));
-    fireEvent.change(screen.getByLabelText("Maximum recommendation gap (%)"), { target: { value: "30" } });
+    fireEvent.change(screen.getByLabelText("Interests", { exact: true }), { target: { value: "Monitor" } });
+    fireEvent.keyDown(screen.getByLabelText("Interests", { exact: true }), { key: "Enter" });
+    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "Unsaved desk, Monitor" }));
+    fireEvent.change(screen.getByLabelText("Exclusions", { exact: true }), { target: { value: "Broken items" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add exclusion" }));
+    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ exclusions: "Unsaved broken, Broken items" }));
+    fireEvent.change(screen.getByLabelText("Estimated value difference (%)"), { target: { value: "30" } });
     expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ gap_limit: 30 }));
+    fireEvent.click(screen.getByText("Get help choosing interests"));
     fireEvent.change(screen.getByLabelText("Describe what you’re looking for"), { target: { value: "Study supplies" } });
     expect(mocks.workspace.setNatural).toHaveBeenCalledWith("Study supplies");
-    expect(screen.getByLabelText("Maximum recommendation gap (%)")).toHaveAttribute("max", "100");
-    expect(screen.getByLabelText("Maximum recommendation gap (%)")).toHaveAttribute("min", "0");
+    expect(screen.getByLabelText("Estimated value difference (%)")).toHaveAttribute("max", "100");
+    expect(screen.getByLabelText("Estimated value difference (%)")).toHaveAttribute("min", "0");
+  });
+
+  it("keeps pending interest text when saving without a separate Add action", async () => {
+    render(<PreferencesScreen />);
+    fireEvent.change(screen.getByLabelText("Interests", { exact: true }), { target: { value: "Monitor" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledWith("profile", "PATCH", expect.objectContaining({ interests: ["Unsaved desk", "Monitor"] })));
+  });
+
+  it("removes one interest without saving or altering the other preference fields", () => {
+    render(<PreferencesScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Remove interest Unsaved desk" }));
+    expect(mocks.workspace.setProfileForm).toHaveBeenCalledWith(expect.objectContaining({ interests: "", exclusions: "Unsaved broken", gap_limit: 15 }));
+    expect(mocks.api).not.toHaveBeenCalled();
+  });
+
+  it("does not replace a dirty profile when reload is cancelled", () => {
+    render(<AccountScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Reload profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(mocks.workspace.load).not.toHaveBeenCalled();
+    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Display name")).toHaveValue("Unsaved Alice");
+  });
+
+  it("associates backend field errors with the affected profile input", async () => {
+    mocks.api.mockRejectedValue(new ApiError("Review your name.", 422, "VALIDATION_ERROR", [{ field: "body.name", message: "Choose a display name." }]));
+    mocks.workspace.run = vi.fn(async (action: () => Promise<void>) => { try { await action(); } catch { /* provider preserves the error outcome */ } });
+    render(<AccountScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    await waitFor(() => expect(screen.getByLabelText("Display name")).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Display name")).toHaveAccessibleDescription("Choose a display name.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Review the highlighted fields. Your changes are still here.");
+    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
+  });
+
+  it("keeps manual entry usable when AI assistance is unavailable", () => {
+    (mocks.workspace.view as { integrations: { gemini_configured: boolean } }).integrations.gemini_configured = false;
+    mocks.workspace.natural = "Study supplies";
+    render(<PreferencesScreen />);
+    fireEvent.click(screen.getByText("Get help choosing interests"));
+    expect(screen.getByRole("button", { name: "Suggest interests" })).toBeDisabled();
+    expect(screen.getByLabelText("Interests", { exact: true })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save preferences" })).toBeEnabled();
+    expect(mocks.api).not.toHaveBeenCalled();
+  });
+
+  it("rejects a twenty-first interest without dropping the existing list or submitting", () => {
+    (mocks.workspace.profileForm as { interests: string }).interests = Array.from({ length: 20 }, (_, index) => `Interest ${index + 1}`).join(", ");
+    render(<PreferencesScreen />);
+    fireEvent.change(screen.getByLabelText("Interests", { exact: true }), { target: { value: "Another interest" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add interest" }));
+    expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Interests", { exact: true })).toHaveAttribute("aria-invalid", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Your changes are still here");
+    expect(mocks.api).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("button", { name: /Remove interest Interest/ })).toHaveLength(20);
+  });
+
+  it("associates an indexed preference validation error with the interest entry", async () => {
+    mocks.api.mockRejectedValue(new ApiError("Review an interest.", 422, "VALIDATION_ERROR", [{ field: "body.interests.0", message: "Use a shorter interest." }]));
+    mocks.workspace.run = vi.fn(async (action: () => Promise<void>) => { try { await action(); } catch { /* provider preserves the error outcome */ } });
+    render(<PreferencesScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+    await waitFor(() => expect(screen.getByLabelText("Interests", { exact: true })).toHaveAttribute("aria-invalid", "true"));
+    expect(screen.getByLabelText("Interests", { exact: true })).toHaveAccessibleDescription(expect.stringContaining("Use a shorter interest."));
+    expect(mocks.workspace.resetProfileDraft).not.toHaveBeenCalled();
+  });
+
+  it("retains the description and manual interests when AI suggestions fail", async () => {
+    mocks.workspace.natural = "A screen for studying";
+    mocks.api.mockRejectedValue(new Error("Suggestions are temporarily unavailable. Try again."));
+    mocks.workspace.run = vi.fn(async (action: () => Promise<void>) => { try { await action(); } catch { /* provider preserves the error outcome */ } });
+    render(<PreferencesScreen />);
+    fireEvent.click(screen.getByText("Get help choosing interests"));
+    fireEvent.click(screen.getByRole("button", { name: "Suggest interests" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Suggestions are temporarily unavailable"));
+    expect(screen.getByLabelText("Describe what you’re looking for")).toHaveValue("A screen for studying");
+    expect(mocks.workspace.setProfileForm).not.toHaveBeenCalled();
+    expect(mocks.workspace.setInterpreted).not.toHaveBeenCalled();
   });
 });
 

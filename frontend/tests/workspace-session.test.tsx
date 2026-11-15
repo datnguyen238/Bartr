@@ -88,6 +88,9 @@ function Consumer() {
         acknowledged: workspace.ack,
       })}</output>
       <output aria-label="Action error">{workspace.error}</output>
+      <output aria-label="Field errors">{JSON.stringify(workspace.actionError?.fields ?? [])}</output>
+      <output aria-label="Listing status">{workspace.form.status}</output>
+      <output aria-label="Listing dirty">{String(workspace.listingDirty)}</output>
       <output aria-label="Draft revisions">{JSON.stringify(workspace.profileDraftRevision)}</output>
       <label>
         Profile name draft
@@ -109,6 +112,11 @@ function Consumer() {
       <button onClick={() => invoke(workspace.run(async () => {
         await mocks.api("items", "POST", { title: "New draft" });
       }))}>Save authenticated draft</button>
+      <button onClick={() => invoke(workspace.run(async () => {
+        await workspace.saveItem({ status: "available" });
+      }))}>Publish current listing</button>
+      <button onClick={() => workspace.edit(null)}>Open new listing</button>
+      <button onClick={() => workspace.edit(item)}>Return to chair</button>
       <button onClick={() => invoke(workspace.run(async () => {
         const updated = await workspace.guardSession(mocks.api("items/late"));
         workspace.edit(updated as Item);
@@ -185,6 +193,7 @@ describe("Workspace session lifecycle", () => {
     await waitFor(() => expect(value("Session status")).toBe("anonymous"));
     expect(value("Authenticated")).toBe("false");
     expectPrivateStateCleared();
+    expect(value("Action error")).toBe("");
   });
 
   it("keeps a /me 503 unavailable and can retry the existing cookie session", async () => {
@@ -269,6 +278,52 @@ describe("Workspace session lifecycle", () => {
 
     await waitFor(() => expect(value("Session status")).toBe("anonymous"));
     expectPrivateStateCleared();
+    expect(value("Action error")).toBe("Session expired.");
+  });
+
+  it("preserves a rejected sign-in message rather than treating it as ordinary anonymous entry", async () => {
+    mocks.api.mockRejectedValueOnce(new ApiError("Sign in to continue.", 401));
+    renderWorkspace();
+    await waitFor(() => expect(value("Session status")).toBe("anonymous"));
+    mocks.api.mockRejectedValue(new ApiError("Invalid username or password.", 401, "INVALID_LOGIN"));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(value("Action error")).toBe("Invalid username or password."));
+    expect(value("Session status")).toBe("anonymous");
+  });
+
+  it("retains structured field feedback and clears it before another action", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    const fields = [{ field: "title", message: "Add a title before publishing." }];
+    mocks.api.mockRejectedValue(new ApiError("Review this listing.", 422, "INVALID_INPUT", fields));
+    fireEvent.click(screen.getByRole("button", { name: "Save authenticated draft" }));
+    await waitFor(() => expect(JSON.parse(value("Field errors")!)).toEqual(fields));
+    mocks.api.mockResolvedValue({});
+    fireEvent.click(screen.getByRole("button", { name: "Save authenticated draft" }));
+    await waitFor(() => expect(value("Action error")).toBe(""));
+    expect(JSON.parse(value("Field errors")!)).toEqual([]);
+  });
+
+  it("publishes the reviewed draft with an explicit status and keeps its successful saved revision", async () => {
+    mocks.api.mockResolvedValue(savedView());
+    renderWorkspace();
+    await expectAuthenticated();
+    fireEvent.click(screen.getByRole("button", { name: "Prepare private drafts" }));
+    const published = { ...item, title: "Private unsaved title", status: "available" as const, revision: 2 };
+    const updated = savedView();
+    updated.items = [published];
+    mocks.api.mockImplementation((path: string) => Promise.resolve(path === "me" ? updated : published));
+    fireEvent.click(screen.getByRole("button", { name: "Publish current listing" }));
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledWith(`items/${item.id}`, "PATCH", expect.objectContaining({
+      title: "Private unsaved title", status: "available", expected_revision: 1,
+    })));
+    await waitFor(() => expect(value("Listing status")).toBe("available"));
+    expect(value("Listing dirty")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Open new listing" }));
+    fireEvent.click(screen.getByRole("button", { name: "Return to chair" }));
+    expect(value("Listing status")).toBe("available");
+    expect(JSON.parse(value("Private state")!).title).toBe("Private unsaved title");
   });
 
   it("preserves a dirty profile draft while an unrelated refresh updates saved data", async () => {

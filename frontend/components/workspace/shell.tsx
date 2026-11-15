@@ -1,104 +1,49 @@
 "use client";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { useWorkspace } from "./provider";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   const { view, hasSession, seeded, busy, message, error, signOut } = useWorkspace();
   const pathname = usePathname();
   const router = useRouter();
+  const [signOutError, setSignOutError] = useState("");
+  const links = hasSession
+    ? [{ href: "/home", label: "Home", icon: "home" }, { href: "/profile/inventory", label: "Inventory", icon: "inventory" }, { href: "/profile/preferences", label: "Preferences", icon: "preferences" }, { href: "/trade", label: "Trade", icon: "trade" }] as const
+    : [{ href: "/home", label: "Home", icon: "home" }, { href: "/trade", label: "Trade", icon: "trade" }] as const;
+  const localFeedback = pathname === "/home" || pathname.startsWith("/profile");
   return (
-    <div className="min-h-screen">
-      <header className="border-b bg-card/70">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <Link className="text-2xl font-semibold tracking-tight" href="/home">
-            bartr.
-          </Link>
-          {hasSession && (
-            <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
-              <span className="break-words [overflow-wrap:anywhere]">
-                {view.profile.name} · {view.profile.community}
-              </span>
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={async () => {
-                  try { await signOut(); router.replace("/home"); }
-                  catch { /* The provider keeps the session and explains the failure. */ }
-                }}
-              >
-                Sign out
-              </Button>
-            </div>
-          )}
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
-        <div className="py-10">
-          <p className="mb-3 text-sm text-muted-foreground">
-            Less unused. More possibility.
-          </p>
-          <h1 className="text-4xl leading-tight tracking-tight sm:text-5xl">
-            What you have.
-            <br />
-            <span className="font-serif italic">What comes next.</span>
-          </h1>
-          <p className="mt-5 max-w-xl text-sm leading-6 text-muted-foreground">
-            Discover combinations worth trading. Your items, your preferences,
-            your decision.
-          </p>
-        </div>
-        {seeded && <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">Sample data preview — these accounts and items are fictional. Sign-in and saving are disabled.</p>}
-        <div aria-live="polite" role="status">
-          {busy && (
-            <p className="mb-4 text-sm">
-              Working… Your saved data stays in place.
-            </p>
-          )}
-          {message && (
-            <p className="mb-5 rounded-lg bg-secondary p-4 text-sm">
-              {message}
-            </p>
-          )}
-        </div>
-        {error && (
-          <p
-            role="alert"
-            className="mb-5 rounded-lg border border-destructive/40 bg-card p-4 text-sm text-destructive"
-          >
-            {error}
-          </p>
-        )}
-        {hasSession && !seeded && view?.storage === "temporary-memory" && (
-          <p className="mb-5 rounded-lg border bg-secondary p-4 text-sm">
-            This preview uses temporary storage. Accounts and listings
-            disappear when the service restarts.
-          </p>
-        )}
-        <>
-            <nav
-              className="mb-7 flex flex-wrap gap-2 border-b pb-4"
-              aria-label="Main navigation"
-            >
-              {[["/home", "Home"], ["/profile", "Profile"], ["/trade", "Trade"]].map(([href, label]) => {
-                const active = pathname === href || (href === "/profile" && pathname.startsWith("/profile/"));
-                return (
-                <Button
-                  key={href}
-                  variant={active ? "default" : "ghost"}
-                  aria-current={active ? "page" : undefined}
-                  asChild
-                >
-                  <Link href={href}>{label}</Link>
-                </Button>
-                );
-              })}
-            </nav>
+    <div className={`app-shell ${hasSession ? "" : "app-shell-public"}`}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      <aside className="app-rail">
+        <Link className="wordmark" href="/home" aria-label="Bartr home">bartr<span>.</span></Link>
+        <nav className="app-navigation" aria-label="Main navigation">
+          {links.map(({ href, label, icon }) => <Link key={href} href={href} className="app-nav-link" aria-current={pathname === href ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>)}
+        </nav>
+        {hasSession && <div className="rail-note"><Icon name="trade" /><p>Good things deserve<br />another chapter.</p></div>}
+      </aside>
+      <div className="app-body">
+        {hasSession && <header className="app-topbar">
+          <Link className="wordmark mobile-wordmark" href="/home" aria-label="Bartr home">bartr<span>.</span></Link>
+          <p className="workspace-community">{view.profile.community}</p>
+          {view.storage === "temporary-memory" && <details className="preview-details"><summary>Preview</summary><p>Temporary preview: accounts and listings disappear when the service restarts.</p></details>}
+          <div className="account-actions">
+            <Link className="account-link" href="/profile" aria-current={pathname === "/profile" ? "page" : undefined}><span className="account-avatar" aria-hidden="true">{Array.from(view.profile.name.trim())[0]?.toLocaleUpperCase() || "B"}</span><span>Account</span></Link>
+            <Button variant="ghost" disabled={busy} onClick={async () => { setSignOutError(""); try { await signOut(); router.replace("/home"); } catch { setSignOutError("We couldn’t sign you out. Your account is still open; try Sign out again."); } }}>Sign out</Button>
+          </div>
+        </header>}
+        <main id="main-content" className="workspace-content" tabIndex={-1}>
+          {signOutError && hasSession && <p className="inline-feedback is-error mb-6" role="alert">{signOutError}</p>}
+          {seeded && <p className="preview-notice">Sample preview. These items are fictional; sign-in and saving are unavailable.</p>}
+          {!localFeedback && <div className="sr-only" role="status" aria-live="polite">{busy ? "Working…" : message}</div>}
+          {!localFeedback && error && <p className="inline-feedback is-error" role="alert">{error}</p>}
+          {!localFeedback && message && <p className="inline-feedback" role="status">{message}</p>}
           {children}
-        </>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
