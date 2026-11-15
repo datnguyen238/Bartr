@@ -12,7 +12,3 @@ export function CheckIcon(props: SVGProps<SVGSVGElement>) {
 export function SwapIcon(props: SVGProps<SVGSVGElement>) {
   return <Icon {...props}><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" /></Icon>;
 }
-
-export function ArrowLeftIcon(props: SVGProps<SVGSVGElement>) {
-  return <Icon {...props}><path d="M19 12H5M12 19l-7-7 7-7" /></Icon>;
-}
