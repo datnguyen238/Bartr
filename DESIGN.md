@@ -145,4 +145,4 @@ Agreement, item reservations, cancellation and handoff remain server-authoritati
 
 ## Verification
 
-Record checks, environments and outstanding limitations in [verification status](docs/VERIFICATION.md). Visual inspection, automated interaction coverage and provider-backed behavior are separate evidence; this document does not imply that every state has been tested against live services.
+Past checks, environments and outstanding limitations are preserved in [historical verification status](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md). Visual inspection, automated interaction coverage and provider-backed behavior are separate evidence; this document does not imply that every state has been tested against live services.

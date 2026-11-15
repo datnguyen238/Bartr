@@ -115,4 +115,4 @@ AWS tests use a unique scope and clean only its exact keys. They must establish
 actual read/write/transaction behavior before calling this migration complete;
 no production user data is changed. No offline suite proves live durability,
 restore, vector quality or the 1000-listing performance target. Independent
-behavioral review follows docs/ENGINEERING.md.
+behavioral review follows the [repository engineering rules](../../AGENTS.md).

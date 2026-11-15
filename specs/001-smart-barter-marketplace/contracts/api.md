@@ -20,7 +20,7 @@ The planned [OpenAPI](openapi.json) still describes a different analysis request
 
 ## Approved DynamoDB login/photo valuation increment
 
-The owner switched the requested backend persistence to DynamoDB. See [the bounded design and configuration](../../../docs/DYNAMODB-LOGIN-VALUATION.md). Existing account/session and item routes remain; this does not claim conformance with every future route/schema in the planned OpenAPI.
+The owner switched the requested backend persistence to DynamoDB. See [the bounded schema design](../dynamodb-data-model.md) and [the archived configuration guide](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/DYNAMODB-LOGIN-VALUATION.md). Existing account/session and item routes remain; this does not claim conformance with every future route/schema in the planned OpenAPI.
 
 - `BARTR_STORAGE=dynamodb` selects the [schema-v1 entity adapter](../dynamodb-data-model.md) using the AWS credential chain and existing String `PK`/`SK` table. No table is provisioned and no existing application data is migrated automatically. Explicit `json`, `memory` and legacy `mongo` selection remain supported.
 - `GET /me` reports `storage=dynamodb` in this mode; the landing/discovery client accepts all four storage labels. Non-Atlas storage uses exact-text discovery and omits Atlas indexing controls.
@@ -29,13 +29,13 @@ The owner switched the requested backend persistence to DynamoDB. See [the bound
 - If the image model returns both a positive estimate and optional questions, the estimate is retained unless it flags a material conflict. Optional questions do not change owner-provided facts. A missing estimate or flagged material conflict remains unresolved.
 - `PATCH /items/{id}` accepts optional `analysis_id`. New publication and published value changes require the exact current search-backed estimate or image-assisted fallback estimate and set assisted provenance. Unrelated, stale or mismatched analysis is rejected. Fallback estimates have `price_basis: image_assisted_estimate`, no comparable evidence or range, and retain their basis on the item as `value_basis`. Existing items without that optional field remain readable; no migration is required. Publication stays an explicit owner action.
 - `GET /items/{id}` returns a visible listing or 404. Unreviewed analysis is not included for other members. Published value metadata does not grant access to private provider results.
-- Offline fixture results and historical live evidence are scoped in [verification status](../../../docs/VERIFICATION.md). Live AWS/Gemini access and table-schema validation are not repeated as part of the profile merge.
+- Offline fixture results and historical live evidence are scoped in [the archived verification record](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md). Live AWS/Gemini access and table-schema validation are not repeated as part of the profile merge.
 
 # Live trade updates
 
 For FR-015, FR-020 and FR-021, `WS /api/trades/{trade_id}/live` requires an allowed browser Origin and the existing session cookie. Only a trade participant receives the private current trade snapshot. The server rechecks session and participant access, and checks persisted revisions approximately every two seconds; the browser reconnects and replaces only older revisions. Writes remain on the existing authenticated HTTP action endpoint. This bounded polling bridge works across workers sharing the repository; it is not a durable in-memory message queue or a push notification service. Client-sent frames close the read-only connection. Deployment must proxy WebSocket upgrades on the same origin. Disconnects require reconnect; the saved history is the recovery source. Each connection adds repeated repository reads and has not been load tested.
 
-- Evidence for the original backend increment and subsequent landing-page integration is tracked separately in [verification status](../../../docs/VERIFICATION.md). Moto coverage exercises the HTTP/authentication/listing/valuation contract; live AWS and Gemini outcomes require their own evidence.
+- Evidence for the original backend increment and subsequent landing-page integration is tracked separately in [the archived verification record](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md). Moto coverage exercises the HTTP/authentication/listing/valuation contract; live AWS and Gemini outcomes require their own evidence.
 
 # Preferences picker limitation
 

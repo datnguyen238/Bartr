@@ -10,7 +10,7 @@ web
 
 This record captures the existing project documents at the owner's direction. The [constitution](.specify/memory/constitution.md) governs project principles; the [root marketplace specification](specs/001-smart-barter-marketplace/spec.md) defines approved behavior, exchange rules and acceptance targets. Detailed requirements remain in those sources.
 
-Use the [README](README.md), [profile guide](docs/PROFILE.md) and [verification status](docs/VERIFICATION.md) for current implementation and evidence. The earlier [product brief](docs/PRODUCT-BRIEF.md) supplies audience, purpose and existing brand commitments, but its unresolved policies and foundation-only implementation description are superseded. The older `docs/specs/001-bundle-matching` specification is also superseded.
+Use the [README](README.md) for current implementation. The [historical profile guide](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/PROFILE.md) and [historical verification status](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md) preserve earlier implementation notes and evidence. The [historical product brief](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/PRODUCT-BRIEF.md) supplies audience, purpose and existing brand commitments, but its unresolved policies and foundation-only implementation description are superseded. The older bundle-matching specification is also superseded.
 
 ## Users
 
@@ -36,7 +36,7 @@ Semantic similarity assists discovery. Deterministic eligibility rules decide wh
 - Owners review listing information and advisory assistance before publication. A published listing requires a title, description, category, condition and at least one image. Comparison value may remain explicitly unknown.
 - The specified exchange workflow covers recommendation review or manual composition, private notes and counteroffers, mutual agreement, reservation, cancellation and participant-reported handoff.
 - Physical handoff and any return of belongings are the participants' responsibility. Members may voluntarily share coordination details in private trade notes.
-- The current frontend exposes `/home` authentication and protected `/profile`, `/profile/inventory` and `/profile/preferences`. `/trade` is a public placeholder; discovery and offer controls are deferred. Matching and trading endpoints remain implemented in the backend. See the profile guide for current routes and session behavior.
+- The current frontend exposes `/home` authentication and protected `/profile`, `/profile/inventory` and `/profile/preferences`. `/trade` is a public placeholder; discovery and offer controls are deferred. Matching and trading endpoints remain implemented in the backend. See the README for current routes and session behavior.
 - The existing implementation uses Next.js, TypeScript, Tailwind and shadcn/ui with FastAPI. Gemini provides advisory image, valuation and preference assistance; Bedrock generates embeddings; MongoDB Atlas stores marketplace data and semantic search projections. Startup and configuration belong in the README.
 
 ## Capabilities and Constraints
@@ -80,8 +80,8 @@ The owner then specified a unified, social-style personal Profile: item manageme
 
 - The [root specification](specs/001-smart-barter-marketplace/spec.md) includes acceptance scenarios, edge cases and measurable pilot targets. It establishes intended behavior rather than proof that those targets have been met.
 - The supplied example is a chair valued at $40 plus a calculator at $20 exchanged for a monitor at $65. These are example inputs, not observed market prices, and do not establish a fixed $5 tolerance.
-- [Frontend fixtures](frontend/data/seed.ts) are fictional display data. See the [seed-data guide](docs/FRONTEND-SEED-DATA.md); fixtures are not accounts, successful transactions, testimonials or market evidence. The current profile guide takes precedence over older descriptions of available frontend controls.
-- [Verification status](docs/VERIFICATION.md) records offline domain/API/provider fixtures, frontend checks and local browser evidence, with storage and provider modes identified. These are existing reported results; this product record adds no application test results.
+- [Frontend fixtures](frontend/data/seed.ts) are fictional display data. See the [historical seed-data guide](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/FRONTEND-SEED-DATA.md); fixtures are not accounts, successful transactions, testimonials or market evidence. The historical profile guide superseded older descriptions of available frontend controls.
+- [Historical verification status](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md) records offline domain/API/provider fixtures, frontend checks and local browser evidence, with storage and provider modes identified at that revision. These are existing reported results; this product record adds no application test results.
 - Live Gemini, Bedrock and Atlas integrations, actual database restart/contention, labeled semantic quality, the participant pilot, full screen-reader acceptance and load targets remain unverified or not run as documented. Do not turn planned outcomes or fixture results into product claims.
 
 ## Product Principles

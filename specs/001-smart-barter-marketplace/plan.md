@@ -156,7 +156,7 @@ These are dependency boundaries for `$speckit-tasks`, not implementation tasks o
 
 ### Compatibility, rollout and recovery
 
-**Implemented local-testing deviation (2026-11-14)**: At the project owner's request, the implementation also supports an explicit single-process JSON document store for temporary testing. [The decision and DynamoDB boundary](../../docs/JSON-STORAGE.md) record its interface change, atomic-replace behavior, rejected cases, recovery limits, and why its aggregate file is not a DynamoDB import/data model. JSON remains selectable alongside the approved DynamoDB entity adapter described above; selecting one does not migrate records from another.
+**Implemented local-testing deviation (2026-11-14)**: At the project owner's request, the implementation also supports an explicit single-process JSON document store for temporary testing. [The archived decision and DynamoDB boundary](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/JSON-STORAGE.md) record its interface change, atomic-replace behavior, rejected cases, recovery limits, and why its aggregate file is not a DynamoDB import/data model. JSON remains selectable alongside the approved DynamoDB entity adapter described above; selecting one does not migrate records from another.
 
 The current app stores no business records. Bootstrap new versioned collections/indexes/catalogs rather than migrate invented legacy users. Preserve `/api/health` and its response; expose business routes only after schema/index readiness. Keep sample/demo records restricted to nonproduction fixture environments.
 

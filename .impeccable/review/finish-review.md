@@ -8,4 +8,4 @@ The reviewer opened every captured route across desktop, 390px mobile, 320px com
 
 Muted text contrast from source tokens: 5.17:1 on cream, 5.69:1 on light cards, 7.51:1 on dark cards. The review is not a full screen-reader audit, physical-device evaluation, live-provider certification or database durability result. Fixture photo placeholders do not imply that photo support is absent.
 
-Screenshots are review evidence, not shipping raster assets. The design-system documentation handoff is DESIGN.md and .impeccable/design.json. Detailed behavioral checks and their storage/provider boundaries are recorded in docs/VERIFICATION.md.
+Screenshots are review evidence, not shipping raster assets. The design-system documentation handoff is DESIGN.md and .impeccable/design.json. Detailed behavioral checks and their storage/provider boundaries are recorded in [the archived verification record](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md).

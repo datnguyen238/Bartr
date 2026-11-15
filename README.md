@@ -1,8 +1,8 @@
 # Bartr — AI-Powered Smart Bartering Marketplace
 
-The application supports DynamoDB persistence and temporary JSON storage for local testing. Use [the DynamoDB setup and API flow](docs/DYNAMODB-LOGIN-VALUATION.md) for the existing AWS table, or the JSON instructions below for local synthetic data.
+The application supports DynamoDB persistence and temporary JSON storage for local testing. Use [the archived DynamoDB setup and API flow](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/DYNAMODB-LOGIN-VALUATION.md) for the existing AWS table, or the JSON instructions below for local synthetic data.
 
-Bartr discovers item bundles across two inventories, with reviewed item values and voluntary agreement. The canonical requirements are in [`specs/001-smart-barter-marketplace/spec.md`](specs/001-smart-barter-marketplace/spec.md). The earlier `docs/specs/001-bundle-matching` draft is superseded.
+Bartr discovers item bundles across two inventories, with reviewed item values and voluntary agreement. The canonical requirements are in [`specs/001-smart-barter-marketplace/spec.md`](specs/001-smart-barter-marketplace/spec.md).
 
 ## Stack and implemented journeys
 
@@ -20,7 +20,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-For shared accounts, configure the ignored root `.env` for DynamoDB using [the setup guide](docs/DYNAMODB-LOGIN-VALUATION.md). Each teammate needs AWS credentials with access to the same account, region and table. Do not commit or share credentials. Environment variables override the root `.env`. DynamoDB is the default; JSON and memory storage require an additional explicit opt-in for isolated testing.
+For shared accounts, configure the ignored root `.env` for DynamoDB using [the archived setup guide](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/DYNAMODB-LOGIN-VALUATION.md). Each teammate needs AWS credentials with access to the same account, region and table. Do not commit or share credentials. Environment variables override the root `.env`. DynamoDB is the default; JSON and memory storage require an additional explicit opt-in for isolated testing.
 
 **Terminal 1 — backend:**
 
@@ -73,7 +73,7 @@ BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=json BARTR_JSON_PATH=.bartr/bartr.m
 
 Stop the previous API before starting the second command. Existing marked databases are not refreshed or reset by the seeder; each retains its accounts, sessions, listing edits and trades.
 
-For a fully ephemeral run, set `BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=memory`; its data disappears when the backend restarts. See [the JSON storage decision](docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import local accounts or other data.
+For a fully ephemeral run, set `BARTR_ALLOW_LOCAL_STORAGE=true BARTR_STORAGE=memory`; its data disappears when the backend restarts. See [the archived JSON storage decision](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/JSON-STORAGE.md) for failure/recovery limits. Switching to DynamoDB selects separate records; it does not import local accounts or other data.
 
 Create two accounts in separate browser profiles or an incognito window. Each can save a draft, upload a photo, then publish. Set reciprocal interests under Preferences. For the example, Alice offers a $40 chair and $20 calculator, Brian offers a $65 monitor, and both use the default 20% gap. Select **Find bundle matches** under Discover; DynamoDB and JSON automatically use exact-text matching. You should see the 7.7% gap combination when their interests match.
 
@@ -100,9 +100,9 @@ npm run typecheck
 npm run build
 ```
 
-Domain/API/adapter fixtures verify permissions, item publication, all nine bundle shapes, percentage limits, exact revisions, duplicate command handling, overlapping acceptance, cancellations and handoff. See [the implementation plan](specs/001-smart-barter-marketplace/plan.md), [tasks](specs/001-smart-barter-marketplace/tasks.md), and [verification status](docs/VERIFICATION.md).
+Domain/API/adapter fixtures verify permissions, item publication, all nine bundle shapes, percentage limits, exact revisions, duplicate command handling, overlapping acceptance, cancellations and handoff. See [the implementation plan](specs/001-smart-barter-marketplace/plan.md), [tasks](specs/001-smart-barter-marketplace/tasks.md), and [the archived verification record](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/VERIFICATION.md) for historical results.
 
-Engineering changes follow the [AI engineering workflow](docs/ENGINEERING.md), including requirement-linked assignments, independent behavioral review, and evidence labeled by storage and provider mode.
+Engineering changes follow the [archived AI engineering workflow](https://github.com/datnguyen238/Bartr/blob/ba3efe4220286e48ddfec05cbc9fb35da30422b9/docs/ENGINEERING.md), including requirement-linked assignments, independent behavioral review, and evidence labeled by storage and provider mode.
 
 ## Structure and limits
 
@@ -112,7 +112,7 @@ Engineering changes follow the [AI engineering workflow](docs/ENGINEERING.md), i
 - `backend/app/storage/state.py`: atomic MongoDB aggregate plus explicit memory/JSON test storage.
 - `backend/app/storage/dynamodb.py`, `dynamodb_records.py`, `dynamodb_images.py`: DynamoDB entity mapping, conditional transactions and authorized image chunks.
 - `frontend/app/`, `components/ui/`, `lib/`: app views, shadcn components and typed clients.
-- `requirements.txt`: one Python dependency file. `specs/`: canonical Spec Kit artifacts. `docs/`: guides and reference reviews.
+- `requirements.txt`: one Python dependency file. `specs/`: canonical Spec Kit artifacts.
 
 DynamoDB uses separate entity records and conditional transactions behind the existing domain boundary. Its compatibility snapshot scans the table with epoch checks and serializes writes; this is a bounded adapter, with explicit transaction/item limits. MongoDB retains its compare-and-swap aggregate, and JSON uses a process lock and atomic file replacement. There is no automatic migration between these stores. Search has an explicit computation limit; measured optimization and throughput evaluation remain required before scaling.
 
