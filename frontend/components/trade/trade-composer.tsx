@@ -66,7 +66,7 @@ export function TradeComposer({ withUserId, preselectItemId }: { withUserId?: st
           <ArrowLeftIcon className="size-4" /> Back to browsing
         </Link>
         <h1 className="mt-4 text-4xl leading-tight tracking-tight sm:text-5xl">
-          Trade with <span className="font-serif italic">{them.displayName}</span>
+          <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.displayName}</span>
         </h1>
         <p className="mt-2 text-muted-foreground">
           {them.location && <>{them.location} · </>}Pick what you’ll give and what you’d like. Values are estimates from each listing.

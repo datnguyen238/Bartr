@@ -29,7 +29,7 @@ export function TradeList() {
 
   return (
     <TradeShell>
-      <h1 className="text-4xl tracking-tight sm:text-5xl">My <span className="font-serif italic">trades</span></h1>
+      <h1 className="text-4xl tracking-tight sm:text-5xl"><span className="font-semibold">My trades</span></h1>
       <div className="mt-8 grid gap-8 pb-16 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section aria-labelledby="trades-heading">
           <h2 id="trades-heading" className="sr-only">Trades</h2>

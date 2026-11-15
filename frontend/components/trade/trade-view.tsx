@@ -124,7 +124,7 @@ export function TradeView({ tradeId }: { tradeId: string }) {
         </Link>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <h1 className="text-4xl leading-tight tracking-tight sm:text-5xl">
-            Trade with <span className="font-serif italic">{them.displayName}</span>
+            <span className="text-muted-foreground">Trade with</span> <span className="font-semibold">{them.displayName}</span>
           </h1>
           <Badge variant={status.tone === 'action' ? 'default' : status.tone === 'closed' ? 'outline' : 'secondary'} className="text-sm">{status.label}</Badge>
         </div>
