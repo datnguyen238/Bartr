@@ -130,17 +130,27 @@ class DynamoRepository(DynamoImages):
             raise AppError('A persistent record exceeds the safe item size. No changes saved.', 'CAPACITY_LIMIT', 503)
         return {'Put': {'TableName': self.table, 'Item': row, **self._condition(prior)}}
 
-    def _actions(self, epoch, previous, state):
+    def _actions(self, epoch, previous, state, baseline):
         following = records(state)
         actions = []
         for key in sorted(set(previous) | set(following)):
             old = previous.get(key)
             before = {k: v for k, v in old.items() if k != '_version'} if old else None
             after = following.get(key)
+            if before and before['entity_type'] in IMMUTABLE:
+                # Only tolerate serialization drift present before the callback.
+                # Never turn a callback's removed/changed field into a no-op.
+                if after is not None and baseline.get(key) == after:
+                    comparable = after
+                    if before['entity_type'] == 'OFFER':
+                        comparable = {**after, 'terms_hash': before['terms_hash']}
+                    # Assembly can omit historical metadata; retain that raw
+                    # record only when every known field still matches exactly.
+                    if comparable.keys() <= before.keys() and comparable == {k: before[k] for k in comparable}:
+                        continue
+                raise AppError('Recorded offer, consent, history or receipt is immutable.', 'IMMUTABLE_RECORD', 409)
             if before == after:
                 continue
-            if before and before['entity_type'] in IMMUTABLE:
-                raise AppError('Recorded offer, consent, history or receipt is immutable.', 'IMMUTABLE_RECORD', 409)
             if after is None:
                 actions.append({'Delete': {'TableName': self.table, 'Key': self.entity_key(*key), **self._condition(old)}})
             else:
@@ -161,10 +171,11 @@ class DynamoRepository(DynamoImages):
         with self.lock:
             for attempt in range(8):
                 epoch, previous, state = self._snapshot()
+                baseline = records(state)
                 result = operation(state)
                 # State events are append-only side records, not callback-owned arrays.
                 business = {k: v for k, v in previous.items() if not (v['entity_type'] == 'EVENT' and v['action'] == 'state')}
-                actions = self._actions(epoch, business, state)
+                actions = self._actions(epoch, business, state, baseline)
                 if not actions:
                     return deepcopy(result)
                 control = self._put(('CONTROL#BARTR', 'DETAILS'), {'entity_type': 'CONTROL'},

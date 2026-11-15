@@ -2,6 +2,8 @@
 from backend.tests.legacy_fixtures import seed_legacy_available
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from hashlib import sha256
+import json
 from threading import Barrier
 from uuid import uuid4
 
@@ -48,6 +50,118 @@ def setup_market(repo):
 
 def propose(app, actors, ids):
     return app.create_trade(actors[0], actors[1], ids[:2], [ids[2]], False, uuid4().hex)
+
+
+def seed_historical_offer_hash(repo, trade):
+    # Older serialization hashed 0.0 differently from DynamoDB's round-tripped 0.
+    raw = repo.client.get_item(TableName=repo.table,
+        Key=repo.entity_key(f'TRADE#{trade["id"]}', 'OFFER#0001'))['Item']
+    historical = sha256(json.dumps(trade['offers'][0]['terms'], sort_keys=True,
+                                  separators=(',', ':')).encode()).hexdigest()
+    assert raw['terms_hash']['S'] != historical
+    raw['terms_hash'] = {'S': historical}
+    repo.client.put_item(TableName=repo.table, Item=raw)
+    return raw
+
+
+def seed_historical_record(repo, trade, kind):
+    if kind == 'offer_hash':
+        return seed_historical_offer_hash(repo, trade)
+    if kind == 'consent_metadata':
+        key = repo.entity_key(f'TRADE#{trade["id"]}', f'CONSENT#0001#{trade["offers"][0]["sender"]}')
+    else:
+        assert kind == 'login_metadata'
+        username = repo.read()['users'][trade['offers'][0]['sender']]['username']
+        key = repo.entity_key(f'LOGIN#{sha256(username.encode()).hexdigest()}', 'DETAILS')
+    raw = repo.client.get_item(TableName=repo.table, Key=key)['Item']
+    raw['recorded_at'] = {'S': trade['created_at']}
+    repo.client.put_item(TableName=repo.table, Item=raw)
+    return raw
+
+
+@pytest.mark.parametrize('historical_kind', ['offer_hash', 'consent_metadata', 'login_metadata'])
+@pytest.mark.parametrize('change', ['terms', 'delete', 'consent', 'receipt', 'offer_sender', 'offer_created_at', 'receipt_fingerprint'])
+def test_historical_hash_does_not_allow_immutable_changes_or_partial_logout(repo, change, historical_kind):
+    app, actors, ids = setup_market(repo)
+    token, _ = app.login('alice', 'synthetic-password')
+    trade = propose(app, actors, ids)
+    seed_historical_record(repo, trade, historical_kind)
+    before = repo._scan()
+
+    def tamper(state):
+        state['sessions'].clear()
+        offer = state['trades'][trade['id']]['offers'][0]
+        if change == 'terms':
+            offer['terms']['left'][0]['title'] = 'Changed terms'
+        elif change == 'delete':
+            del state['trades'][trade['id']]
+        elif change == 'consent':
+            offer['consents'].clear()
+        elif change == 'receipt':
+            state['commands'].clear()
+        elif change == 'receipt_fingerprint':
+            next(iter(state['commands'].values())).pop('fingerprint')
+        else:
+            offer.pop(change.removeprefix('offer_'))
+
+    with pytest.raises(AppError) as error:
+        repo.mutate(tamper)
+    assert error.value.code == 'IMMUTABLE_RECORD'
+    assert repo._scan() == before
+    assert app.authenticate(token) == actors[0]
+
+
+@pytest.mark.parametrize('incompatibility', ['login_owner', 'offer_totals', 'orphan_consent', 'unknown_event'])
+def test_immutable_compatibility_rejects_conflicting_records_without_partial_writes(repo, monkeypatch, incompatibility):
+    app, actors, ids = setup_market(repo)
+    token, _ = app.login('alice', 'synthetic-password')
+    trade = propose(app, actors, ids)
+    if incompatibility == 'login_owner':
+        key = repo.entity_key(f'LOGIN#{sha256(b"alice").hexdigest()}', 'DETAILS')
+    elif incompatibility == 'offer_totals':
+        key = repo.entity_key(f'TRADE#{trade["id"]}', 'OFFER#0001')
+    elif incompatibility == 'orphan_consent':
+        key = repo.entity_key(f'TRADE#{trade["id"]}', f'CONSENT#0001#{actors[0]}')
+    else:
+        key = repo.entity_key(f'TRADE#{trade["id"]}', f'EVENT#{trade["updated_at"]}#STATE0000000001')
+    raw = repo.client.get_item(TableName=repo.table, Key=key)['Item']
+    if incompatibility == 'login_owner':
+        raw['user_id'] = {'S': actors[1]}
+    elif incompatibility == 'offer_totals':
+        raw['value_totals']['M']['left_total_minor'] = {'N': '9999'}
+    elif incompatibility == 'orphan_consent':
+        raw['SK'] = {'S': f'CONSENT#0099#{actors[0]}'}
+        raw['version'] = {'N': '99'}
+    else:
+        raw['SK'] = {'S': 'EVENT#synthetic#UNKNOWN'}
+        raw['action'] = {'S': 'unrecognized'}
+    repo.client.put_item(TableName=repo.table, Item=raw)
+    before = repo._scan()
+    monkeypatch.setattr(repo.client, 'transact_write_items',
+                        lambda **params: pytest.fail('An incompatible immutable record must reject before submission.'))
+    with pytest.raises(AppError) as error:
+        repo.mutate(lambda state: state['sessions'].clear())
+    assert error.value.code == 'IMMUTABLE_RECORD'
+    assert repo._scan() == before
+    assert app.authenticate(token) == actors[0]
+
+
+def test_deleted_profile_blocks_unrelated_writes_without_changing_remaining_records(repo, monkeypatch):
+    app, actors, ids = setup_market(repo)
+    propose(app, actors, ids)
+    token, _ = app.login('carol', 'synthetic-password')
+    repo.client.delete_item(TableName=repo.table,
+                           Key=repo.entity_key(f'USER#{actors[0]}', 'PROFILE'))
+    before = repo._scan()
+    monkeypatch.setattr(repo.client, 'transact_write_items',
+                        lambda **params: pytest.fail('Missing-account recovery must not be guessed during writes.'))
+    for operation in [lambda: app.logout(token),
+                      lambda: app.update_profile(actors[2], 1, {'name': 'Updated name'})]:
+        with pytest.raises(AppError) as error:
+            operation()
+        assert error.value.code == 'IMMUTABLE_RECORD'
+        assert repo._scan() == before
+        assert app.authenticate(token) == actors[2]
 
 
 def test_normalized_restart_multiple_products_queries_and_session(repo):

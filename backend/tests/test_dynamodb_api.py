@@ -10,6 +10,7 @@ import pytest
 
 from backend.app.main import create_app
 from backend.app.storage.dynamodb import DynamoRepository
+from backend.tests.test_dynamodb import setup_market, propose, seed_historical_record
 
 
 @pytest.fixture
@@ -55,6 +56,88 @@ async def register(client, username, community='Test campus'):
     assert response.status_code == 200
     assert 'password_hash' not in response.json()
     return response.json()
+
+
+@pytest.mark.parametrize('historical_kind', ['offer_hash', 'consent_metadata', 'login_metadata'])
+def test_logout_with_historical_offer_revokes_only_current_session(repository, historical_kind):
+    service, actors, ids = setup_market(repository)
+    app = create_app(repository)
+
+    async def check():
+        async with api_client(app) as owner, api_client(app) as other_session:
+            credentials = {'username': 'alice', 'password': 'synthetic-password'}
+            assert (await owner.post('/api/auth/login', json=credentials)).status_code == 200
+            assert (await other_session.post('/api/auth/login', json=credentials)).status_code == 200
+            old_token = owner.cookies.get('bartr_session')
+            trade = propose(service, actors, ids)
+            original_record = seed_historical_record(repository, trade, historical_kind)
+            before = repository._scan()
+
+            response = await owner.post('/api/auth/logout', json={})
+            assert response.status_code == 200, response.text
+            assert response.json() == {'signed_out': True}
+            assert 'max-age=0' in response.headers['set-cookie'].lower()
+            assert owner.cookies.get('bartr_session') is None
+            assert (await owner.get('/api/me')).status_code == 401
+            async with api_client(app, cookies={'bartr_session': old_token}) as replay:
+                assert (await replay.get('/api/me')).status_code == 401
+            assert (await other_session.get('/api/me')).status_code == 200
+
+            after = repository._scan()
+            # Only one session and the serialization epoch changed.
+            assert len(before) == len(after) + 1
+            for key, row in before.items():
+                if row['entity_type'] != 'SESSION':
+                    assert after[key] == row
+            stored = repository.client.get_item(TableName=repository.table,
+                Key={key: original_record[key] for key in ('PK', 'SK')})['Item']
+            assert stored == original_record
+
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize('historical_kind', ['offer_hash', 'consent_metadata', 'login_metadata'])
+def test_historical_offer_does_not_block_account_listing_profile_or_trade_writes(repository, historical_kind):
+    service, actors, ids = setup_market(repository)
+    trade = propose(service, actors, ids)
+    original_record = seed_historical_record(repository, trade, historical_kind)
+    app = create_app(repository)
+
+    async def check():
+        async with api_client(app) as alice, api_client(app) as brian, api_client(app) as newcomer:
+            for client, username in [(alice, 'alice'), (brian, 'brian')]:
+                response = await client.post('/api/auth/login', json={
+                    'username': username, 'password': 'synthetic-password',
+                })
+                assert response.status_code == 200, response.text
+            await register(newcomer, 'new-member')
+            profile = (await alice.get('/api/me')).json()['profile']
+            response = await alice.patch('/api/profile', json={
+                'expected_revision': profile['revision'], 'name': 'Updated name',
+                'community': profile['community'], 'interests': [],
+                'exclusions': [], 'gap_limit': 20,
+            })
+            assert response.status_code == 200, response.text
+            response = await alice.post('/api/items', json={'title': 'New private draft'})
+            assert response.status_code == 200, response.text
+            path = f'/api/trades/{trade["id"]}/actions'
+            response = await alice.post(path, json={
+                'expected_revision': 1, 'kind': 'note',
+                'command_id': 'historical-note', 'note': 'Synthetic coordination',
+            })
+            assert response.status_code == 200, response.text
+            response = await brian.post(path, json={
+                'expected_revision': 2, 'kind': 'accept', 'command_id': 'historical-accept',
+            })
+            assert response.status_code == 200, response.text
+            assert response.json()['status'] == 'agreed'
+            assert all(repository.read()['items'][item_id]['status'] == 'reserved' for item_id in ids[:3])
+            assert (await alice.post('/api/auth/logout', json={})).status_code == 200
+            stored = repository.client.get_item(TableName=repository.table,
+                Key={key: original_record[key] for key in ('PK', 'SK')})['Item']
+            assert stored == original_record
+
+    asyncio.run(check())
 
 
 async def upload_draft(client, title, category, value):
